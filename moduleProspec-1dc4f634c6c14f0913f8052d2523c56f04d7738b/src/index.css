@@ -1,0 +1,193 @@
+/* src/index.css */
+/* 
+  1. NOUVELLES VARIABLES DE COULEUR "WINVEST CAPITAL"
+*/
+:root {
+  /* Fonds et Cartes */
+  --background: 255 100% 100%; /* #FFFFFF */
+  --foreground: 240 10% 3.9%;   /* #0A0A0A (Presque noir pour le texte) */
+  --card: 255 100% 100%;
+  --card-foreground: 240 10% 3.9%;
+
+  /* Couleurs primaires (Winvest Blue) */
+  --primary: 216 70% 61%;         /* #4d86df (Bleu moyen) */
+  --primary-foreground: 255 100% 100%; /* #FFFFFF (Texte sur les boutons primaires) */
+  
+  /* Couleurs secondaires */
+  --secondary: 218 81% 83%;      /* #A5BDF1 (Bleu clair pastel) */
+  --secondary-foreground: 221 100% 31%; /* #002D9F (Texte contrasté sur le secondaire) */
+
+  /* Couleurs d'accentuation (pour les hovers, fonds subtils) */
+  --accent: 0 0% 95%;           /* #F2F2F2 (Un gris très clair) */
+  --accent-foreground: 240 10% 3.9%;
+  
+  /* Bordures et Inputs */
+  --border: 0 0% 85.1%;          /* #d9d9d9 */
+  --input: 0 0% 85.1%;
+
+  /* Ring (focus) */
+  --ring: 216 70% 61%;           /* #4d86df */
+
+  /* NOUVELLES VARIABLES POUR LES ACCENTS ET DÉGRADÉS */
+  --winvest-accent-purple: 259 92% 67%; /* Un violet pour les accents forts */
+  --winvest-accent-cyan: 190 85% 60%;  /* Un cyan pour les dégradés */  /* Autres */
+
+  
+  --popover: 255 100% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --muted: 0 0% 95%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+
+  /* On définit les couleurs spécifiques mentionnées */
+  --winvest-blue-clair: 218 81% 83%;    /* #A5BDF1 */
+  --winvest-blue-moyen: 216 70% 61%;    /* #4d86df */
+  --winvest-blue-nuit: 221 100% 31%;     /* #002D9F */
+  --winvest-blue-profond: 201 77% 35%; /* #14659e */
+  --winvest-grey: 0 0% 85.1%;          /* #d9d9d9 */
+  --radius: 0.5rem;
+}
+
+/* On force le même thème en mode sombre pour la cohérence */
+.dark {
+  --background: 255 100% 100%;
+  --foreground: 240 10% 3.9%;
+  --card: 255 100% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --primary: 216 70% 61%;
+  --primary-foreground: 255 100% 100%;
+  --secondary: 218 81% 83%;
+  --secondary-foreground: 221 100% 31%;
+  --accent: 0 0% 95%;
+  --accent-foreground: 240 10% 3.9%;
+  --border: 0 0% 85.1%;
+  --input: 0 0% 85.1%;
+  --ring: 216 70% 61%;
+  --popover: 255 100% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --muted: 0 0% 95%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+}
+
+@import "tailwindcss";
+
+/* ... autres styles ... */
+
+/* 
+  =======================================================================
+  PATCH DE DERNIER RECOURS POUR LES ÉLÉMENTS FLOTTANTS
+  =======================================================================
+*/
+
+/* --- Patch pour le Dropdown Menu --- */
+[data-radix-popper-content-wrapper] {
+  z-index: 100 !important; /* S'assure qu'il est au-dessus de tout */
+  background-color: white !important;
+  border: 1px solid #EFEDED !important;
+  border-radius: 0.5rem !important;
+}
+[data-radix-popper-content-wrapper] [role="menuitem"]:focus {
+  background-color: #f4f4f5 !important;
+}
+/* etc. pour les autres styles du dropdown... */
+
+
+/* --- Patch pour le Dialog (Modale / Popup) --- */
+
+/* 1. Le voile d'arrière-plan */
+[data-radix-dialog-overlay] {
+  background-color: hsl(0 0% 0% / 0.8) !important;
+  z-index: 99 !important; /* Un z-index élevé */
+}
+
+/* 2. Le contenu de la modale */
+[data-radix-dialog-content-wrapper] {
+  z-index: 100 !important; /* z-index PLUS ÉLEVÉ que l'overlay */
+  background-color: white !important;
+  border-radius: 0.5rem !important;
+}
+
+/* 3. On s'assure que le texte est lisible (au cas où il hériterait d'une couleur blanche) */
+[data-radix-dialog-content-wrapper] *,
+[data-radix-dialog-content-wrapper] {
+  color: #09090B !important;
+}
+
+/* --- Dialog (Modale / Popup) --- */
+[data-slot="dialog-overlay"] {
+  z-index: 1998 !important; /* Overlay juste en dessous du contenu */
+}
+[data-slot="dialog-content"] {
+  z-index: 1999 !important; /* Contenu de la modale au-dessus de son overlay */
+}
+
+/* --- Créateur de Zone (qui est en plein écran) --- */
+[data-slot="zone-creator"] {
+  z-index: 1500 !important;
+}
+
+
+/* ... (tout votre CSS existant) ... */
+
+/* ======================================================= */
+/*   Amélioration du style pour Leaflet GeoSearch          */
+/* ======================================================= */
+
+/* Conteneur principal de la barre de recherche */
+.geosearch.bar .search-form {
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem; /* Corresponds à rounded-md */
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  transition: all 150ms ease-in-out;
+}
+
+.geosearch.bar .search-form:hover {
+  border-color: hsl(var(--ring));
+}
+
+/* Le champ de saisie */
+.geosearch.bar .search-input {
+  background-color: transparent;
+  border: none;
+  color: hsl(var(--foreground));
+  outline: none;
+}
+
+/* Le bouton de recherche (icône loupe) */
+.geosearch.bar .search-btn {
+  border: none;
+  border-radius: 0.375rem; /* rounded-md */
+  color: hsl(var(--muted-foreground));
+}
+.geosearch.bar .search-btn:hover {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+}
+
+/* Conteneur des résultats */
+.geosearch .results {
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Un résultat individuel */
+.geosearch .results > * {
+  border-bottom: 1px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.geosearch .results > *:last-child {
+  border-bottom: none;
+}
+.geosearch .results > *.active,
+.geosearch .results > *:hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}

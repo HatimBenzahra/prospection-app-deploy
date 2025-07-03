@@ -1,0 +1,239 @@
+// frontend-shadcn/src/pages/admin/zones/ZonesPage.tsx
+
+import { useState, useEffect, useMemo } from 'react';
+import { ZoneMap } from './ZoneMap';
+import { Button } from '@/components/ui-admin/button';
+import { DataTable } from '@/components/data-table/DataTable';
+import { createZoneColumns, type Zone as ZoneTableType } from './columns';
+import { Modal } from '@/components/ui-admin/Modal';
+import { ZoneCreatorModal } from './ZoneCreatorModal';
+import type { RowSelectionState } from '@tanstack/react-table';
+import { zoneService, type ZoneFromAPI } from '@/services/zone.service';
+import { managerService } from '@/services/manager.service';
+import { equipeService } from '@/services/equipe.service';
+import { commercialService } from '@/services/commercial.service';
+import { AssignmentType } from '@/types/enums';
+import L from 'leaflet';
+import { ViewToggleContainer } from '@/components/ui-admin/ViewToggleContainer';
+
+interface Assignee {
+  id: string;
+  nom: string;
+}
+
+const ZonesPage = () => {
+  const [view, setView] = useState<'table' | 'map'>('table');
+  const [existingZones, setExistingZones] = useState<ZoneTableType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [assignmentLists, setAssignmentLists] = useState<{
+    equipes: Assignee[];
+    managers: Assignee[];
+    commerciaux: Assignee[];
+  }>({ equipes: [], managers: [], commerciaux: [] });
+  const [isCreatorOpen, setIsCreatorOpen] = useState(false);
+  const [editingZone, setEditingZone] = useState<ZoneTableType | null>(null);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [itemsToDelete, setItemsToDelete] = useState<ZoneTableType[]>([]);
+  const [zoneToFocusId, setZoneToFocusId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [zones, equipes, managers, commerciaux] = await Promise.all([
+        zoneService.getZones(),
+        equipeService.getEquipes(),
+        managerService.getManagers(),
+        commercialService.getCommerciaux(),
+      ]);
+
+      const equipesMap = new Map(equipes.map(e => [e.id, e.nom]));
+      const managersMap = new Map(managers.map(m => [m.id, `${m.prenom} ${m.nom}`]));
+      const commerciauxMap = new Map(commerciaux.map(c => [c.id, `${c.prenom} ${c.nom}`]));
+
+      const getAssigneeName = (zone: ZoneFromAPI) => {
+        if (zone.typeAssignation === 'EQUIPE' && zone.equipeId) return equipesMap.get(zone.equipeId) || 'N/A';
+        if (zone.typeAssignation === 'MANAGER' && zone.managerId) return managersMap.get(zone.managerId) || 'N/A';
+        if (zone.typeAssignation === 'COMMERCIAL' && zone.commercialId) return commerciauxMap.get(zone.commercialId) || 'N/A';
+        return 'Non assignée';
+      };
+
+      const formattedZones: ZoneTableType[] = zones.map(z => ({
+        id: z.id,
+        name: z.nom,
+        assignedTo: getAssigneeName(z),
+        color: z.couleur || 'gray',
+        latlng: [z.latitude, z.longitude],
+        radius: z.rayonMetres,
+        dateCreation: z.createdAt,
+      }));
+
+      setExistingZones(formattedZones);
+      setAssignmentLists({
+        equipes: equipes.map(e => ({ id: e.id, nom: e.nom })),
+        managers: managers.map(m => ({ id: m.id, nom: `${m.prenom} ${m.nom}` })),
+        commerciaux: commerciaux.map(c => ({ id: c.id, nom: `${c.prenom} ${c.nom}` })),
+      });
+    } catch (error) {
+      console.error('Erreur de chargement des données:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditClick = (zone: ZoneTableType) => {
+    setEditingZone(zone);
+    setIsCreatorOpen(true);
+  };
+
+  const handleCloseCreator = () => {
+    setIsCreatorOpen(false);
+    setEditingZone(null);
+  };
+
+  const handleZoneValidated = async (data: {
+    id?: string;
+    center: L.LatLng;
+    radius: number;
+    name: string;
+    typeAssignation: AssignmentType;
+    assigneeId: string;
+    color: string;
+  }) => {
+    const payload: any = {
+      nom: data.name,
+      latitude: data.center.lat,
+      longitude: data.center.lng,
+      rayonMetres: data.radius,
+      couleur: data.color,
+      typeAssignation: data.typeAssignation,
+    };
+
+    // Correction: Assigner le bon ID en fonction du type
+    if (data.assigneeId) {
+      if (data.typeAssignation === AssignmentType.EQUIPE) {
+        payload.equipeId = data.assigneeId;
+      } else if (data.typeAssignation === AssignmentType.MANAGER) {
+        payload.managerId = data.assigneeId;
+      } else if (data.typeAssignation === AssignmentType.COMMERCIAL) {
+        payload.commercialId = data.assigneeId;
+      }
+    }
+
+    try {
+      if (data.id) {
+        await zoneService.updateZone(data.id, payload);
+      } else {
+        await zoneService.createZone(payload);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de la zone:', error);
+    }
+
+    handleCloseCreator();
+    fetchData();
+  };
+
+  const handleConfirmDelete = (selectedRows: ZoneTableType[]) => setItemsToDelete(selectedRows);
+  const handleDelete = async () => {
+    try {
+      await Promise.all(itemsToDelete.map(z => zoneService.deleteZone(z.id)));
+      setItemsToDelete([]);
+      setIsDeleteMode(false);
+      setRowSelection({});
+      fetchData();
+    } catch (error) {
+      console.error('Erreur de suppression:', error);
+    }
+  };
+
+  const handleRowClick = (zone: ZoneTableType) => {
+    setZoneToFocusId(zone.id);
+    setView('map');
+  };
+  const handleClearFocus = () => setZoneToFocusId(null);
+  const toggleDeleteMode = () => {
+    setIsDeleteMode(prev => !prev);
+    setRowSelection({});
+  };
+  const zoneColumns = useMemo(() => createZoneColumns(isDeleteMode, handleEditClick), [isDeleteMode]);
+
+  if (loading) return <div>Chargement...</div>;
+
+  const tableComponent = (
+    <DataTable
+        noCardWrapper
+        columns={zoneColumns}
+        data={existingZones}
+        title=""
+        filterColumnId="name"
+        filterPlaceholder="Rechercher une zone par son nom..."
+        addEntityButtonText="Ajouter une Zone"
+        onAddEntity={() => {
+          setEditingZone(null);
+          setIsCreatorOpen(true);
+        }}
+        isDeleteMode={isDeleteMode}
+        onToggleDeleteMode={toggleDeleteMode}
+        rowSelection={rowSelection}
+        setRowSelection={setRowSelection}
+        onConfirmDelete={handleConfirmDelete}
+        onRowClick={handleRowClick}
+      />
+  );
+  
+  const mapComponent = (
+     <ZoneMap
+        existingZones={existingZones}
+        onAddZoneClick={() => {
+          setEditingZone(null);
+          setIsCreatorOpen(true);
+        }}
+        zoneToFocus={zoneToFocusId}
+        onFocusClear={handleClearFocus}
+      />
+  );
+
+  return (
+    <div className="h-full flex flex-col gap-6">
+      {isCreatorOpen && (
+        <ZoneCreatorModal
+          onValidateAndAssign={handleZoneValidated}
+          onClose={handleCloseCreator}
+          assignmentLists={assignmentLists}
+          existingZones={existingZones}
+          zoneToEdit={editingZone}
+        />
+      )}
+      <Modal isOpen={itemsToDelete.length > 0} onClose={() => setItemsToDelete([])}>
+        <h2 className="text-lg font-semibold">Confirmer la suppression</h2>
+        <p className="text-sm text-muted-foreground mt-2">
+          Êtes-vous sûr de vouloir supprimer les {itemsToDelete.length} zone(s) sélectionnée(s)
+          ?
+        </p>
+        <ul className="my-4 list-disc list-inside max-h-40 overflow-y-auto bg-slate-50 p-3 rounded-md">
+          {itemsToDelete.map(item => (<li key={item.id}>{item.name}</li>))}
+        </ul>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={() => setItemsToDelete([])}>Annuler</Button>
+          <Button variant="destructive" onClick={handleDelete}>Valider la suppression</Button>
+        </div>
+      </Modal>
+
+      <ViewToggleContainer
+        title="Gestion des Zones"
+        description="Basculez entre la vue tableau et la vue carte interactive pour créer, modifier et visualiser les zones."
+        view={view}
+        onViewChange={setView}
+        tableComponent={tableComponent}
+        mapComponent={mapComponent}
+      />
+    </div>
+  );
+};
+
+export default ZonesPage;

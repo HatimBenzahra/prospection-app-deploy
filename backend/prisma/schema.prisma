@@ -1,0 +1,135 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Manager {
+  id        String   @id @default(uuid())
+  nom       String
+  prenom    String
+  email     String   @unique
+  telephone String?
+  equipes   Equipe[]
+  zones     Zone[]   @relation("ManagerZones")
+}
+
+model Equipe {
+  id          String      @id @default(uuid())
+  nom         String
+  managerId   String
+  manager     Manager     @relation(fields: [managerId], references: [id])
+  commerciaux Commercial[]
+  zones       Zone[]      @relation("EquipeZones")
+
+  @@unique([nom, managerId])
+}
+
+model Commercial {
+  id        String   @id @default(uuid())
+  nom       String
+  prenom    String
+  email     String   @unique
+  telephone String?
+  equipeId  String
+  equipe    Equipe   @relation(fields: [equipeId], references: [id])
+  managerId String // Redundant if derived from equipe.managerId, but kept for direct association as per frontend
+  zones     Zone[]   @relation("CommercialZones")
+  immeubles Immeuble[] @relation("ImmeubleProspectors")
+}
+
+model Zone {
+  id             String         @id @default(uuid())
+  nom            String
+  latitude       Float
+  longitude      Float
+  rayonMetres    Float
+  couleur        String
+  createdAt      DateTime       @default(now())
+  immeubles      Immeuble[]
+  typeAssignation AssignmentType
+  
+  // Polymorphic association for assignee
+  equipeId       String?
+  equipe         Equipe?        @relation("EquipeZones", fields: [equipeId], references: [id])
+  managerId      String?
+  manager        Manager?       @relation("ManagerZones", fields: [managerId], references: [id])
+  commercialId   String?
+  commercial     Commercial?    @relation("CommercialZones", fields: [commercialId], references: [id])
+
+  @@unique([nom, typeAssignation])
+}
+
+model Immeuble {
+  id                 String           @id @default(uuid())
+  adresse            String
+  ville              String
+  codePostal         String
+  status             ImmeubleStatus   @default(A_VISITER)
+  nbPortesTotal      Int
+  prospectingMode    ProspectingMode
+  dateDerniereVisite DateTime?
+  zoneId             String
+  zone               Zone             @relation(fields: [zoneId], references: [id])
+  latitude           Float
+  longitude          Float
+  hasElevator        Boolean
+  digicode           String?
+  portes             Porte[]
+  prospectors        Commercial[]     @relation("ImmeubleProspectors")
+}
+
+model Porte {
+  id          String      @id @default(uuid())
+  numeroPorte String
+  statut      PorteStatut @default(NON_VISITE)
+  passage     Int
+  commentaire String?
+  immeubleId  String
+  immeuble    Immeuble    @relation(fields: [immeubleId], references: [id])
+}
+
+enum ImmeubleStatus {
+  A_VISITER
+  VISITE
+  RDV_PRIS
+  INACCESSIBLE
+}
+
+enum ProspectingMode {
+  SOLO
+  DUO
+}
+
+enum PorteStatut {
+  NON_VISITE
+  VISITE
+  ABSENT
+  REFUS
+  CURIEUX
+  CONTRAT_SIGNE
+}
+
+enum PeriodType {
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum StatEntityType {
+  COMMERCIAL
+  EQUIPE
+  MANAGER
+}
+
+enum AssignmentType {
+  EQUIPE
+  MANAGER
+  COMMERCIAL
+}

@@ -1,0 +1,4225 @@
+
+
+# --- pages/admin/statitistiques/StatistiquesPage.tsx ---
+// frontend-shadcn/src/pages/admin/statitistiques/StatistiquesPage.tsx
+
+import { useState, useEffect, useMemo } from 'react';
+import { LeaderboardTable } from './LeaderboardTable';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import StatCard from '../../../components/ui/StatCard';
+import { GenericLineChart } from '@/components/charts/GenericLineChart';
+import { GenericPieChart } from '@/components/charts/GenericPieChart';
+import { Button } from '@/components/ui/button';
+import { statisticsService, type PeriodType, type StatEntityType } from '@/services/statistics.service';
+import { managerService } from '@/services/manager.service';
+import { equipeService } from '@/services/equipe.service';
+import { commercialService } from '@/services/commercial.service';
+import { BarChart3, Users, Flag, User, CheckCircle, Briefcase, Target, Repeat } from 'lucide-react';
+import { GenericStackedBarChart } from '@/components/charts/GenericStackedBarChart';
+
+interface Assignee { id: string; nom: string; }
+
+const filterTypes = [
+    { value: 'global', label: 'Global', icon: BarChart3, entityType: 'COMMERCIAL' as StatEntityType },
+    { value: 'equipe', label: 'Par Équipe', icon: Flag, entityType: 'EQUIPE' as StatEntityType }, 
+    { value: 'manager', label: 'Par Manager', icon: Users, entityType: 'MANAGER' as StatEntityType }, 
+    { value: 'commercial', label: 'Par Commercial', icon: User, entityType: 'COMMERCIAL' as StatEntityType }
+];
+
+const StatsSkeleton = () => (
+    <div className="space-y-6 mt-4 animate-pulse">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"><Skeleton className="h-28 rounded-lg" /><Skeleton className="h-28 rounded-lg" /><Skeleton className="h-28 rounded-lg" /><Skeleton className="h-28 rounded-lg" /></div>
+        <div className="grid gap-4 lg:grid-cols-3"><Skeleton className="h-96 rounded-lg lg:col-span-2" /><Skeleton className="h-96 rounded-lg" /></div>
+        <div className="grid gap-4 lg:grid-cols-3"><Skeleton className="h-96 rounded-lg" /><Skeleton className="h-96 rounded-lg lg:col-span-2" /></div>
+    </div>
+);
+
+const defaultStatsData = {
+    kpis: {
+        contratsSignes: { value: 0, change: 0 }, rdvPris: { value: 0, change: 0 },
+        tauxConclusion: { value: 0, change: 0 }, tauxRepassage: { value: 0, change: 0 },
+    },
+    leaderboard: [], history: [], performanceParRegion: [], performanceData: []
+};
+
+const StatistiquesPage = () => {
+    const [mainFilter, setMainFilter] = useState('global');
+    const [subFilterId, setSubFilterId] = useState<string | null>(null);
+    const [period, setPeriod] = useState<PeriodType>('WEEKLY');
+    const [lists, setLists] = useState<{ equipes: Assignee[], managers: Assignee[], commerciaux: Assignee[] }>({ equipes: [], managers: [], commerciaux: [] });
+    const [stats, setStats] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [activePreset, setActivePreset] = useState('week');
+
+    useEffect(() => {
+        const fetchLists = async () => {
+            try {
+                const [equipes, managers, commerciaux] = await Promise.all([
+                    equipeService.getEquipes(), managerService.getManagers(), commercialService.getCommerciaux(),
+                ]);
+                setLists({
+                    equipes: equipes.map(e => ({ id: e.id, nom: e.nom })),
+                    managers: managers.map(m => ({ id: m.id, nom: `${m.prenom} ${m.nom}` })),
+                    commerciaux: commerciaux.map(c => ({ id: c.id, nom: `${c.prenom} ${c.nom}` })),
+                });
+            } catch (error) { console.error("Erreur chargement listes:", error); }
+        };
+        fetchLists();
+    }, []);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            setLoading(true);
+            try {
+                const currentFilterType = filterTypes.find(f => f.value === mainFilter);
+                let entityTypeForQuery: StatEntityType | undefined = currentFilterType?.entityType;
+                
+                if (mainFilter !== 'global' && !subFilterId) {
+                  entityTypeForQuery = currentFilterType?.entityType;
+                } else if (subFilterId) {
+                  entityTypeForQuery = currentFilterType?.entityType;
+                } else {
+                  entityTypeForQuery = 'COMMERCIAL';
+                }
+
+                const query = {
+                    period,
+                    entityType: entityTypeForQuery,
+                    entityId: subFilterId || undefined,
+                };
+                
+                const dataFromApi = await statisticsService.getStatistics(query);
+                setStats(dataFromApi || defaultStatsData);
+
+            } catch (error) {
+                console.error("Erreur récupération statistiques:", error);
+                setStats(defaultStatsData);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchStats();
+    }, [mainFilter, subFilterId, period]);
+    
+    const handleMainFilterChange = (value: string) => { setMainFilter(value); setSubFilterId(null); };
+    const handlePresetClick = (preset: string) => { setActivePreset(preset); let p: PeriodType = 'WEEKLY'; if(preset==='month')p='MONTHLY';if(preset==='year')p='YEARLY'; setPeriod(p); };
+
+    const dynamicTitles = useMemo(() => {
+        const subFilterItem = subFilterId ? (lists[mainFilter === 'commercial' ? 'commerciaux' : (`${mainFilter}s` as keyof typeof lists)] || []).find((i: any) => i.id === subFilterId) : null;
+        const subjectLabel = subFilterItem ? subFilterItem.nom : filterTypes.find(f => f.value === mainFilter)?.label;
+        const periodLabel = activePreset === 'week' ? 'cette semaine' : activePreset === 'month' ? 'ce mois-ci' : 'cette année';
+        return {
+            pageSubtitle: `Affichage des données pour : ${subjectLabel} (${periodLabel})`,
+            leaderboard: mainFilter === 'global' ? 'Top Commerciaux' : `Classement - ${subjectLabel || ''}`,
+            leaderboardUnit: 'Contrats'
+        }
+    }, [mainFilter, subFilterId, activePreset, lists]);
+    
+    // --- CORRECTION DE CETTE LOGIQUE ---
+    const subFilterList = useMemo(() => {
+        if (mainFilter === 'global') return [];
+        
+        if (mainFilter === 'commercial') {
+            return lists.commerciaux;
+        }
+        
+        const listKey = `${mainFilter}s` as keyof typeof lists; // 'equipe' -> 'equipes', 'manager' -> 'managers'
+        return lists[listKey] || [];
+
+    }, [mainFilter, lists]);
+
+    if (loading || !stats) return <StatsSkeleton />;
+    
+    return (
+        <div className="space-y-4">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-3xl font-bold">Centre de Statistiques</CardTitle>
+                    <CardDescription>{dynamicTitles.pageSubtitle}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-wrap items-center gap-4 justify-between">
+                     <div className="flex flex-wrap items-center gap-4">
+                        <Select value={mainFilter} onValueChange={handleMainFilterChange}>
+                            <SelectTrigger className="w-auto md:w-[200px] text-base h-11"><SelectValue /></SelectTrigger>
+                            <SelectContent>{filterTypes.map(f => ( <SelectItem key={f.value} value={f.value}><div className="flex items-center gap-2"><f.icon className="h-4 w-4" /><span>{f.label}</span></div></SelectItem> ))}</SelectContent>
+                        </Select>
+                        {mainFilter !== 'global' && (
+                            <Select value={subFilterId || "all"} onValueChange={(val) => setSubFilterId(val === "all" ? null : val)}>
+                                <SelectTrigger className="w-auto md:w-[240px] text-base h-11"><SelectValue placeholder={`Sélectionner...`} /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Tous</SelectItem>
+                                    {subFilterList.map((item) => ( <SelectItem key={item.id} value={item.id}>{item.nom}</SelectItem> ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-1 rounded-lg border p-1 bg-muted/50">
+                        <Button variant={activePreset === 'week' ? 'default' : 'ghost'} className={activePreset === 'week' ? 'bg-black text-white hover:bg-black/90' : ''} onClick={() => handlePresetClick('week')}>Cette semaine</Button>
+                        <Button variant={activePreset === 'month' ? 'default' : 'ghost'} className={activePreset === 'month' ? 'bg-black text-white hover:bg-black/90' : ''} onClick={() => handlePresetClick('month')}>Ce mois</Button>
+                        <Button variant={activePreset === 'year' ? 'default' : 'ghost'} className={activePreset === 'year' ? 'bg-black text-white hover:bg-black/90' : ''} onClick={() => handlePresetClick('year')}>Cette année</Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <StatCard title="Contrats Signés" value={stats.kpis.contratsSignes.value} change={stats.kpis.contratsSignes.change} Icon={CheckCircle} color="text-emerald-500" />
+                    <StatCard title="RDV Pris" value={stats.kpis.rdvPris.value} change={stats.kpis.rdvPris.change} Icon={Briefcase} color="text-sky-500" />
+                    <StatCard title="Taux de Conclusion" value={stats.kpis.tauxConclusion.value} change={stats.kpis.tauxConclusion.change} Icon={Target} suffix="%" color="text-violet-500" />
+                    <StatCard title="Taux de Repassage" value={stats.kpis.tauxRepassage.value} change={stats.kpis.tauxRepassage.change} Icon={Repeat} suffix="%" color="text-orange-500" />
+                </div>
+                 <div className="grid gap-6 lg:grid-cols-3">
+                     <div className="lg:col-span-2">
+                        <GenericLineChart title="Historique des conversions" data={stats.history || []} xAxisDataKey="name" lines={[ { dataKey: 'RDV', stroke: 'hsl(var(--chart-1))', name: "RDV Pris" }, { dataKey: 'Contrats', stroke: 'hsl(var(--chart-5))', name: "Contrats Signés" } ]}/>
+                     </div>
+                     <LeaderboardTable title={dynamicTitles.leaderboard} description="Basé sur le nombre de contrats signés" data={stats.leaderboard || []} unit={dynamicTitles.leaderboardUnit} />
+                </div>
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <GenericStackedBarChart
+                        title="Détail des Résultats"
+                        description="Répartition des contrats signés vs RDV sans contrat."
+                        data={stats.performanceData || []}
+                        xAxisKey="name"
+                        bars={[
+                            { key: 'contrats', name: 'Contrats Signés', color: 'hsl(var(--chart-5))' },
+                            { key: 'rdv_sans_contrat', name: 'RDV sans contrat', color: 'hsl(var(--chart-1))' },
+                        ]}
+                    />
+                    <div className="lg:col-span-2">
+                       <GenericPieChart title="Performance par Région" data={stats.performanceParRegion || []} dataKey="value" nameKey="name" colors={['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))']} />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default StatistiquesPage;
+
+
+# --- pages/admin/zones/ZoneCreatorModal.tsx ---
+// frontend-shadcn/src/pages/admin/zones/ZoneCreatorModal.tsx
+import React, { useState, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Circle, Marker, useMapEvents, Popup, useMap, FeatureGroup } from 'react-leaflet';
+import type { FeatureGroup as FeatureGroupType, LatLng } from 'leaflet';
+import L from 'leaflet';
+import 'leaflet-geosearch/dist/geosearch.css';
+import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/Combobox';
+import { Check, X, RotateCcw, MousePointerClick } from 'lucide-react';
+import { AssignmentType } from '@/types/enums';
+import type { Zone as ZoneTableType } from './columns';
+
+// --- Patch Leaflet et icônes ---
+// @ts-ignore
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+});
+const searchMarkerIcon = new L.Icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(206, 92%, 52%)" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-code"><path d="M15.5 15.5 20 20"/><path d="M9 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="m14 14-2.5 2.5"/><path d="m14 6-2.5-2.5"/><path d="m6 14-2.5 2.5"/><path d="m6 6 2.5-2.5"/></svg>'),
+    iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32],
+});
+const zoneCenterIcon = new L.Icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(222.2 47.4% 11.2%)" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="6"/></svg>'),
+    iconSize: [16, 16], iconAnchor: [8, 8], popupAnchor: [0, -8],
+});
+
+interface ZoneCreatorModalProps {
+  onValidateAndAssign: (data: { id?: string; center: LatLng; radius: number; name: string; typeAssignation: AssignmentType; assigneeId: string; color: string; }) => void;
+  onClose: () => void;
+  assignmentLists: any;
+  existingZones: ZoneTableType[]; 
+  zoneToEdit?: ZoneTableType | null;
+}
+
+const MapEventsHandler = ({ onMapClick, onMouseMove, step }: any) => {
+    useMapEvents({
+        click: (e) => { if (step === 1) onMapClick(e.latlng, 2); else if (step === 2) onMapClick(e.latlng, 3); },
+        mousemove: (e) => { if (step === 2) onMouseMove(e.latlng); }
+    });
+    return null;
+};
+const SearchControl = () => {
+    const map = useMap();
+    useEffect(() => {
+        const provider = new OpenStreetMapProvider({ params: { countrycodes: 'fr', 'accept-language': 'fr' } });
+        // @ts-ignore
+        const searchControl = new GeoSearchControl({ provider: provider, style: 'bar', marker: { icon: searchMarkerIcon, draggable: false, }, showPopup: false, autoClose: true, retainZoomLevel: false, animateZoom: true, keepResult: true, searchLabel: 'Entrez une adresse...', updateMap: false, });
+        const onLocationFound = (event: any) => { if (event.location && event.location.y && event.location.x) { map.flyTo(new L.LatLng(event.location.y, event.location.x), 14, { animate: true, duration: 1.5 }); } };
+        map.addControl(searchControl);
+        map.on('geosearch/showlocation', onLocationFound);
+        return () => { map.removeControl(searchControl); map.off('geosearch/showlocation', onLocationFound); };
+    }, [map]);
+    return null;
+};
+
+const MapBoundsFitter = ({ featureGroupRef, zones }: { featureGroupRef: React.RefObject<FeatureGroupType | null>; zones: ZoneTableType[] }) => {
+    const map = useMap();
+    useEffect(() => {
+        if (!featureGroupRef.current || zones.length === 0) {
+            map.setView([48.8566, 2.3522], 12);
+            return;
+        }
+        const bounds = featureGroupRef.current.getBounds();
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }, [zones, featureGroupRef, map]); 
+    return null;
+};
+
+const ZoneMarker = ({ zone }: { zone: { latlng: L.LatLngExpression } }) => {
+    const map = useMap();
+    const handleDoubleClick = () => { map.flyTo(zone.latlng, 15, { animate: true, duration: 1.5 }); };
+    return ( <Marker position={zone.latlng} icon={zoneCenterIcon} eventHandlers={{ dblclick: handleDoubleClick }} /> );
+};
+
+export const ZoneCreatorModal = ({ onValidateAndAssign, onClose, assignmentLists, existingZones, zoneToEdit }: ZoneCreatorModalProps) => {
+    const isEditMode = !!zoneToEdit;
+
+    const [center, setCenter] = useState<L.LatLng | null>(isEditMode ? L.latLng(zoneToEdit.latlng[0], zoneToEdit.latlng[1]) : null);
+    const [radius, setRadius] = useState(isEditMode ? zoneToEdit.radius : 0);
+    const [step, setStep] = useState(isEditMode ? 3 : 1);
+    const [zoneName, setZoneName] = useState(isEditMode ? zoneToEdit.name : '');
+    const [assignmentType, setAssignmentType] = useState<AssignmentType>(AssignmentType.EQUIPE);
+    const [assignmentId, setAssignmentId] = useState('');
+    
+    const featureGroupRef = useRef<FeatureGroupType>(null);
+
+    const handleMapClick = (latlng: L.LatLng, nextStep: number) => {
+        if (step === 1) setCenter(latlng);
+        setStep(nextStep);
+    };
+    const handleMouseMove = (latlng: L.LatLng) => { if (center) setRadius(center.distanceTo(latlng)); };
+    const handleReset = () => { setCenter(null); setRadius(0); setStep(1); };
+
+    const handleValidate = () => {
+        if (center && zoneName) {
+            if (isEditMode || assignmentId) {
+                onValidateAndAssign({
+                    id: zoneToEdit?.id, center, radius, name: zoneName,
+                    typeAssignation: assignmentType, assigneeId: assignmentId,
+                    color: zoneToEdit?.color || (assignmentType === 'EQUIPE' ? 'green' : assignmentType === 'MANAGER' ? 'purple' : 'orange')
+                });
+            } else { alert("Veuillez sélectionner une assignation."); }
+        }
+    };
+    
+    return (
+        <div className="fixed inset-0 z-[100] bg-black/80 flex flex-col p-4 animate-in fade-in-0">
+             <div className="flex-1 w-full relative">
+                <MapContainer center={center ? [center.lat, center.lng] : [48.8566, 2.3522]} zoom={13} style={{ height: '100%', width: '100%', borderRadius: '0.5rem', cursor: step < 3 ? 'crosshair' : 'default' }}>
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© OpenStreetMap' />
+                    <SearchControl />
+                    <MapEventsHandler onMapClick={handleMapClick} onMouseMove={handleMouseMove} step={step} />
+                    <MapBoundsFitter featureGroupRef={featureGroupRef} zones={existingZones} />
+                    <FeatureGroup ref={featureGroupRef}>
+                        {existingZones.filter(z => z.id !== zoneToEdit?.id).map(zone => (
+                            <React.Fragment key={`existing-${zone.id}`}>
+                                <Circle center={zone.latlng} radius={zone.radius} pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.2, weight: 2, dashArray: '5, 5' }} >
+                                    <Popup><b>{zone.name}</b> (existante)<br />Assignée à : {zone.assignedTo}</Popup>
+                                </Circle>
+                                <ZoneMarker zone={zone} />
+                            </React.Fragment>
+                        ))}
+                    </FeatureGroup>
+                    {center && <Marker position={center} />}
+                    {center && radius > 0 && <Circle center={center} radius={radius} pathOptions={{ color: 'blue' }} />}
+                </MapContainer>
+                
+                <div className="absolute top-4 left-4 z-[1000] bg-white p-4 rounded-lg shadow-xl w-full max-w-sm">
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-semibold text-lg">
+                            {isEditMode ? "Modifier la Zone" : step === 1 ? "Étape 1: Définir le centre" : step === 2 ? "Étape 2: Définir le rayon" : "Étape 3: Nommer et assigner"}
+                        </h3>
+                        <Button variant="ghost" size="icon" onClick={handleReset} title="Recommencer le tracé"><RotateCcw className="h-4 w-4" /></Button>
+                    </div>
+                    {step < 3 && !isEditMode && <p className="text-sm text-muted-foreground flex items-center gap-2"><MousePointerClick className="h-4 w-4"/>
+                        {step === 1 ? 'Cliquez pour placer le centre.' : 'Déplacez, puis cliquez pour fixer le rayon.'}
+                    </p>}
+                    {step === 3 && (
+                        <div className="space-y-3 animate-in fade-in-0">
+                            <div className="space-y-1"><Label htmlFor="zone-name">Nom de la zone</Label><Input id="zone-name" value={zoneName} onChange={e => setZoneName(e.target.value)} placeholder="Ex: Zone Commerciale Nord"/></div>
+                            <p className="text-sm font-medium text-muted-foreground pt-2">{isEditMode ? "Changer l'assignation (optionnel)" : "Assigner à :"}</p>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1"><Label htmlFor="edit-type">Type</Label>
+                                    <Select value={assignmentType} onValueChange={v => setAssignmentType(v as AssignmentType)}><SelectTrigger id="edit-type"><SelectValue/></SelectTrigger>
+                                        <SelectContent><SelectItem value="EQUIPE">Équipe</SelectItem><SelectItem value="MANAGER">Manager</SelectItem><SelectItem value="COMMERCIAL">Commercial</SelectItem></SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1"><Label htmlFor="edit-assign">Nom</Label>
+                                    <Combobox options={(assignmentLists[assignmentType.toLowerCase() + 's'] || []).map((item: any) => ({ value: item.id, label: item.nom }))} value={assignmentId} onChange={setAssignmentId} placeholder="Rechercher..."/>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+                    <Button onClick={handleValidate} className="bg-green-600 text-white hover:bg-green-700" disabled={step !== 3 || !zoneName}>
+                        <Check className="mr-2 h-4 w-4" />{isEditMode ? "Enregistrer" : "Valider"}
+                    </Button>
+                    <Button onClick={onClose} variant="secondary" className="bg-white hover:bg-zinc-100">
+                        <X className="mr-2 h-4 w-4" />Fermer
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+# --- pages/admin/Equipes/EquipesPage.tsx ---
+// frontend-shadcn/src/pages/admin/Equipes/EquipesPage.tsx
+
+import React, { useState, useEffect, useMemo } from "react";
+import type { Equipe } from "./equipes-table/columns";
+import { createEquipesColumns } from "./equipes-table/columns";
+import { DataTable } from "@/components/data-table/DataTable";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import type { RowSelectionState } from "@tanstack/react-table";
+import { Modal } from "@/components/ui/Modal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { equipeService } from "@/services/equipe.service";
+import { managerService } from "@/services/manager.service";
+import type { Manager } from '../Managers/managers-table/columns';
+
+const EquipesPage = () => {
+  const [data, setData] = useState<Equipe[]>([]);
+  const [managersList, setManagersList] = useState<Manager[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [itemsToDelete, setItemsToDelete] = useState<Equipe[]>([]);
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const initialFormState = { nom: '', managerId: '' };
+  const [newEquipeData, setNewEquipeData] = useState(initialFormState);
+  const [editingEquipe, setEditingEquipe] = useState<Equipe | null>(null);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [equipesFromApi, managersFromApi] = await Promise.all([
+        equipeService.getEquipes(),
+        managerService.getManagers(),
+      ]);
+
+      setManagersList(managersFromApi);
+
+      const managersMap = new Map(managersFromApi.map(m => [m.id, m]));
+      const enrichedEquipes: Equipe[] = equipesFromApi.map((equipe, index) => {
+        const manager = managersMap.get(equipe.managerId);
+        return {
+          id: equipe.id,
+          nom: equipe.nom,
+          manager: {
+            id: manager?.id || '',
+            nom: manager ? `${manager.prenom} ${manager.nom}` : "N/A",
+            avatarFallback: manager ? `${manager.prenom[0]}${manager.nom[0]}` : "?",
+          },
+          nbCommerciaux: 0,
+          classementGeneral: index + 1,
+        };
+      });
+      
+      setData(enrichedEquipes);
+    } catch (error) {
+      console.error("Erreur:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditOpen = (equipe: Equipe) => {
+    setEditingEquipe(equipe);
+    setIsEditModalOpen(true);
+  };
+  
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!editingEquipe) return;
+    setEditingEquipe({ ...editingEquipe, nom: e.target.value });
+  };
+  
+  const handleEditSelectChange = (managerId: string) => {
+    if (!editingEquipe) return;
+    const manager = managersList.find(m => m.id === managerId);
+    if (manager) {
+        setEditingEquipe({
+            ...editingEquipe,
+            manager: {
+                ...editingEquipe.manager,
+                id: manager.id,
+                nom: `${manager.prenom} ${manager.nom}`
+            }
+        });
+    }
+  };
+
+  const handleUpdateEquipe = async () => {
+    if (!editingEquipe) return;
+    try {
+      const payload = {
+        nom: editingEquipe.nom,
+        managerId: editingEquipe.manager.id,
+      };
+      await equipeService.updateEquipe(editingEquipe.id, payload);
+      setIsEditModalOpen(false);
+      setEditingEquipe(null);
+      fetchData();
+    } catch(error) {
+      console.error("Erreur de mise à jour de l'équipe:", error);
+    }
+  };
+
+  const handleAddInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewEquipeData(prev => ({ ...prev, nom: e.target.value }));
+  };
+
+  const handleAddSelectChange = (managerId: string) => {
+    setNewEquipeData(prev => ({ ...prev, managerId }));
+  };
+
+  const handleAddEquipe = async () => {
+    if (!newEquipeData.nom || !newEquipeData.managerId) {
+      alert("Veuillez remplir tous les champs.");
+      return;
+    }
+    try {
+      await equipeService.createEquipe(newEquipeData);
+      setIsAddModalOpen(false);
+      setNewEquipeData(initialFormState);
+      fetchData();
+    } catch (error) {
+      console.error("Erreur lors de l'ajout de l'équipe:", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await Promise.all(itemsToDelete.map(e => equipeService.deleteEquipe(e.id)));
+      setItemsToDelete([]);
+      setIsDeleteMode(false);
+      setRowSelection({});
+      fetchData();
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+    }
+  };
+
+  const toggleDeleteMode = () => { setIsDeleteMode(prev => !prev); setRowSelection({}); };
+  const handleConfirmDelete = (selectedItems: Equipe[]) => { setItemsToDelete(selectedItems); };
+
+  const columns = useMemo(() => createEquipesColumns(isDeleteMode, handleEditOpen), [isDeleteMode]);
+
+  if (loading) {
+    return <div>Chargement des équipes...</div>;
+  }
+
+  return (
+    <>
+      <DataTable 
+        columns={columns} data={data} title="Gestion des Équipes" filterColumnId="nom"
+        filterPlaceholder="Filtrer par nom d'équipe..." addEntityButtonText="Ajouter une Équipe"
+        onAddEntity={() => setIsAddModalOpen(true)} isDeleteMode={isDeleteMode} onToggleDeleteMode={toggleDeleteMode}
+        rowSelection={rowSelection} setRowSelection={setRowSelection} onConfirmDelete={handleConfirmDelete}
+      />
+
+      <Modal isOpen={itemsToDelete.length > 0} onClose={() => setItemsToDelete([])}>
+        <h2 className="text-lg font-semibold">Confirmer la suppression</h2>
+        <p className="text-sm text-muted-foreground mt-2">Êtes-vous sûr de vouloir supprimer les {itemsToDelete.length} équipe(s) suivante(s) ?</p>
+        <ul className="my-4 list-disc list-inside max-h-40 overflow-y-auto bg-slate-50 p-3 rounded-md">
+          {itemsToDelete.map(item => <li key={item.id}>{item.nom} (Manager: {item.manager.nom})</li>)}
+        </ul>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={() => setItemsToDelete([])}>Annuler</Button>
+          <Button variant="destructive" onClick={handleDelete}>Valider</Button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}>
+        <h2 className="text-lg font-semibold mb-4">Ajouter une nouvelle équipe</h2>
+        <div className="grid gap-4">
+          <div className="space-y-1"><Label htmlFor="nom-equipe">Nom de l'équipe</Label><Input id="nom-equipe" placeholder="Ex: Oméga" value={newEquipeData.nom} onChange={handleAddInputChange} /></div>
+          <div className="space-y-1">
+            <Label htmlFor="manager-equipe">Manager responsable</Label>
+            <Select onValueChange={handleAddSelectChange} value={newEquipeData.managerId}>
+              <SelectTrigger id="manager-equipe"><SelectValue placeholder="Sélectionner un manager" /></SelectTrigger>
+              <SelectContent>
+                {managersList.map(manager => (
+                  <SelectItem key={manager.id} value={manager.id}>{manager.prenom} {manager.nom}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Annuler</Button>
+          <Button onClick={handleAddEquipe} className="bg-green-600 text-white hover:bg-green-700">Enregistrer</Button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
+        <h2 className="text-lg font-semibold mb-4">Modifier l'équipe</h2>
+        {editingEquipe && (
+          <div className="grid gap-4">
+            <div className="space-y-1"><Label htmlFor="nom-equipe-edit">Nom de l'équipe</Label><Input id="nom-equipe-edit" value={editingEquipe.nom} onChange={handleEditInputChange} /></div>
+            <div className="space-y-1">
+              <Label htmlFor="manager-equipe-edit">Manager responsable</Label>
+              <Select onValueChange={handleEditSelectChange} value={editingEquipe.manager.id}>
+                <SelectTrigger id="manager-equipe-edit"><SelectValue placeholder="Sélectionner un manager" /></SelectTrigger>
+                <SelectContent>
+                  {managersList.map(manager => (
+                    <SelectItem key={manager.id} value={manager.id}>{manager.prenom} {manager.nom}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Annuler</Button>
+          <Button onClick={handleUpdateEquipe} className="bg-green-600 text-white hover:bg-green-700">Enregistrer les modifications</Button>
+        </div>
+      </Modal>
+    </>
+  )
+}
+
+export default EquipesPage;
+
+
+# --- pages/admin/immeubles/columns.tsx ---
+// frontend-shadcn/src/pages/admin/immeubles/columns.tsx
+
+"use client"
+
+import type { ColumnDef } from "@tanstack/react-table"
+import { Link } from "react-router-dom";
+import { ArrowUpDown, Eye, User, MapPin, Percent, Users } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+export type Immeuble = {
+  id: string;
+  adresse: string;
+  ville: string;
+  codePostal: string;
+  status: "À visiter" | "Visité" | "RDV Pris" | "Inaccessible";
+  nbPortes: number;
+  nbPortesProspectees: number;
+  prospectingMode: "Solo" | "Duo";
+  prospectors: {
+    id: string;
+    nom: string;
+    avatarFallback: string;
+  }[];
+  dateVisite: string | null;
+  zone: string;
+  zoneId: string;
+  latlng: [number, number];
+}
+
+const Header = ({ title }: { title: string }) => (
+  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
+)
+
+const SortableHeader = ({ title, column }: { title: string, column: any }) => (
+  <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="p-0 h-8 hover:bg-transparent">
+    <Header title={title} />
+    <ArrowUpDown className="ml-2 h-3 w-3" />
+  </Button>
+)
+
+const statusConfig = {
+    "À visiter": "bg-blue-100 text-blue-800 border-blue-300",
+    "Visité": "bg-gray-100 text-gray-800 border-gray-300",
+    "RDV Pris": "bg-green-100 text-green-800 border-green-300",
+    "Inaccessible": "bg-red-100 text-red-800 border-red-300",
+};
+
+export const createColumns = (
+    isDeleteMode: boolean, 
+    onFocusOnImmeuble: (immeuble: Immeuble) => void = () => {},
+    onFocusOnZone: (zoneId: string) => void = () => {}
+): ColumnDef<Immeuble>[] => [
+    ...(isDeleteMode ? [{ 
+        id: "select", 
+        header: ({ table }: any) => (<Checkbox checked={table.getIsAllPageRowsSelected()} onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all" />), 
+        cell: ({ row }: any) => (<Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} aria-label="Select row" onClick={(e) => e.stopPropagation()} />), 
+        enableSorting: false, enableHiding: false, 
+    }] : []),
+
+    {
+      accessorKey: "adresse",
+      header: ({ column }) => <SortableHeader title="Adresse" column={column} />,
+      cell: ({ row }) => {
+        const immeuble = row.original;
+        return (
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); onFocusOnImmeuble(immeuble); }}>
+                  {immeuble.adresse}
+                  <div className="text-xs text-muted-foreground">{`${immeuble.codePostal} ${immeuble.ville}`}</div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent><p>Cliquer pour voir sur la carte</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      },
+    },
+    {
+      accessorKey: "status",
+      header: ({ column }) => <SortableHeader title="Statut" column={column} />,
+      cell: ({ row }) => <Badge variant="outline" className={statusConfig[row.original.status]}>{row.original.status}</Badge>
+    },
+    {
+        id: "couverture",
+        header: ({ column }) => <SortableHeader title="Couverture" column={column} />,
+        cell: ({ row }) => {
+            const { nbPortes, nbPortesProspectees } = row.original;
+            if (nbPortes === 0) return <span className="text-muted-foreground">N/A</span>;
+            const percentage = (nbPortesProspectees / nbPortes) * 100;
+            return (
+                <div className="flex items-center gap-2">
+                    <Percent className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{percentage.toFixed(0)}%</span>
+                    <span className="text-xs text-muted-foreground">({nbPortesProspectees}/{nbPortes})</span>
+                </div>
+            )
+        },
+        sortingFn: (rowA, rowB) => {
+            const percA = rowA.original.nbPortes > 0 ? (rowA.original.nbPortesProspectees / rowA.original.nbPortes) : -1;
+            const percB = rowB.original.nbPortes > 0 ? (rowB.original.nbPortesProspectees / rowB.original.nbPortes) : -1;
+            return percA - percB;
+        }
+    },
+    {
+        accessorKey: "zone",
+        header: ({ column }) => <SortableHeader title="Zone" column={column} />,
+        cell: ({ row }) => (
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); onFocusOnZone(row.original.zoneId); }} >
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>{row.original.zone}</span>
+                  </div>
+              </TooltipTrigger>
+              <TooltipContent><p>Cliquer pour voir la zone sur la carte</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+    },
+    {
+        accessorKey: "prospectingMode",
+        header: ({ column }) => <SortableHeader title="Mode" column={column} />,
+        cell: ({ row }) => {
+            const { prospectingMode, prospectors } = row.original;
+            if (prospectors.length === 0) {
+                return <span className="text-muted-foreground">-</span>;
+            }
+            const Icon = prospectingMode === 'Duo' ? Users : User;
+            return (
+                <Badge variant="secondary" className="font-medium">
+                    <Icon className="h-3 w-3 mr-1.5" />
+                    {prospectingMode}
+                </Badge>
+            );
+        }
+    },
+    {
+        accessorKey: "prospectors",
+        header: ({ column }) => <SortableHeader title="Prospecteurs" column={column} />,
+        cell: ({ row }) => {
+            const { prospectors } = row.original;
+            if (!prospectors || prospectors.length === 0) {
+                return <span className="text-muted-foreground">N/A</span>;
+            }
+            return (
+                <div className="flex items-center">
+                    <div className="flex -space-x-2">
+                        {prospectors.map(p => (
+                            <TooltipProvider key={p.id} delayDuration={100}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Link to={`/admin/commerciaux/${p.id}`} onClick={(e) => e.stopPropagation()} className="hover:z-10">
+                                            <Avatar className="h-8 w-8 border-2 border-white">
+                                                <AvatarFallback>{p.avatarFallback}</AvatarFallback>
+                                            </Avatar>
+                                        </Link>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>{p.nom}</p></TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        ))}
+                    </div>
+                </div>
+            );
+        },
+        sortingFn: (rowA, rowB) => {
+            const nameA = rowA.original.prospectors[0]?.nom || '';
+            const nameB = rowB.original.prospectors[0]?.nom || '';
+            return nameA.localeCompare(nameB);
+        }
+    },
+    {
+        id: "actions",
+        header: () => <div className="text-right"><Header title="Actions" /></div>,
+        cell: ({ row }) => {
+            const immeuble = row.original;
+            return ( <div className="text-right"><Button asChild variant="ghost" className="h-8 w-8 p-0 cursor-pointer"><Link to={`/admin/immeubles/${immeuble.id}`} onClick={(e) => e.stopPropagation()}><Eye className="h-4 w-4" /><span className="sr-only">Voir les détails de l'immeuble</span></Link></Button></div> )
+        },
+    },
+]
+
+
+# --- pages/admin/Managers/ManagersPage.tsx ---
+// frontend-shadcn/src/pages/admin/Managers/ManagersPage.tsx
+
+import React, { useState, useEffect, useMemo } from "react";
+import type { Manager } from "./managers-table/columns";
+import { getColumns } from "./managers-table/columns";
+import { DataTable } from "@/components/data-table/DataTable";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { type RowSelectionState } from "@tanstack/react-table";
+import { Modal } from "@/components/ui/Modal";
+import { managerService } from "@/services/manager.service";
+
+const ManagersPage = () => {
+  const [data, setData] = useState<Manager[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [managersToDelete, setManagersToDelete] = useState<Manager[]>([]);
+  
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const initialFormState = { nom: '', prenom: '', email: '', telephone: '' };
+  const [newManagerData, setNewManagerData] = useState(initialFormState);
+  const [editingManager, setEditingManager] = useState<Manager | null>(null);
+
+  useEffect(() => {
+    fetchManagers();
+  }, []);
+
+  const fetchManagers = async () => {
+    setLoading(true);
+    try {
+      const managers = await managerService.getManagers();
+      const formattedManagers = managers.map((m, index) => ({ 
+        ...m, 
+        telephone: m.telephone || '', // Assurer que le téléphone n'est jamais null pour le formulaire
+        classement: index + 1, 
+        nbEquipes: 0 
+      }));
+      setData(formattedManagers);
+    } catch (error) {
+      console.error("Erreur lors de la récupération des managers:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- LOGIQUE D'ÉDITION ---
+  const handleEditOpen = (manager: Manager) => {
+    setEditingManager(manager);
+    setIsEditModalOpen(true);
+  };
+  
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!editingManager) return;
+    setEditingManager({ ...editingManager, [e.target.id]: e.target.value });
+  };
+  
+  const handleUpdateManager = async () => {
+    if (!editingManager) return;
+    try {
+      const { id, nom, prenom, email, telephone } = editingManager;
+      const payload = { nom, prenom, email, telephone: telephone || undefined };
+      await managerService.updateManager(id, payload);
+      setIsEditModalOpen(false);
+      setEditingManager(null);
+      fetchManagers();
+    } catch (error) {
+      console.error("Erreur de mise à jour du manager:", error);
+    }
+  };
+
+  // --- LOGIQUE D'AJOUT ---
+  const handleAddInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewManagerData(prev => ({ ...prev, [e.target.id]: e.target.value }));
+  };
+
+  const handleAddManager = async () => {
+    if (!newManagerData.nom || !newManagerData.prenom || !newManagerData.email) {
+        alert("Les champs Nom, Prénom et Email sont obligatoires.");
+        return;
+    }
+    try {
+      await managerService.createManager(newManagerData);
+      setIsAddModalOpen(false);
+      setNewManagerData(initialFormState);
+      fetchManagers();
+    } catch (error) {
+      console.error("Erreur lors de l'ajout du manager:", error);
+    }
+  };
+
+  // --- LOGIQUE DE SUPPRESSION ---
+  const handleDelete = async () => {
+    try {
+      await Promise.all(managersToDelete.map(m => managerService.deleteManager(m.id)));
+      setManagersToDelete([]);
+      setIsDeleteMode(false);
+      setRowSelection({});
+      fetchManagers();
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+    }
+  };
+  
+  const toggleDeleteMode = () => {
+    setIsDeleteMode(prev => !prev);
+    setRowSelection({});
+  };
+
+  const handleConfirmDelete = (selectedManagers: Manager[]) => {
+    setManagersToDelete(selectedManagers);
+  };
+  
+  const columns = useMemo(() => getColumns(isDeleteMode, handleEditOpen), [isDeleteMode]);
+
+  if (loading) {
+      return <div>Chargement des managers...</div>;
+  }
+
+  return (
+    <>
+      <DataTable 
+        columns={columns} 
+        data={data} 
+        title="Gestion des Managers"
+        filterColumnId="nom"
+        filterPlaceholder="Filtrer par nom de manager..."
+        addEntityButtonText="Ajouter un Manager"
+        onAddEntity={() => setIsAddModalOpen(true)}
+        isDeleteMode={isDeleteMode}
+        onToggleDeleteMode={toggleDeleteMode}
+        rowSelection={rowSelection}
+        setRowSelection={setRowSelection}
+        onConfirmDelete={handleConfirmDelete}
+      />
+
+      <Modal isOpen={managersToDelete.length > 0} onClose={() => setManagersToDelete([])}>
+        <h2 className="text-lg font-semibold">Confirmer la suppression</h2>
+        <p className="text-sm text-muted-foreground mt-2">Êtes-vous sûr de vouloir supprimer les {managersToDelete.length} manager(s) suivant(s) ?</p>
+        <ul className="my-4 list-disc list-inside max-h-40 overflow-y-auto bg-slate-50 p-3 rounded-md">
+          {managersToDelete.map(m => <li key={m.id}>{m.prenom} {m.nom}</li>)}
+        </ul>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={() => setManagersToDelete([])}>Annuler</Button>
+          <Button variant="destructive" onClick={handleDelete}>Valider</Button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}>
+        <h2 className="text-lg font-semibold mb-4">Ajouter un nouveau manager</h2>
+        <div className="grid gap-4">
+          <div className="space-y-1"><Label htmlFor="nom">Nom</Label><Input id="nom" placeholder="Dupont" value={newManagerData.nom} onChange={handleAddInputChange} /></div>
+          <div className="space-y-1"><Label htmlFor="prenom">Prénom</Label><Input id="prenom" placeholder="Jean" value={newManagerData.prenom} onChange={handleAddInputChange} /></div>
+          <div className="space-y-1"><Label htmlFor="email">Email</Label><Input id="email" type="email" placeholder="jean.dupont@example.com" value={newManagerData.email} onChange={handleAddInputChange} /></div>
+          <div className="space-y-1"><Label htmlFor="telephone">Téléphone</Label><Input id="telephone" type="tel" placeholder="0612345678" value={newManagerData.telephone} onChange={handleAddInputChange} /></div>
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Annuler</Button>
+          <Button onClick={handleAddManager} className="bg-green-600 text-white hover:bg-green-700">Enregistrer</Button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
+        <h2 className="text-lg font-semibold mb-4">Modifier le manager</h2>
+        {editingManager && (
+            <div className="grid gap-4">
+                <div className="space-y-1"><Label htmlFor="nom">Nom</Label><Input id="nom" value={editingManager.nom} onChange={handleEditInputChange} /></div>
+                <div className="space-y-1"><Label htmlFor="prenom">Prénom</Label><Input id="prenom" value={editingManager.prenom} onChange={handleEditInputChange} /></div>
+                <div className="space-y-1"><Label htmlFor="email">Email</Label><Input id="email" type="email" value={editingManager.email} onChange={handleEditInputChange} /></div>
+                <div className="space-y-1"><Label htmlFor="telephone">Téléphone</Label><Input id="telephone" type="tel" value={editingManager.telephone || ''} onChange={handleEditInputChange} /></div>
+            </div>
+        )}
+        <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Annuler</Button>
+            <Button onClick={handleUpdateManager} className="bg-green-600 text-white hover:bg-green-700">Enregistrer les modifications</Button>
+        </div>
+      </Modal>
+    </>
+  )
+}
+
+export default ManagersPage;
+
+
+# --- components/ui/calendar.tsx ---
+"use client"
+
+import * as React from "react"
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from "lucide-react"
+import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
+
+import { cn } from "@/lib/utils"
+import { Button, buttonVariants } from "@/components/ui/button"
+
+function Calendar({
+  className,
+  classNames,
+  showOutsideDays = true,
+  captionLayout = "label",
+  buttonVariant = "ghost",
+  formatters,
+  components,
+  ...props
+}: React.ComponentProps<typeof DayPicker> & {
+  buttonVariant?: React.ComponentProps<typeof Button>["variant"]
+}) {
+  const defaultClassNames = getDefaultClassNames()
+
+  return (
+    <DayPicker
+      showOutsideDays={showOutsideDays}
+      className={cn(
+        "bg-background group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
+        String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
+        String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
+        className
+      )}
+      captionLayout={captionLayout}
+      formatters={{
+        formatMonthDropdown: (date) =>
+          date.toLocaleString("default", { month: "short" }),
+        ...formatters,
+      }}
+      classNames={{
+        root: cn("w-fit", defaultClassNames.root),
+        months: cn(
+          "flex gap-4 flex-col md:flex-row relative",
+          defaultClassNames.months
+        ),
+        month: cn("flex flex-col w-full gap-4", defaultClassNames.month),
+        nav: cn(
+          "flex items-center gap-1 w-full absolute top-0 inset-x-0 justify-between",
+          defaultClassNames.nav
+        ),
+        button_previous: cn(
+          buttonVariants({ variant: buttonVariant }),
+          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none",
+          defaultClassNames.button_previous
+        ),
+        button_next: cn(
+          buttonVariants({ variant: buttonVariant }),
+          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none",
+          defaultClassNames.button_next
+        ),
+        month_caption: cn(
+          "flex items-center justify-center h-(--cell-size) w-full px-(--cell-size)",
+          defaultClassNames.month_caption
+        ),
+        dropdowns: cn(
+          "w-full flex items-center text-sm font-medium justify-center h-(--cell-size) gap-1.5",
+          defaultClassNames.dropdowns
+        ),
+        dropdown_root: cn(
+          "relative has-focus:border-ring border border-input shadow-xs has-focus:ring-ring/50 has-focus:ring-[3px] rounded-md",
+          defaultClassNames.dropdown_root
+        ),
+        dropdown: cn("absolute inset-0 opacity-0", defaultClassNames.dropdown),
+        caption_label: cn(
+          "select-none font-medium",
+          captionLayout === "label"
+            ? "text-sm"
+            : "rounded-md pl-2 pr-1 flex items-center gap-1 text-sm h-8 [&>svg]:text-muted-foreground [&>svg]:size-3.5",
+          defaultClassNames.caption_label
+        ),
+        table: "w-full border-collapse",
+        weekdays: cn("flex", defaultClassNames.weekdays),
+        weekday: cn(
+          "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] select-none",
+          defaultClassNames.weekday
+        ),
+        week: cn("flex w-full mt-2", defaultClassNames.week),
+        week_number_header: cn(
+          "select-none w-(--cell-size)",
+          defaultClassNames.week_number_header
+        ),
+        week_number: cn(
+          "text-[0.8rem] select-none text-muted-foreground",
+          defaultClassNames.week_number
+        ),
+        day: cn(
+          "relative w-full h-full p-0 text-center [&:first-child[data-selected=true]_button]:rounded-l-md [&:last-child[data-selected=true]_button]:rounded-r-md group/day aspect-square select-none",
+          defaultClassNames.day
+        ),
+        range_start: cn(
+          "rounded-l-md bg-accent",
+          defaultClassNames.range_start
+        ),
+        range_middle: cn("rounded-none", defaultClassNames.range_middle),
+        range_end: cn("rounded-r-md bg-accent", defaultClassNames.range_end),
+        today: cn(
+          "bg-accent text-accent-foreground rounded-md data-[selected=true]:rounded-none",
+          defaultClassNames.today
+        ),
+        outside: cn(
+          "text-muted-foreground aria-selected:text-muted-foreground",
+          defaultClassNames.outside
+        ),
+        disabled: cn(
+          "text-muted-foreground opacity-50",
+          defaultClassNames.disabled
+        ),
+        hidden: cn("invisible", defaultClassNames.hidden),
+        ...classNames,
+      }}
+      components={{
+        Root: ({ className, rootRef, ...props }) => {
+          return (
+            <div
+              data-slot="calendar"
+              ref={rootRef}
+              className={cn(className)}
+              {...props}
+            />
+          )
+        },
+        Chevron: ({ className, orientation, ...props }) => {
+          if (orientation === "left") {
+            return (
+              <ChevronLeftIcon className={cn("size-4", className)} {...props} />
+            )
+          }
+
+          if (orientation === "right") {
+            return (
+              <ChevronRightIcon
+                className={cn("size-4", className)}
+                {...props}
+              />
+            )
+          }
+
+          return (
+            <ChevronDownIcon className={cn("size-4", className)} {...props} />
+          )
+        },
+        DayButton: CalendarDayButton,
+        WeekNumber: ({ children, ...props }) => {
+          return (
+            <td {...props}>
+              <div className="flex size-(--cell-size) items-center justify-center text-center">
+                {children}
+              </div>
+            </td>
+          )
+        },
+        ...components,
+      }}
+      {...props}
+    />
+  )
+}
+
+function CalendarDayButton({
+  className,
+  day,
+  modifiers,
+  ...props
+}: React.ComponentProps<typeof DayButton>) {
+  const defaultClassNames = getDefaultClassNames()
+
+  const ref = React.useRef<HTMLButtonElement>(null)
+  React.useEffect(() => {
+    if (modifiers.focused) ref.current?.focus()
+  }, [modifiers.focused])
+
+  return (
+    <Button
+      ref={ref}
+      variant="ghost"
+      size="icon"
+      data-day={day.date.toLocaleDateString()}
+      data-selected-single={
+        modifiers.selected &&
+        !modifiers.range_start &&
+        !modifiers.range_end &&
+        !modifiers.range_middle
+      }
+      data-range-start={modifiers.range_start}
+      data-range-end={modifiers.range_end}
+      data-range-middle={modifiers.range_middle}
+      className={cn(
+        "data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50 dark:hover:text-accent-foreground flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px] data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md [&>span]:text-xs [&>span]:opacity-70",
+        defaultClassNames.day,
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Calendar, CalendarDayButton }
+
+
+
+# --- pages/admin/Managers/ManagerDetailsPage.tsx ---
+// frontend-shadcn/src/pages/admin/Managers/ManagerDetailsPage.tsx
+import React, { useEffect, useState, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import type { RowSelectionState } from "@tanstack/react-table";
+import { ArrowLeft, BarChart2, Briefcase, CheckCircle, Target, Trophy, Users } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import StatCard from '@/components/ui/StatCard';
+import { DataTable } from "@/components/data-table/DataTable";
+import { GenericLineChart } from '@/components/charts/GenericLineChart';
+import { managerService } from '@/services/manager.service';
+import type { Commercial } from '../commerciaux/commerciaux-table/columns';
+import { createColumns as createCommerciauxColumns } from "../commerciaux/commerciaux-table/columns";
+import { createEquipesColumns, type EquipeDuManager } from './managers-table/equipes-columns';
+
+const ManagerDetailsPage = () => {
+    const { managerId } = useParams<{ managerId: string }>();
+    const navigate = useNavigate();
+    
+    const [manager, setManager] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    
+    const [selectedTeam, setSelectedTeam] = useState<EquipeDuManager | null>(null);
+    const [teamRowSelection, setTeamRowSelection] = React.useState<RowSelectionState>({});
+
+    // Les colonnes des tableaux
+    const equipesColumns = useMemo(() => createEquipesColumns(), []);
+    // On exclut les colonnes redondantes pour la liste des commerciaux
+    const commerciauxColumns = useMemo(() => {
+        const allCols = createCommerciauxColumns(false, () => {});
+        return allCols.filter(col => col.id !== 'manager' && col.id !== 'equipe');
+    }, []);
+
+    // Chargement des données au montage
+    useEffect(() => {
+        if (managerId) {
+            setLoading(true);
+            managerService.getManagerDetails(managerId).then(data => {
+                // Formater les données des équipes pour la DataTable
+                const formattedEquipes = data.equipes.map((e: any) => ({
+                    id: e.id,
+                    nom: e.nom,
+                    nbCommerciaux: e.commerciaux.length,
+                    // On stocke les commerciaux directement pour un accès facile
+                    commerciaux: e.commerciaux.map((c: any, index: number) => ({
+                        ...c,
+                        manager: `${data.prenom} ${data.nom}`,
+                        managerId: data.id,
+                        equipe: e.nom,
+                        equipeId: e.id,
+                        classement: index + 1, // Classement simple pour l'affichage
+                        telephone: c.telephone || '',
+                    }))
+                }));
+                setManager({ ...data, equipes: formattedEquipes });
+                setLoading(false);
+            }).catch(err => {
+                console.error("Erreur de chargement des détails du manager:", err);
+                setLoading(false);
+            });
+        }
+    }, [managerId]);
+
+    // Gère le clic sur une ligne d'équipe pour afficher/cacher ses commerciaux
+    const handleTeamRowClick = (equipe: EquipeDuManager) => {
+        if (selectedTeam?.id === equipe.id) {
+            setSelectedTeam(null);
+            setTeamRowSelection({});
+        } else {
+            setSelectedTeam(equipe);
+            setTeamRowSelection({ [equipe.id]: true });
+        }
+    };
+    
+    // Affichage de chargement
+    if (loading) {
+        return (
+            <div className="space-y-6 animate-pulse">
+                <Skeleton className="h-10 w-48" />
+                <Skeleton className="h-24 w-full" />
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Skeleton className="h-28 rounded-lg" /><Skeleton className="h-28 rounded-lg" />
+                    <Skeleton className="h-28 rounded-lg" /><Skeleton className="h-28 rounded-lg" />
+                </div>
+                <Skeleton className="h-96 w-full" />
+            </div>
+        );
+    }
+    
+    // Si le manager n'est pas trouvé
+    if (!manager) return <div>Manager non trouvé.</div>;
+
+    // Préparation des données pour les graphiques et stats
+    const currentStats = manager.stats || { rdvPris: 0, contratsSignes: 0, tauxConclusion: 0 };
+    const perfHistory = [
+        { name: 'S-4', perf: 78 }, { name: 'S-3', perf: 80 }, { name: 'S-2', perf: 85 },
+        { name: 'S-1', perf: 81 }, { name: 'Cette sem.', perf: currentStats.tauxConclusion }
+    ];
+    const commerciauxDeLequipeSelectionnee = manager.equipes.find((e: any) => e.id === selectedTeam?.id)?.commerciaux || [];
+
+    return (
+        <div className="space-y-8">
+            <Button variant="outline" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" /> Retour</Button>
+            
+            <div className="rounded-lg border bg-card text-card-foreground p-6 shadow-sm">
+                <h3 className="text-2xl font-semibold leading-none tracking-tight">{manager.prenom} {manager.nom}</h3>
+                <p className="text-sm text-muted-foreground pt-1.5">Informations et statistiques globales de la semaine</p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <StatCard title="Contrats (Total)" value={currentStats.contratsSignes} Icon={CheckCircle} color="text-emerald-500" />
+                <StatCard title="RDV (Total)" value={currentStats.rdvPris} Icon={Briefcase} color="text-sky-500"/>
+                <StatCard title="Taux Conclusion" value={currentStats.tauxConclusion} Icon={Target} suffix="%" color="text-amber-500"/>
+                <StatCard title="Nb. Équipes" value={manager.equipes.length} Icon={Users} color="text-yellow-500"/>
+            </div>
+
+            <GenericLineChart title="Évolution de la Performance Globale" data={perfHistory} xAxisDataKey="name" lines={[{ dataKey: 'perf', stroke: 'hsl(var(--chart-2))', name: 'Performance (%)' }]} />
+            
+            <div className="space-y-4">
+                <DataTable
+                    columns={equipesColumns} data={manager.equipes} title="Équipes Managées"
+                    filterColumnId="nom" filterPlaceholder="Filtrer par équipe..."
+                    onRowClick={handleTeamRowClick} rowSelection={teamRowSelection} setRowSelection={setTeamRowSelection}
+                    isDeleteMode={false} onToggleDeleteMode={() => {}} onConfirmDelete={() => {}}
+                />
+                
+                {selectedTeam && (
+                    <div className="animate-in fade-in-0 duration-500">
+                        <DataTable
+                            columns={commerciauxColumns} data={commerciauxDeLequipeSelectionnee}
+                            title={`Commerciaux de l'équipe : ${selectedTeam.nom}`}
+                            filterColumnId="nom" filterPlaceholder="Filtrer par commercial..."
+                            isDeleteMode={false} onToggleDeleteMode={() => {}} rowSelection={{}} setRowSelection={() => {}} onConfirmDelete={() => {}}
+                        />
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+export default ManagerDetailsPage;
+
+
+# --- pages/admin/zones/ZoneMap.tsx ---
+// frontend-shadcn/src/pages/admin/zones/ZoneMap.tsx
+
+import React, { useState, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Circle, Popup, useMap, FeatureGroup, Marker } from 'react-leaflet';
+import type { FeatureGroup as FeatureGroupType } from 'leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { cn } from '@/lib/utils';
+import { Maximize, Shrink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
+import 'leaflet-geosearch/dist/geosearch.css';
+
+// --- Patch et icônes ---
+// @ts-ignore
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+});
+
+const zoneCenterIcon = new L.Icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(222.2 47.4% 11.2%)" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="6"/></svg>'),
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+    popupAnchor: [0, -8],
+});
+
+const searchMarkerIcon = new L.Icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(206, 92%, 52%)" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-code"><path d="M15.5 15.5 20 20"/><path d="M9 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="m14 14-2.5 2.5"/><path d="m14 6-2.5-2.5"/><path d="m6 14-2.5 2.5"/><path d="m6 6 2.5-2.5"/></svg>'),
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32],
+});
+
+
+interface Zone {
+  id: string;
+  name: string;
+  assignedTo: string;
+  color: string;
+  latlng: L.LatLngExpression;
+  radius: number;
+}
+
+interface ZoneMapProps {
+  existingZones: Zone[];
+  onAddZoneClick: () => void;
+  zoneToFocus: string | null;
+  onFocusClear: () => void;
+}
+
+const SearchControl = () => {
+    const map = useMap();
+    useEffect(() => {
+        const provider = new OpenStreetMapProvider({
+            params: { countrycodes: 'fr', 'accept-language': 'fr' },
+        });
+        // @ts-ignore
+        const searchControl = new GeoSearchControl({
+            provider: provider,
+            style: 'bar',
+            marker: { icon: searchMarkerIcon, draggable: false },
+            showPopup: false, autoClose: true, retainZoomLevel: false,
+            animateZoom: true, keepResult: true, searchLabel: 'Entrez une adresse en France...', updateMap: false, 
+        });
+        const onLocationFound = (event: any) => {
+            const { location } = event;
+            if (location && location.y && location.x) {
+                map.flyTo(new L.LatLng(location.y, location.x), 14, { animate: true, duration: 1.5 }); 
+            }
+        };
+        map.addControl(searchControl);
+        map.on('geosearch/showlocation', onLocationFound);
+        return () => { map.removeControl(searchControl); map.off('geosearch/showlocation', onLocationFound); };
+    }, [map]);
+    return null;
+};
+
+const MapBoundsFitter = ({ featureGroupRef, zones }: { featureGroupRef: React.RefObject<FeatureGroupType | null>; zones: Zone[] }) => {
+    const map = useMap();
+    useEffect(() => {
+        if (!featureGroupRef.current || zones.length === 0) {
+            map.setView([48.8566, 2.3522], 12);
+            return;
+        }
+        const bounds = featureGroupRef.current.getBounds();
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }, [zones, featureGroupRef, map]); 
+    return null;
+};
+
+const ZoneDisplay = ({ zone }: { zone: Zone }) => {
+    const map = useMap();
+    const handleDoubleClick = () => {
+        map.flyTo(zone.latlng, 15, { animate: true, duration: 1.5 });
+    };
+    return (
+        <>
+            <Circle key={`circle-${zone.id}`} center={zone.latlng} radius={zone.radius} pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.2 }}>
+                <Popup><b>{zone.name}</b><br />Assignée à : {zone.assignedTo}</Popup>
+            </Circle>
+            <Marker key={`marker-${zone.id}`} position={zone.latlng} icon={zoneCenterIcon} eventHandlers={{ dblclick: handleDoubleClick, }}/>
+        </>
+    );
+};
+
+const MapFocusController = ({ zones, zoneToFocus, onFocusClear }: { zones: Zone[], zoneToFocus: string | null, onFocusClear: () => void }) => {
+    const map = useMap();
+    useEffect(() => {
+        if (zoneToFocus) {
+            const zone = zones.find(z => z.id === zoneToFocus);
+            if (zone) {
+                map.flyTo(zone.latlng, 15, { animate: true, duration: 1.5 });
+                onFocusClear(); 
+            }
+        }
+    }, [zoneToFocus, zones, map, onFocusClear]);
+    return null;
+}
+
+export const ZoneMap = ({ existingZones, zoneToFocus, onFocusClear }: ZoneMapProps) => {
+    const featureGroupRef = useRef<FeatureGroupType>(null);
+    const [isModalFullscreen, setIsModalFullscreen] = useState(false);
+
+  return (
+    <div className={cn( 'relative h-full w-full', isModalFullscreen && 'fixed inset-0 z-[2000] bg-black/80 p-4' )}>
+      <div className={cn( 'relative h-full w-full', isModalFullscreen && 'rounded-lg overflow-hidden' )}>
+        
+        <div className="absolute top-4 right-4 z-[1001] flex flex-col gap-2">
+            <Button size="icon" variant="secondary" className="shadow-lg bg-white hover:bg-slate-100 text-slate-800"
+                onClick={() => setIsModalFullscreen(!isModalFullscreen)}>
+                {isModalFullscreen ? <Shrink className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+            </Button>
+        </div>
+
+        {/* MODIFICATION : La hauteur est maintenant toujours '100%' et la carte est toujours interactive */}
+        <MapContainer 
+            key={String(isModalFullscreen)}
+            center={[48.8566, 2.3522]} zoom={10} 
+            style={{ height: '100%', width: '100%', zIndex: 1 }}
+            scrollWheelZoom={true}
+            dragging={true}
+            touchZoom={true}
+            className={cn(!isModalFullscreen && "rounded-lg")}
+        >
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'/>
+            <SearchControl />
+            <MapBoundsFitter featureGroupRef={featureGroupRef} zones={existingZones} />
+            <MapFocusController zones={existingZones} zoneToFocus={zoneToFocus} onFocusClear={onFocusClear} />
+
+            <FeatureGroup ref={featureGroupRef}>
+                {existingZones.map(zone => (
+                    <ZoneDisplay key={zone.id} zone={zone} />
+                ))}
+            </FeatureGroup>
+        </MapContainer>
+      </div>
+    </div>
+  );
+};
+
+
+# --- pages/admin/immeubles/ImmeublesPage.tsx ---
+// frontend-shadcn/src/pages/admin/immeubles/ImmeublesPage.tsx
+
+import { useState, useMemo, useEffect } from "react";
+import type { Immeuble } from "./columns";
+import { createColumns } from "./columns";
+import type { Zone } from '../zones/columns';
+import { DataTable } from "@/components/data-table/DataTable";
+import { ImmeublesMap } from './ImmeublesMap';
+import type { RowSelectionState } from "@tanstack/react-table";
+import { ViewToggleContainer } from "@/components/ui/ViewToggleContainer";
+import { immeubleService } from "@/services/immeuble.service";
+import { zoneService } from "@/services/zone.service";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const ImmeublesPage = () => {
+    const [view, setView] = useState<'table' | 'map'>('table');
+    const [immeubles, setImmeubles] = useState<Immeuble[]>([]);
+    const [zones, setZones] = useState<Zone[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [immeubleToFocusId, setImmeubleToFocusId] = useState<string | null>(null);
+    const [zoneToFocusId, setZoneToFocusId] = useState<string | null>(null);
+    const [isDeleteMode, setIsDeleteMode] = useState(false);
+    const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const [immeublesFromApi, zonesFromApi] = await Promise.all([
+                immeubleService.getImmeubles(),
+                zoneService.getZones()
+            ]);
+            
+            const formattedImmeubles: Immeuble[] = immeublesFromApi.map(imm => {
+                let statusText: Immeuble['status'] = 'À visiter';
+                switch(imm.status) {
+                    case 'VISITE': statusText = 'Visité'; break;
+                    case 'RDV_PRIS': statusText = 'RDV Pris'; break;
+                    case 'INACCESSIBLE': statusText = 'Inaccessible'; break;
+                }
+                
+                const prospecteurs = Array.isArray(imm.prospecteurs) ? imm.prospecteurs : [];
+                
+                return {
+                    id: imm.id,
+                    adresse: imm.adresse,
+                    ville: imm.ville,
+                    codePostal: imm.codePostal,
+                    status: statusText,
+                    nbPortes: imm.nbPortesTotal,
+                    nbPortesProspectees: 0, 
+                    prospectingMode: prospecteurs.length > 1 ? "Duo" : "Solo",
+                    prospectors: prospecteurs.map(p => ({
+                        id: p.id,
+                        nom: `${p.prenom || ''} ${p.nom || ''}`.trim(),
+                        avatarFallback: `${p.prenom?.[0] || ''}${p.nom?.[0] || ''}`.toUpperCase()
+                    })),
+                    dateVisite: imm.dateDerniereVisite,
+                    zone: imm.zone?.nom || 'N/A',
+                    zoneId: imm.zoneId,
+                    latlng: [imm.latitude, imm.longitude],
+                };
+            });
+            
+            const formattedZones: Zone[] = zonesFromApi.map(z => ({
+                id: z.id, name: z.nom, assignedTo: 'N/A',
+                color: z.couleur || 'grey', latlng: [z.latitude, z.longitude],
+                radius: z.rayonMetres, dateCreation: z.createdAt,
+            }));
+
+            setImmeubles(formattedImmeubles);
+            setZones(formattedZones);
+
+        } catch (error) {
+            console.error("Erreur de chargement des données:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSelectAndFocusImmeuble = (immeuble: Immeuble) => {
+        setImmeubleToFocusId(immeuble.id);
+        setZoneToFocusId(null);
+        setView('map');
+    };
+
+    const handleSelectAndFocusZone = (zoneId: string) => {
+        setZoneToFocusId(zoneId);
+        setImmeubleToFocusId(null);
+        setView('map');
+    };
+    
+    const handleClearFocus = () => {
+        setImmeubleToFocusId(null);
+        setZoneToFocusId(null);
+    };
+
+    const toggleDeleteMode = () => {
+        setIsDeleteMode(prev => !prev);
+        setRowSelection({});
+    };
+
+    const handleConfirmDelete = (selectedItems: Immeuble[]) => {
+        alert(`La suppression de ${selectedItems.length} immeuble(s) n'est pas encore implémentée.`);
+        setIsDeleteMode(false);
+        setRowSelection({});
+    };
+
+    const columns = useMemo(() => createColumns(isDeleteMode, handleSelectAndFocusImmeuble, handleSelectAndFocusZone), [isDeleteMode]);
+
+    if (loading) {
+        return (
+            <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+                <div className="flex justify-between items-center">
+                    <Skeleton className="h-10 w-1/3" />
+                    <Skeleton className="h-10 w-32" />
+                </div>
+                <Skeleton className="h-96 w-full" />
+            </div>
+        )
+    }
+
+    const tableComponent = (
+        <DataTable
+            noCardWrapper
+            columns={columns}
+            data={immeubles}
+            title=""
+            filterColumnId="adresse"
+            filterPlaceholder="Filtrer par adresse..."
+            addEntityButtonText="Ajouter un Immeuble"
+            onAddEntity={() => alert("Ajout d'immeuble à implémenter")}
+            isDeleteMode={isDeleteMode}
+            onToggleDeleteMode={toggleDeleteMode}
+            rowSelection={rowSelection}
+            setRowSelection={setRowSelection}
+            onConfirmDelete={handleConfirmDelete}
+            onRowClick={handleSelectAndFocusImmeuble}
+        />
+    );
+    
+    const mapComponent = (
+        <ImmeublesMap 
+            zones={zones} 
+            immeubles={immeubles} 
+            immeubleToFocusId={immeubleToFocusId}
+            zoneToFocusId={zoneToFocusId}
+            onFocusClear={handleClearFocus}
+        />
+    );
+
+    return (
+        <ViewToggleContainer
+            title="Gestion des Immeubles"
+            description="Basculez entre la vue tableau et la vue carte. Cliquez sur une adresse ou une zone pour la localiser."
+            view={view}
+            onViewChange={setView}
+            tableComponent={tableComponent}
+            mapComponent={mapComponent}
+        />
+    );
+};
+
+export default ImmeublesPage;
+
+
+# --- pages/admin/immeubles/ImmeublesMap.tsx ---
+// frontend-shadcn/src/pages/admin/immeubles/ImmeublesMap.tsx
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MapContainer, TileLayer, Circle, Popup, Marker, FeatureGroup } from 'react-leaflet';
+import type { Map as LeafletMap, FeatureGroup as FeatureGroupType } from 'leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { Button } from '@/components/ui/button';
+import { type Immeuble } from './columns';
+import { type Zone } from '../zones/columns';
+import { Eye } from 'lucide-react';
+
+// --- (Icon setup and Leaflet patch) ---
+// @ts-ignore
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+});
+const buildingIcon = new L.Icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#09090B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-building-2"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>'),
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -28]
+});
+const focusIcon = new L.Icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="hsl(142.1 76.2% 44.1%)" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>'),
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -36],
+});
+
+interface ImmeublesMapProps {
+  zones: Zone[];
+  immeubles: Immeuble[];
+  immeubleToFocusId: string | null;
+  zoneToFocusId: string | null;
+  onFocusClear: () => void;
+}
+
+export const ImmeublesMap = (props: ImmeublesMapProps) => {
+    const { zones, immeubles, immeubleToFocusId, zoneToFocusId, onFocusClear } = props;
+    const navigate = useNavigate();
+    const [map, setMap] = useState<LeafletMap | null>(null);
+    const featureGroupRef = useRef<FeatureGroupType>(null);
+    const [selectedImmeuble, setSelectedImmeuble] = useState<Immeuble | null>(null);
+
+    useEffect(() => {
+        if (!map) return;
+
+        if (immeubleToFocusId) {
+            const immeuble = immeubles.find(i => i.id === immeubleToFocusId);
+            if (immeuble) {
+                setSelectedImmeuble(immeuble);
+                map.flyTo(immeuble.latlng, 17, { animate: true, duration: 1.5 });
+            }
+            onFocusClear();
+        } 
+        else if (zoneToFocusId) {
+            const zone = zones.find(z => z.id === zoneToFocusId);
+            if (zone) {
+                setSelectedImmeuble(null);
+                map.flyTo(zone.latlng, 14, { animate: true, duration: 1.5 });
+            }
+            onFocusClear();
+        }
+    }, [immeubleToFocusId, zoneToFocusId, map, onFocusClear, immeubles, zones]);
+
+    useEffect(() => {
+        if (map && featureGroupRef.current) {
+            const timer = setTimeout(() => {
+                if (featureGroupRef.current && featureGroupRef.current.getLayers().length > 0) {
+                     const bounds = featureGroupRef.current.getBounds();
+                     if(bounds.isValid()) {
+                        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+                     }
+                } else if (zones.length === 0 && immeubles.length === 0) {
+                     map.setView([48.8566, 2.3522], 12);
+                }
+            }, 100);
+
+            return () => clearTimeout(timer);
+        }
+    }, [map, zones, immeubles]);
+
+    return (
+        <div className="h-[70vh] w-full rounded-lg overflow-hidden">
+            <MapContainer ref={setMap} center={[48.8566, 2.3522]} zoom={12} style={{ height: '100%', width: '100%' }}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
+                
+                <FeatureGroup ref={featureGroupRef}>
+                    {zones.map(zone => (
+                        <Circle key={zone.id} center={zone.latlng} radius={zone.radius} pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.1, weight: 2 }}>
+                             <Popup><b>Zone:</b> {zone.name}<br/><b>Assignée à:</b> {zone.assignedTo}</Popup>
+                        </Circle>
+                    ))}
+                    {immeubles.map(immeuble => (
+                        <Marker key={immeuble.id} position={immeuble.latlng} icon={buildingIcon}>
+                            <Popup>
+                                <div className="space-y-2">
+                                    <p className="font-bold">{immeuble.adresse}</p>
+                                    <p className="text-sm text-muted-foreground">{immeuble.codePostal} {immeuble.ville}</p>
+                                    <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={() => navigate(`/admin/immeubles/${immeuble.id}`)}>
+                                        <Eye className="mr-2 h-4 w-4" /> Voir les portes
+                                    </Button>
+                                </div>
+                            </Popup>
+                        </Marker>
+                    ))}
+                </FeatureGroup>
+
+                {selectedImmeuble && (
+                    <Marker position={selectedImmeuble.latlng} icon={focusIcon} zIndexOffset={1000}>
+                        <Popup>
+                            <p className="font-bold">Focus: {selectedImmeuble.adresse}</p>
+                        </Popup>
+                    </Marker>
+                )}
+            </MapContainer>
+        </div>
+    );
+};
+
+
+# --- pages/commercial/DashboardCommercial.tsx ---
+// frontend-shadcn/src/pages/commercial/DashboardCommercial.tsx
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Mic, MicOff, Wifi, WifiOff, LoaderCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+
+// Hook factice pour la démo - dans une vraie app, il faudrait une logique plus robuste.
+const useAudioRecorder = (onDataAvailable: (data: Blob) => void) => {
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const [isRecording, setIsRecording] = useState(false);
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            mediaRecorderRef.current = recorder;
+
+            recorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    onDataAvailable(event.data);
+                }
+            };
+            
+            recorder.onstart = () => setIsRecording(true);
+            recorder.onstop = () => {
+                stream.getTracks().forEach(track => track.stop());
+                setIsRecording(false);
+            };
+
+            recorder.start(500); // Envoie des données toutes les 500ms
+        } catch (err) {
+            console.error("Erreur d'enregistrement audio:", err);
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop();
+        }
+    };
+
+    return { startRecording, stopRecording, isRecording };
+};
+
+
+const ProspectingPage = () => {
+  const { user } = useAuth();
+  const { text, isListening, startListening, stopListening, hasSupport } = useSpeechRecognition();
+  const socketRef = useRef<WebSocket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const commercialId = "com-001";
+
+  // Connexion WebSocket
+  useEffect(() => {
+    const connect = () => {
+      const ws = new WebSocket('ws://localhost:8080');
+      socketRef.current = ws;
+      ws.onopen = () => setIsConnected(true);
+      ws.onclose = () => {
+        setIsConnected(false);
+        setTimeout(connect, 3000);
+      };
+      ws.onerror = () => ws.close();
+    };
+    connect();
+    return () => socketRef.current?.close();
+  }, []);
+  
+  // Hook pour l'enregistrement audio
+  const { startRecording, stopRecording } = useAudioRecorder((audioBlob) => {
+      if (socketRef.current && isConnected) {
+          socketRef.current.send(audioBlob);
+      }
+  });
+
+
+  // Envoyer la transcription via WebSocket
+  useEffect(() => {
+    if (socketRef.current && isConnected && isListening && user) {
+      const payload = {
+        type: 'LIVE_TRANSCRIPT',
+        payload: { commercialId, commercialName: user.name, text, isFinal: false },
+      };
+      socketRef.current.send(JSON.stringify(payload));
+    }
+  }, [text, isConnected, isListening, user, commercialId]);
+  
+  const handleToggleProspecting = () => {
+    if (isListening) {
+      stopListening();
+      stopRecording();
+    } else {
+      startListening();
+      startRecording();
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center h-full p-4">
+      <Card className="w-full max-w-2xl mx-auto shadow-lg">
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-2xl">Mode Prospection</CardTitle>
+              <CardDescription>Cliquez pour démarrer la session d'écoute et de streaming.</CardDescription>
+            </div>
+            <Badge variant={isConnected ? "default" : "destructive"} className={isConnected ? "bg-green-100 text-green-800 border-green-300" : ""}>
+              {isConnected ? <Wifi className="mr-2 h-4 w-4" /> : <WifiOff className="mr-2 h-4 w-4" />}
+              {isConnected ? 'Connecté' : 'Déconnecté'}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+            <div className="bg-zinc-100 border p-4 rounded-lg min-h-[150px] text-zinc-700">
+                <p className="font-mono text-sm">
+                    {isListening && !text && <span className="text-zinc-400 italic flex items-center gap-2"><LoaderCircle className="animate-spin h-4 w-4" />En attente de parole...</span>}
+                    {text || (!isListening && <span className="text-zinc-400 italic">La prospection est en pause.</span>)}
+                </p>
+            </div>
+            {!hasSupport ? (
+                <div className="text-center text-red-600 font-semibold p-4 bg-red-50 border border-red-200 rounded-md">
+                    Votre navigateur ne supporte pas la reconnaissance vocale.
+                </div>
+            ) : (
+                <Button 
+                    onClick={handleToggleProspecting}
+                    disabled={!isConnected}
+                    className={`w-full h-14 text-lg font-bold rounded-md shadow-lg transition-all duration-300 ${isListening ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:bg-primary/90'}`}
+                >
+                    {isListening ? <MicOff className="mr-3 h-6 w-6" /> : <Mic className="mr-3 h-6 w-6" />}
+                    {isListening ? 'Arrêter la Prospection' : 'Commencer la Prospection'}
+                </Button>
+            )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default ProspectingPage;
+
+
+# --- index.css ---
+/* 
+  1. DÉFINIR NOS VARIABLES DE COULEUR PERSONNALISÉES
+*/
+:root {
+  /* Fond et Cartes */
+  --background: 0 20.2% 100%; /* Blanc pur */
+  --foreground: 222.2 84% 4.9%; /* Texte noir */
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+
+  /* Couleurs primaires (utilisées pour les accents, boutons...) */
+  --primary: 100.2 47.4% 11.2%;
+  --primary-foreground: 210 40% 98%;
+  
+  /* Bordure personnalisée #EFEDED */
+  --border: 0 0% 93.3%;
+  --input: 0 0% 93.3%;
+
+  /* Couleurs des graphiques de la maquette */
+  --chart-1: 248 83% 66%;
+  --chart-2: 326 91% 69%;
+  --chart-3: 350 89% 72%;
+  --chart-4: 275 68% 44%;
+  --chart-5: 160 60% 45%;
+
+  /* Autres variables pour la cohérence */
+  --radius: 0.5rem;
+  --ring: 222.2 47.4% 11.2%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+}
+
+/* 
+  ON FORCE LE MÊME THÈME POUR LE MODE SOMBRE
+*/
+.dark {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --primary: 222.2 47.4% 11.2%;
+  --primary-foreground: 210 40% 98%;
+  --border: 0 0% 93.3%;
+  --input: 0 0% 93.3%;
+  --chart-1: 248 83% 66%;
+  --chart-2: 326 91% 69%;
+  --chart-3: 350 89% 72%;
+  --chart-4: 275 68% 44%;
+  --chart-5: 160 60% 45%;
+  --radius: 0.5rem;
+  --ring: 222.2 47.4% 11.2%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+}
+
+/* 
+  2. IMPORTER TAILWIND À LA FIN
+*/
+@import "tailwindcss";
+
+/* 
+  =======================================================================
+  PATCH DE DERNIER RECOURS POUR LES ÉLÉMENTS FLOTTANTS
+  =======================================================================
+*/
+
+/* --- Patch pour le Dropdown Menu --- */
+[data-radix-popper-content-wrapper] {
+  z-index: 100 !important; /* S'assure qu'il est au-dessus de tout */
+  background-color: white !important;
+  border: 1px solid #EFEDED !important;
+  border-radius: 0.5rem !important;
+}
+[data-radix-popper-content-wrapper] [role="menuitem"]:focus {
+  background-color: #f4f4f5 !important;
+}
+/* etc. pour les autres styles du dropdown... */
+
+
+/* --- Patch pour le Dialog (Modale / Popup) --- */
+
+/* 1. Le voile d'arrière-plan */
+[data-radix-dialog-overlay] {
+  background-color: hsl(0 0% 0% / 0.8) !important;
+  z-index: 99 !important; /* Un z-index élevé */
+}
+
+/* 2. Le contenu de la modale */
+[data-radix-dialog-content-wrapper] {
+  z-index: 100 !important; /* z-index PLUS ÉLEVÉ que l'overlay */
+  background-color: white !important;
+  border-radius: 0.5rem !important;
+}
+
+/* 3. On s'assure que le texte est lisible (au cas où il hériterait d'une couleur blanche) */
+[data-radix-dialog-content-wrapper] *,
+[data-radix-dialog-content-wrapper] {
+  color: #09090B !important;
+}
+
+/* --- Dialog (Modale / Popup) --- */
+[data-slot="dialog-overlay"] {
+  z-index: 1998 !important; /* Overlay juste en dessous du contenu */
+}
+[data-slot="dialog-content"] {
+  z-index: 1999 !important; /* Contenu de la modale au-dessus de son overlay */
+}
+
+/* --- Créateur de Zone (qui est en plein écran) --- */
+[data-slot="zone-creator"] {
+  z-index: 1500 !important;
+}
+
+
+/* ... (tout votre CSS existant) ... */
+
+/* ======================================================= */
+/*   Amélioration du style pour Leaflet GeoSearch          */
+/* ======================================================= */
+
+/* Conteneur principal de la barre de recherche */
+.geosearch.bar .search-form {
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem; /* Corresponds à rounded-md */
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  transition: all 150ms ease-in-out;
+}
+
+.geosearch.bar .search-form:hover {
+  border-color: hsl(var(--ring));
+}
+
+/* Le champ de saisie */
+.geosearch.bar .search-input {
+  background-color: transparent;
+  border: none;
+  color: hsl(var(--foreground));
+  outline: none;
+}
+
+/* Le bouton de recherche (icône loupe) */
+.geosearch.bar .search-btn {
+  border: none;
+  border-radius: 0.375rem; /* rounded-md */
+  color: hsl(var(--muted-foreground));
+}
+.geosearch.bar .search-btn:hover {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+}
+
+/* Conteneur des résultats */
+.geosearch .results {
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Un résultat individuel */
+.geosearch .results > * {
+  border-bottom: 1px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.geosearch .results > *:last-child {
+  border-bottom: none;
+}
+.geosearch .results > *.active,
+.geosearch .results > *:hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+
+
+# --- pages/admin/Equipes/EquipeDetailsPage.tsx ---
+// frontend-shadcn/src/pages/admin/Equipes/EquipeDetailsPage.tsx
+
+import { useEffect, useState, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { createColumns as createCommerciauxColumns } from "../commerciaux/commerciaux-table/columns";
+import { DataTable } from "@/components/data-table/DataTable";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Users, CheckCircle, Briefcase, Target, Trophy } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import StatCard from "@/components/ui/StatCard";
+import { GenericLineChart } from "@/components/charts/GenericLineChart";
+
+// --- MOCK DATA ---
+const allEquipesDetails = {
+    "eq-alpha": {
+        id: "eq-alpha", nom: "Alpha", manager: "Dupont Jean",
+        stats: { contratsSignes: 45, rdvPris: 130, perfMoyenne: 85, classementGeneral: 1, nbCommerciaux: 8 },
+        perfHistory: [{ name: 'S-4', perf: 78 }, { name: 'S-3', perf: 80 }, { name: 'S-2', perf: 85 }, { name: 'S-1', perf: 81 }, { name: 'Actuelle', perf: 85 }],
+        commerciaux: [
+            { id: "com-001", nom: "Leroy", prenom: "Alice", email: "alice.leroy@example.com", manager: "Dupont Jean", equipe: "Alpha", classement: 1 },
+            { id: "com-003", nom: "Fournier", prenom: "Chloé", email: "chloe.fournier@example.com", manager: "Dupont Jean", equipe: "Alpha", classement: 3 },
+            { id: "com-006", nom: "Roux", prenom: "Hugo", email: "hugo.roux@example.com", manager: "Dupont Jean", equipe: "Alpha", classement: 6 },
+            { id: "com-010", nom: "Blanc", prenom: "Nicolas", email: "nicolas.blanc@example.com", manager: "Dupont Jean", equipe: "Alpha", classement: 10 },
+            { id: "com-014", nom: "Collet", prenom: "Maxime", email: "maxime.collet@example.com", manager: "Dupont Jean", equipe: "Alpha", classement: 14 },
+        ]
+    },
+    // ... ajouter d'autres équipes si nécessaire
+};
+
+async function getEquipeDetails(equipeId: string): Promise<any> {
+    // @ts-ignore
+    return new Promise(resolve => setTimeout(() => resolve(allEquipesDetails[equipeId] || null), 500));
+}
+
+const EquipeDetailsPage = () => {
+  const { equipeId } = useParams<{ equipeId: string }>();
+  const navigate = useNavigate();
+  const [equipeDetails, setEquipeDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (equipeId) {
+      setLoading(true);
+      getEquipeDetails(equipeId).then(data => {
+        setEquipeDetails(data);
+        setLoading(false);
+      });
+    }
+  }, [equipeId]);
+
+  const commerciauxColumns = useMemo(() => {
+    const allCols = createCommerciauxColumns(false); // Pas de mode suppression
+    // On exclut les colonnes 'manager' et 'equipe' car redondantes ici
+    return allCols.filter(col => col.id !== 'manager' && col.id !== 'equipe');
+  }, []);
+
+  if (loading) {
+    return (
+        <div className="space-y-6 animate-pulse">
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-24 w-full" />
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-lg" />)}
+            </div>
+            <Skeleton className="h-96 w-full" />
+            <Skeleton className="h-96 w-full" />
+        </div>
+    )
+  }
+
+  if (!equipeDetails) {
+    return <div>Équipe non trouvée.</div>;
+  }
+
+  return (
+    <div className="space-y-8">
+      <Button variant="outline" onClick={() => navigate(-1)}>
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Retour à la liste des équipes
+      </Button>
+
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold flex items-center gap-3">
+            <Users className="h-8 w-8 text-primary" />
+            Équipe {equipeDetails.nom}
+        </h1>
+        <p className="text-muted-foreground">Manager : {equipeDetails.manager}</p>
+      </div>
+      
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard title="Contrats Signés" value={equipeDetails.stats.contratsSignes} Icon={CheckCircle} color="text-emerald-500" />
+        <StatCard title="RDV Pris" value={equipeDetails.stats.rdvPris} Icon={Briefcase} color="text-sky-500"/>
+        <StatCard title="Performance Moyenne" value={equipeDetails.stats.perfMoyenne} Icon={Target} suffix="%" color="text-amber-500"/>
+        <StatCard title="Classement Général" value={equipeDetails.stats.classementGeneral} Icon={Trophy} prefix="#" color="text-yellow-500"/>
+      </div>
+
+      <GenericLineChart
+        title="Évolution de la Performance de l'Équipe"
+        data={equipeDetails.perfHistory}
+        xAxisDataKey="name"
+        lines={[{ dataKey: 'perf', stroke: 'hsl(var(--chart-2))', name: 'Performance (%)' }]}
+      />
+
+      <DataTable 
+        columns={commerciauxColumns} 
+        data={equipeDetails.commerciaux} 
+        title={`Membres de l'équipe (${equipeDetails.commerciaux.length})`}
+        filterColumnId="nom"
+        filterPlaceholder="Filtrer par nom de commercial..."
+        isDeleteMode={false}
+        onToggleDeleteMode={() => {}}
+        rowSelection={{}}
+        setRowSelection={() => {}}
+        onConfirmDelete={() => {}}
+      />
+    </div>
+  )
+}
+
+export default EquipeDetailsPage;
+
+
+# --- pages/admin/suivi/SuiviMap.tsx ---
+// src/pages/admin/suivi/SuiviMap.tsx
+import { useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Circle, Popup, FeatureGroup, Marker } from 'react-leaflet';
+import type { Map as LeafletMap, FeatureGroup as FeatureGroupType } from 'leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { type Zone, type Commercial } from './types';
+
+// --- Configuration des icônes ---
+
+// Patch pour l'icône par défaut de Leaflet
+// @ts-ignore
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+});
+
+// NOUVEAU : Icône personnalisée pour un commercial non sélectionné
+const defaultIcon = new L.Icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(222.2 47.4% 11.2%)" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>'),
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32],
+});
+
+// NOUVEAU : Icône personnalisée pour le commercial sélectionné (plus grosse et colorée)
+const selectedIcon = new L.Icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(142.1 76.2% 44.1%)" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>'),
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -40],
+});
+
+
+// --- MODIFICATION des Props ---
+interface SuiviMapProps {
+  zones: Zone[];
+  commercials: Commercial[];
+  onMarkerClick: (commercial: Commercial) => void; // Callback pour informer le parent
+  selectedCommercialId?: string; // ID du commercial sélectionné pour le style
+}
+
+export const SuiviMap = ({ zones, commercials, onMarkerClick, selectedCommercialId }: SuiviMapProps) => {
+  const mapRef = useRef<LeafletMap | null>(null);
+  const featureGroupRef = useRef<FeatureGroupType>(null);
+
+  useEffect(() => {
+    // Centre la carte sur tous les éléments au chargement
+    if (mapRef.current && featureGroupRef.current) {
+        const bounds = featureGroupRef.current.getBounds();
+        if (bounds.isValid()) {
+            mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
+  }, [zones, commercials]);
+
+  return (
+    <div className="h-full w-full rounded-lg overflow-hidden shadow-md">
+      <MapContainer 
+        ref={mapRef} 
+        center={[48.8566, 2.3522]} 
+        zoom={12} 
+        style={{ height: '100%', width: '100%' }}
+      >
+        <TileLayer 
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
+          attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' 
+        />
+        <FeatureGroup ref={featureGroupRef}>
+          {/* Affichage des zones */}
+          {zones.map(zone => (
+            <Circle 
+              key={zone.id} 
+              center={zone.latlng} 
+              radius={zone.radius}
+              pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.2 }}
+            >
+              <Popup><b>Zone:</b> {zone.name}</Popup>
+            </Circle>
+          ))}
+          {/* NOUVEAU : Affichage des commerciaux */}
+          {commercials.map(commercial => (
+            <Marker
+              key={commercial.id}
+              position={commercial.position}
+              icon={selectedCommercialId === commercial.id ? selectedIcon : defaultIcon}
+              eventHandlers={{
+                click: () => {
+                  onMarkerClick(commercial); // Appel du callback au clic
+                },
+              }}
+              zIndexOffset={selectedCommercialId === commercial.id ? 1000 : 0} // Met le marqueur sélectionné au-dessus
+            >
+              <Popup><b>{commercial.name}</b><br/>Équipe {commercial.equipe}</Popup>
+            </Marker>
+          ))}
+        </FeatureGroup>
+      </MapContainer>
+    </div>
+  );
+};
+
+
+# --- components/ui/sheet.tsx ---
+import * as React from "react"
+import * as SheetPrimitive from "@radix-ui/react-dialog"
+import { XIcon } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
+  return <SheetPrimitive.Root data-slot="sheet" {...props} />
+}
+
+function SheetTrigger({
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
+  return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />
+}
+
+function SheetClose({
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Close>) {
+  return <SheetPrimitive.Close data-slot="sheet-close" {...props} />
+}
+
+function SheetPortal({
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Portal>) {
+  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
+}
+
+function SheetOverlay({
+  className,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Overlay>) {
+  return (
+    <SheetPrimitive.Overlay
+      data-slot="sheet-overlay"
+      className={cn(
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function SheetContent({
+  className,
+  children,
+  side = "right",
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Content> & {
+  side?: "top" | "right" | "bottom" | "left"
+}) {
+  return (
+    <SheetPortal>
+      <SheetOverlay />
+      <SheetPrimitive.Content
+        data-slot="sheet-content"
+        className={cn(
+          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+          side === "right" &&
+            "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
+          side === "left" &&
+            "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",
+          side === "top" &&
+            "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b",
+          side === "bottom" &&
+            "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+          <XIcon className="size-4" />
+          <span className="sr-only">Close</span>
+        </SheetPrimitive.Close>
+      </SheetPrimitive.Content>
+    </SheetPortal>
+  )
+}
+
+function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="sheet-header"
+      className={cn("flex flex-col gap-1.5 p-4", className)}
+      {...props}
+    />
+  )
+}
+
+function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="sheet-footer"
+      className={cn("mt-auto flex flex-col gap-2 p-4", className)}
+      {...props}
+    />
+  )
+}
+
+function SheetTitle({
+  className,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Title>) {
+  return (
+    <SheetPrimitive.Title
+      data-slot="sheet-title"
+      className={cn("text-foreground font-semibold", className)}
+      {...props}
+    />
+  )
+}
+
+function SheetDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Description>) {
+  return (
+    <SheetPrimitive.Description
+      data-slot="sheet-description"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Sheet,
+  SheetTrigger,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetFooter,
+  SheetTitle,
+  SheetDescription,
+}
+
+
+
+# --- components/ui/alert-dialog.tsx ---
+import * as React from "react"
+import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
+
+import { cn } from "@/lib/utils"
+import { buttonVariants } from "@/components/ui/button"
+
+function AlertDialog({
+  ...props
+}: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
+  return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+}
+
+function AlertDialogTrigger({
+  ...props
+}: React.ComponentProps<typeof AlertDialogPrimitive.Trigger>) {
+  return (
+    <AlertDialogPrimitive.Trigger data-slot="alert-dialog-trigger" {...props} />
+  )
+}
+
+function AlertDialogPortal({
+  ...props
+}: React.ComponentProps<typeof AlertDialogPrimitive.Portal>) {
+  return (
+    <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" {...props} />
+  )
+}
+
+function AlertDialogOverlay({
+  className,
+  ...props
+}: React.ComponentProps<typeof AlertDialogPrimitive.Overlay>) {
+  return (
+    <AlertDialogPrimitive.Overlay
+      data-slot="alert-dialog-overlay"
+      className={cn(
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AlertDialogContent({
+  className,
+  ...props
+}: React.ComponentProps<typeof AlertDialogPrimitive.Content>) {
+  return (
+    <AlertDialogPortal>
+      <AlertDialogOverlay />
+      <AlertDialogPrimitive.Content
+        data-slot="alert-dialog-content"
+        className={cn(
+          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
+          className
+        )}
+        {...props}
+      />
+    </AlertDialogPortal>
+  )
+}
+
+function AlertDialogHeader({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="alert-dialog-header"
+      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+      {...props}
+    />
+  )
+}
+
+function AlertDialogFooter({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="alert-dialog-footer"
+      className={cn(
+        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AlertDialogTitle({
+  className,
+  ...props
+}: React.ComponentProps<typeof AlertDialogPrimitive.Title>) {
+  return (
+    <AlertDialogPrimitive.Title
+      data-slot="alert-dialog-title"
+      className={cn("text-lg font-semibold", className)}
+      {...props}
+    />
+  )
+}
+
+function AlertDialogDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof AlertDialogPrimitive.Description>) {
+  return (
+    <AlertDialogPrimitive.Description
+      data-slot="alert-dialog-description"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  )
+}
+
+function AlertDialogAction({
+  className,
+  ...props
+}: React.ComponentProps<typeof AlertDialogPrimitive.Action>) {
+  return (
+    <AlertDialogPrimitive.Action
+      className={cn(buttonVariants(), className)}
+      {...props}
+    />
+  )
+}
+
+function AlertDialogCancel({
+  className,
+  ...props
+}: React.ComponentProps<typeof AlertDialogPrimitive.Cancel>) {
+  return (
+    <AlertDialogPrimitive.Cancel
+      className={cn(buttonVariants({ variant: "outline" }), className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  AlertDialog,
+  AlertDialogPortal,
+  AlertDialogOverlay,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+}
+
+
+
+# --- components/charts/GenericHorizontalBarChart.tsx ---
+// src/components/charts/GenericHorizontalBarChart.tsx
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, Legend } from 'recharts';
+
+/**
+ * Props pour le composant GenericHorizontalBarChart.
+ */
+interface GenericHorizontalBarChartProps {
+  /** Le titre affiché en haut de la carte. */
+  title: string;
+  /** Le tableau de données pour le graphique. */
+  data: any[];
+  /** La clé de données pour l'axe Y (les catégories). */
+  yAxisDataKey: string;
+  /** La clé de données pour la valeur des barres. */
+  barDataKey: string;
+  /** La couleur de remplissage des barres. */
+  fillColor: string;
+  /** Le nom de la série de données, affiché dans la légende et le tooltip. */
+  barName?: string;
+}
+
+export const GenericHorizontalBarChart = ({ 
+  title, 
+  data, 
+  yAxisDataKey, 
+  barDataKey, 
+  fillColor,
+  barName 
+}: GenericHorizontalBarChartProps) => {
+  return (
+    <Card className="h-full">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {/* On augmente la hauteur pour laisser de la place à la légende en bas */}
+        <ResponsiveContainer width="100%" height={350}>
+          <BarChart 
+            layout="vertical" // La propriété clé pour un graphique à barres horizontales
+            data={data} 
+            margin={{
+              top: 5,
+              right: 30, // Marge pour voir les labels sur les barres
+              left: 20,
+              bottom: 20, // Marge pour la légende
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+            
+            <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+            
+            <YAxis 
+              type="category" 
+              dataKey={yAxisDataKey} // Les labels (ex: "Lundi", "Mardi") sont sur l'axe Y
+              stroke="hsl(var(--muted-foreground))" 
+              fontSize={12} 
+              tickLine={false} 
+              axisLine={false}
+              width={80} // Assure un espace suffisant pour les noms des jours
+              tick={{ fill: 'hsl(var(--foreground))' }}
+            />
+            
+            <Tooltip 
+              cursor={{ fill: 'hsl(var(--muted))' }} 
+              contentStyle={{ 
+                backgroundColor: 'hsl(var(--background))', 
+                borderColor: 'hsl(var(--border))',
+                borderRadius: '0.5rem',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+              }} 
+            />
+            
+            <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: '20px' }} />
+            
+            <Bar 
+              dataKey={barDataKey} 
+              name={barName || "Valeur"} // Ce nom sera utilisé par la légende et le tooltip
+              fill={fillColor} 
+              radius={[0, 4, 4, 0]} // Coins arrondis à droite
+            >
+              <LabelList 
+                dataKey={barDataKey} 
+                position="right" 
+                style={{ fill: 'hsl(var(--foreground))', fontSize: '12px' }} 
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+};
+
+
+# --- pages/admin/zones/columns.tsx ---
+// frontend-shadcn/src/pages/admin/zones/columns.tsx
+"use client"
+
+import type { ColumnDef } from "@tanstack/react-table"
+import { format } from "date-fns"
+import { fr } from "date-fns/locale"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ArrowUpDown, Edit, Calendar } from "lucide-react"
+
+export interface Zone {
+  id: string;
+  name: string;
+  assignedTo: string;
+  color: string;
+  latlng: [number, number];
+  radius: number;
+  dateCreation: string;
+}
+
+const Header = ({ title }: { title: string }) => (
+  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
+)
+
+const SortableHeader = ({ title, column }: { title: string, column: any }) => (
+  <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="p-0 h-8 hover:bg-transparent">
+    <Header title={title} />
+    <ArrowUpDown className="ml-2 h-3 w-3" />
+  </Button>
+)
+
+export const createZoneColumns = (isDeleteMode: boolean, onEdit: (zone: Zone) => void): ColumnDef<Zone>[] => [
+    // Colonne de sélection conditionnelle
+    ...(isDeleteMode ? [{
+      id: "select",
+      header: ({ table }: any) => (<Checkbox checked={table.getIsAllPageRowsSelected()} onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all" />),
+      cell: ({ row }: any) => (<Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} aria-label="Select row" onClick={(e) => e.stopPropagation()} />),
+      enableSorting: false, enableHiding: false,
+    }] : []),
+    {
+        accessorKey: "name",
+        header: ({ column }) => <SortableHeader title="Nom de la zone" column={column} />,
+        cell: ({ row }) => <div className="font-medium text-foreground">{row.original.name}</div>,
+    },
+    {
+        accessorKey: "assignedTo",
+        header: ({ column }) => <SortableHeader title="Assignée à" column={column} />,
+        cell: ({ row }) => {
+            const { color, assignedTo } = row.original;
+            const badgeStyle = color ? { backgroundColor: color, color: 'white', borderColor: 'transparent' } : {};
+            return ( <Badge style={badgeStyle} className="border-transparent">{assignedTo}</Badge> )
+        }
+    },
+    {
+        accessorKey: "dateCreation",
+        header: ({ column }) => <SortableHeader title="Date d'ajout" column={column} />,
+        cell: ({ row }) => (
+            <div className="flex items-center gap-2 text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span>{format(new Date(row.original.dateCreation), "d LLL yyyy", { locale: fr })}</span>
+            </div>
+        )
+    },
+    {
+        id: "actions",
+        header: () => <div className="text-right"><Header title="Actions" /></div>,
+        cell: ({ row }) => (
+            <div className="text-right">
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(row.original); }}>
+                    <Edit className="h-4 w-4" />
+                    <span className="sr-only">Modifier la zone</span>
+                </Button>
+            </div>
+        ),
+    },
+];
+
+
+# --- components/ui/table.tsx ---
+// frontend-shadcn/src/components/ui/table.tsx
+
+import * as React from "react"
+import { cn } from "@/lib/utils"
+
+const Table = React.forwardRef<
+  HTMLTableElement,
+  React.HTMLAttributes<HTMLTableElement>
+>(({ className, ...props }, ref) => (
+  // + Ajout du div wrapper pour le scroll horizontal
+  <div className="relative w-full overflow-auto"> 
+    <table
+      ref={ref}
+      className={cn("w-full caption-bottom text-sm", className)}
+      {...props}
+    />
+  </div>
+))
+Table.displayName = "Table"
+
+// ... le reste du fichier ne change pas ...
+const TableHeader = React.forwardRef<
+  HTMLTableSectionElement,
+  React.HTMLAttributes<HTMLTableSectionElement>
+>(({ className, ...props }, ref) => (
+  <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
+))
+TableHeader.displayName = "TableHeader"
+
+const TableBody = React.forwardRef<
+  HTMLTableSectionElement,
+  React.HTMLAttributes<HTMLTableSectionElement>
+>(({ className, ...props }, ref) => (
+  <tbody
+    ref={ref}
+    className={cn("[&_tr:last-child]:border-0", className)}
+    {...props}
+  />
+))
+TableBody.displayName = "TableBody"
+
+const TableFooter = React.forwardRef<
+  HTMLTableSectionElement,
+  React.HTMLAttributes<HTMLTableSectionElement>
+>(({ className, ...props }, ref) => (
+  <tfoot
+    ref={ref}
+    className={cn(
+      "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
+      className
+    )}
+    {...props}
+  />
+))
+TableFooter.displayName = "TableFooter"
+
+const TableRow = React.forwardRef<
+  HTMLTableRowElement,
+  React.HTMLAttributes<HTMLTableRowElement>
+>(({ className, ...props }, ref) => (
+  <tr
+    ref={ref}
+    className={cn(
+      "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+      className
+    )}
+    {...props}
+  />
+))
+TableRow.displayName = "TableRow"
+
+const TableHead = React.forwardRef<
+  HTMLTableCellElement,
+  React.ThHTMLAttributes<HTMLTableCellElement>
+>(({ className, ...props }, ref) => (
+  <th
+    ref={ref}
+    className={cn(
+      "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+      className
+    )}
+    {...props}
+  />
+))
+TableHead.displayName = "TableHead"
+
+const TableCell = React.forwardRef<
+  HTMLTableCellElement,
+  React.TdHTMLAttributes<HTMLTableCellElement>
+>(({ className, ...props }, ref) => (
+  <td
+    ref={ref}
+    className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", className)}
+    {...props}
+  />
+))
+TableCell.displayName = "TableCell"
+
+const TableCaption = React.forwardRef<
+  HTMLTableSectionElement,
+  React.HTMLAttributes<HTMLTableSectionElement>
+>(({ className, ...props }, ref) => (
+  <caption
+    ref={ref}
+    className={cn("mt-4 text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+TableCaption.displayName = "TableCaption"
+
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableCaption,
+}
+
+
+# --- components/charts/GenericLineChart.tsx ---
+// src/components/charts/GenericLineChart.tsx
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+/**
+ * Configuration pour une seule ligne dans le graphique.
+ */
+interface LineConfig {
+  /** La clé de données dans l'objet de données (ex: 'rdv', 'contrats'). */
+  dataKey: string;
+  /** La couleur de la ligne (ex: 'hsl(var(--chart-1))'). */
+  stroke: string;
+  /** Le nom affiché dans la légende et le tooltip. */
+  name?: string; 
+}
+
+/**
+ * Props pour le composant GenericLineChart.
+ */
+interface GenericLineChartProps {
+  /** Le titre affiché en haut de la carte. */
+  title: string;
+  /** Le tableau de données pour le graphique. */
+  data: any[];
+  /** La clé de données pour l'axe X (les labels de temps). */
+  xAxisDataKey: string;
+  /** Un tableau de configurations pour chaque ligne à dessiner. */
+  lines: LineConfig[];
+}
+
+export const GenericLineChart = ({ title, data, xAxisDataKey, lines }: GenericLineChartProps) => {
+  return (
+    <Card className="h-full">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {/* On s'assure que le graphique a assez de place pour la légende */}
+        <ResponsiveContainer width="100%" height={350}> 
+          <LineChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey={xAxisDataKey} stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'hsl(var(--background))', 
+                borderColor: 'hsl(var(--border))',
+                borderRadius: '0.5rem',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+              }} 
+            />
+            <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: '20px' }}/>
+            {lines.map(line => (
+              <Line 
+                key={line.dataKey} 
+                type="monotone" 
+                dataKey={line.dataKey} 
+                stroke={line.stroke} 
+                strokeWidth={2} 
+                dot={{ r: 4 }}
+                // On utilise la propriété 'name' pour la légende et le tooltip
+                name={line.name || line.dataKey} 
+                activeDot={{ r: 6 }}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+};
+
+
+# --- components/ui/DatePickerWithPresets.tsx ---
+// src/components/ui/DatePickerWithPresets.tsx
+
+import { format } from "date-fns"
+import { fr } from "date-fns/locale"
+import type { DateRange } from "react-day-picker"
+import { Calendar as CalendarIcon } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+
+interface DatePickerWithPresetsProps {
+  className?: string
+  selectedDate: DateRange | undefined
+  onDateChange: (date: DateRange | undefined) => void
+  onPresetSelect: (preset: string) => void
+}
+
+export function DatePickerWithPresets({
+  className,
+  selectedDate,
+  onDateChange,
+  onPresetSelect,
+}: DatePickerWithPresetsProps) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          id="date"
+          variant="outline"
+          className={cn(
+            "w-[280px] justify-start text-left font-normal h-11",
+            !selectedDate && "text-muted-foreground",
+            className
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {selectedDate?.from ? (
+            selectedDate.to ? (
+              <>
+                {format(selectedDate.from, "d LLL y", { locale: fr })} -{" "}
+                {format(selectedDate.to, "d LLL y", { locale: fr })}
+              </>
+            ) : (
+              format(selectedDate.from, "d LLL y", { locale: fr })
+            )
+          ) : (
+            <span>Choisir une période</span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="flex w-auto flex-col space-y-2 p-2" align="end">
+        <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => onPresetSelect('week')}>Cette semaine</Button>
+            <Button variant="ghost" size="sm" onClick={() => onPresetSelect('month')}>Ce mois</Button>
+            <Button variant="ghost" size="sm" onClick={() => onPresetSelect('year')}>Cette année</Button>
+        </div>
+        <div className="rounded-md border">
+          <Calendar
+            initialFocus
+            mode="range"
+            defaultMonth={selectedDate?.from}
+            selected={selectedDate}
+            onSelect={onDateChange}
+            numberOfMonths={2}
+            locale={fr}
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+
+# --- pages/admin/statitistiques/LeaderboardTable.tsx ---
+// src/pages/admin/statitistiques/LeaderboardTable.tsx
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+
+interface Performer {
+  rank: number;
+  name: string;
+  avatar: string;
+  value: number;
+  change: number;
+}
+
+interface LeaderboardTableProps {
+  title: string;
+  description: string;
+  data: Performer[];
+  unit: string;
+}
+
+const rankColor = (rank: number) => {
+    if (rank === 1) return "bg-yellow-400/20 text-yellow-700 border-yellow-400/50";
+    if (rank === 2) return "bg-slate-400/20 text-slate-700 border-slate-400/50";
+    if (rank === 3) return "bg-orange-400/20 text-orange-700 border-orange-400/50";
+    return "bg-muted text-muted-foreground border-transparent";
+}
+
+export const LeaderboardTable = ({ title, description, data, unit }: LeaderboardTableProps) => {
+  return (
+    <Card className="h-full">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[50px]">Rank</TableHead>
+              <TableHead>Nom</TableHead>
+              <TableHead className="text-right">{unit}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((item) => (
+              <TableRow key={item.rank}>
+                <TableCell>
+                    <Badge variant="outline" className={rankColor(item.rank)}>
+                        {item.rank}
+                    </Badge>
+                </TableCell>
+                <TableCell className="font-medium flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                        <AvatarFallback>{item.avatar}</AvatarFallback>
+                    </Avatar>
+                    {item.name}
+                </TableCell>
+                <TableCell className="text-right font-bold text-lg">{item.value}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+};
+
+
+# --- components/ui/button.tsx ---
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+        secondary:
+          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+        ghost:
+          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2 has-[>svg]:px-3",
+        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        icon: "size-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  const Comp = asChild ? Slot : "button"
+
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }
+
+
+
+# --- components/ui/ViewToggleContainer.tsx ---
+// frontend-shadcn/src/components/ui/ViewToggleContainer.tsx
+import React from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Table as TableIcon, Map as MapIcon } from 'lucide-react';
+
+interface ViewToggleContainerProps {
+  title: string;
+  description: string;
+  view: 'table' | 'map';
+  onViewChange: (view: 'table' | 'map') => void;
+  tableComponent: React.ReactNode;
+  mapComponent: React.ReactNode;
+}
+
+export const ViewToggleContainer = ({
+  title,
+  description,
+  view,
+  onViewChange,
+  tableComponent,
+  mapComponent
+}: ViewToggleContainerProps) => {
+  return (
+    <Card className="h-full flex flex-col">
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <div className="flex-shrink-0 flex items-center gap-1 rounded-lg border p-1 bg-muted/50">
+            <Button
+              variant={view === 'table' ? 'default' : 'ghost'}
+              className={view === 'table' ? 'bg-black text-white hover:bg-black/90' : ''}
+              onClick={() => onViewChange('table')}
+            >
+              <TableIcon className="mr-2 h-4 w-4" /> Tableau
+            </Button>
+            <Button
+              variant={view === 'map' ? 'default' : 'ghost'}
+              className={view === 'map' ? 'bg-black text-white hover:bg-black/90' : ''}
+              onClick={() => onViewChange('map')}
+            >
+              <MapIcon className="mr-2 h-4 w-4" /> Carte
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="flex-1 p-0">
+        {view === 'table' && <div className="animate-in fade-in-0 p-6 pt-0">{tableComponent}</div>}
+        {view === 'map' && <div className="animate-in fade-in-0 h-full p-0">{mapComponent}</div>}
+      </CardContent>
+    </Card>
+  );
+};
+
+
+# --- components/ui/StatCard.tsx ---
+// src/components/ui/StatCard.tsx
+
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import type { LucideIcon } from 'lucide-react';
+import CountUp from 'react-countup';
+import { cn } from '@/lib/utils';
+import { ArrowUp, ArrowDown } from 'lucide-react'; // <-- 1. Importer les icônes
+
+interface StatCardProps {
+  title: string;
+  value: number;
+  Icon: LucideIcon;
+  prefix?: string;
+  suffix?: string;
+  color?: string;
+  change?: number; // <-- 2. Ajouter la nouvelle prop 'change'
+}
+
+const StatCard = ({ title, value, Icon, prefix, suffix, color, change }: StatCardProps) => {
+  // 3. Déterminer si le changement est positif ou non
+  const isPositive = change !== undefined && change >= 0;
+
+  return (
+    <Card className="transition-transform duration-300 hover:scale-[1.03] hover:shadow-lg">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className={cn("h-4 w-4 text-muted-foreground", color)} />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">
+          <CountUp
+            start={0}
+            end={value}
+            duration={1.5}
+            separator=" "
+            prefix={prefix}
+            suffix={suffix}
+            decimals={value % 1 !== 0 ? 1 : 0} 
+          />
+        </div>
+        {/* --- 4. LOGIQUE POUR AFFICHER L'ÉVOLUTION --- */}
+        {change !== undefined && (
+          <p className={cn(
+             "text-xs text-muted-foreground flex items-center gap-1 mt-1",
+             isPositive ? "text-emerald-600" : "text-red-600"
+          )}>
+            {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+            <span>
+              {isPositive && '+'}{change.toFixed(1)}% vs période précédente
+            </span>
+        </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default StatCard;
+
+
+# --- components/ui/card.tsx ---
+// src/components/ui/card.tsx
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+const Card = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "rounded-lg border border-[#EFEDED] bg-card text-card-foreground",
+      className
+    )}
+    {...props}
+  />
+))
+Card.displayName = "Card"
+
+const CardHeader = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    {...props}
+  />
+))
+CardHeader.displayName = "CardHeader"
+
+const CardTitle = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLHeadingElement>
+>(({ className, ...props }, ref) => (
+  <h3
+    ref={ref}
+    className={cn(
+      "text-2xl font-semibold leading-none tracking-tight",
+      className
+    )}
+    {...props}
+  />
+))
+CardTitle.displayName = "CardTitle"
+
+const CardDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => (
+  <p
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+))
+CardDescription.displayName = "CardDescription"
+
+const CardContent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+))
+CardContent.displayName = "CardContent"
+
+const CardFooter = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex items-center p-6 pt-0", className)}
+    {...props}
+  />
+))
+CardFooter.displayName = "CardFooter"
+
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
+
+
+# --- components/ui/tooltip.tsx ---
+import * as React from "react"
+import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+
+import { cn } from "@/lib/utils"
+
+function TooltipProvider({
+  delayDuration = 0,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
+  return (
+    <TooltipPrimitive.Provider
+      data-slot="tooltip-provider"
+      delayDuration={delayDuration}
+      {...props}
+    />
+  )
+}
+
+function Tooltip({
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+  return (
+    <TooltipProvider>
+      <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+    </TooltipProvider>
+  )
+}
+
+function TooltipTrigger({
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
+  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+}
+
+function TooltipContent({
+  className,
+  sideOffset = 0,
+  children,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+  return (
+    <TooltipPrimitive.Portal>
+      <TooltipPrimitive.Content
+        data-slot="tooltip-content"
+        sideOffset={sideOffset}
+        className={cn(
+          "bg-primary text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-3 py-1.5 text-xs text-balance",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        <TooltipPrimitive.Arrow className="bg-primary fill-primary z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
+      </TooltipPrimitive.Content>
+    </TooltipPrimitive.Portal>
+  )
+}
+
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+
+
+
+# --- services/immeuble.service.ts ---
+// frontend-shadcn/src/services/immeuble.service.ts
+import axios from 'axios';
+import type { PorteStatus, ProspectingMode } from '@/types/enums';
+
+const API_URL = 'http://localhost:3000/immeubles';
+
+// Ce que l'API renvoie pour la liste (j'ajoute aussi les champs ici pour la cohérence)
+export type ImmeubleFromAPI = {
+  id: string;
+  adresse: string;
+  ville: string;
+  codePostal: string;
+  status: "A_VISITER" | "VISITE" | "RDV_PRIS" | "INACCESSIBLE";
+  nbPortesTotal: number;
+  latitude: number;
+  longitude: number;
+  zoneId: string;
+  dateDerniereVisite: string | null;
+  zone: { nom: string } | null;
+  prospecteurs: { id: string; prenom: string; nom: string }[];
+  // Ajout des champs manquants pour la liste aussi
+  modeProspection: ProspectingMode;
+  hasElevator: boolean;
+  digicode: string | null;
+};
+
+// Ce que l'API renvoie pour les détails
+export type PorteFromAPI = {
+    id: string;
+    numeroPorte: string;
+    status: PorteStatus;
+    nbPassages: number;
+    commentaire: string | null;
+};
+export type ImmeubleDetailsFromAPI = ImmeubleFromAPI & {
+    portes: PorteFromAPI[];
+};
+
+type UpdatePortePayload = {
+    status?: PorteStatus;
+    commentaire?: string;
+};
+
+const getImmeubles = async (): Promise<ImmeubleFromAPI[]> => {
+  const response = await axios.get(API_URL);
+  return response.data;
+};
+
+const getImmeubleDetails = async (id: string): Promise<ImmeubleDetailsFromAPI> => {
+    const response = await axios.get(`${API_URL}/${id}`);
+    return response.data;
+};
+
+const updatePorte = async (porteId: string, data: UpdatePortePayload): Promise<PorteFromAPI> => {
+    const response = await axios.put(`${API_URL}/portes/${porteId}`, data);
+    return response.data;
+};
+
+export const immeubleService = {
+  getImmeubles,
+  getImmeubleDetails,
+  updatePorte,
+};
+
+
+# --- components/charts/GenericStackedBarChart.tsx ---
+// frontend-shadcn/src/components/charts/GenericStackedBarChart.tsx
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+
+interface StackedBarChartProps {
+  title: string;
+  description: string;
+  data: any[];
+  xAxisKey: string;
+  bars: { key: string; name: string; color: string }[];
+}
+
+export const GenericStackedBarChart = ({ title, description, data, xAxisKey, bars }: StackedBarChartProps) => {
+  return (
+    <Card className="h-full flex flex-col">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex-1 pb-0">
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 80, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+            <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+            <YAxis type="category" dataKey={xAxisKey} stroke="hsl(var(--muted-foreground))" fontSize={12} width={80} />
+            <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))' }} />
+            <Legend wrapperStyle={{ paddingTop: '20px' }}/>
+            {bars.map(bar => (
+              <Bar key={bar.key} dataKey={bar.key} name={bar.name} stackId="a" fill={bar.color} radius={[4, 4, 4, 4]} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+};
+
+
+# --- services/commercial.service.ts ---
+// frontend-shadcn/src/services/commercial.service.ts
+import axios from 'axios';
+
+const API_URL = 'http://localhost:3000/commerciaux';
+
+export type CommercialFromAPI = {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string | null;
+  equipeId: string;
+  managerId: string;
+};
+
+type CreateCommercialPayload = {
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone?: string;
+  equipeId: string;
+};
+
+// AJOUT: Type pour la mise à jour
+type UpdateCommercialPayload = Partial<CreateCommercialPayload>;
+
+const getCommerciaux = async (): Promise<CommercialFromAPI[]> => {
+  const response = await axios.get(API_URL);
+  return response.data;
+};
+
+const createCommercial = async (data: CreateCommercialPayload): Promise<CommercialFromAPI> => {
+  const response = await axios.post(API_URL, data);
+  return response.data;
+};
+
+// AJOUT: Fonction pour mettre à jour un commercial
+const updateCommercial = async (id: string, data: UpdateCommercialPayload): Promise<CommercialFromAPI> => {
+  const response = await axios.put(`${API_URL}/${id}`, data);
+  return response.data;
+};
+
+const deleteCommercial = async (id: string): Promise<void> => {
+  await axios.delete(`${API_URL}/${id}`);
+};
+// frontend-shadcn/src/services/commercial.service.ts
+// ... (haut du fichier inchangé)
+
+// AJOUT DE LA NOUVELLE FONCTION
+const getCommercialDetails = async (id: string): Promise<any> => {
+  const response = await axios.get(`${API_URL}/${id}`);
+  return response.data;
+};
+
+export const commercialService = {
+  getCommerciaux,
+  getCommercialDetails, // AJOUT
+  createCommercial,
+  updateCommercial,
+  deleteCommercial,
+};
+
+
+
+# --- components/ui/badge.tsx ---
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+        destructive:
+          "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+function Badge({
+  className,
+  variant,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"span"> &
+  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+  const Comp = asChild ? Slot : "span"
+
+  return (
+    <Comp
+      data-slot="badge"
+      className={cn(badgeVariants({ variant }), className)}
+      {...props}
+    />
+  )
+}
+
+export { Badge, badgeVariants }
+
+
+
+# --- services/zone.service.ts ---
+// frontend-shadcn/src/services/zone.service.ts
+import axios from 'axios';
+// ...
+import { AssignmentType } from '../types/enums'; // <-- CORRECTION
+// ...
+
+// Ce que l'API renvoie
+export type ZoneFromAPI = {
+  id: string;
+  nom: string;
+  couleur: string | null;
+  latitude: number;
+  longitude: number;
+  rayonMetres: number;
+  typeAssignation: AssignmentType;
+  equipeId: string | null;
+  managerId: string | null;
+  commercialId: string | null;
+  createdAt: string; // Les dates sont des strings en JSON
+};
+
+// Ce qu'on envoie pour créer une zone
+type CreateZonePayload = {
+  nom: string;
+  latitude: number;
+  longitude: number;
+  rayonMetres: number;
+  couleur?: string;
+  typeAssignation: AssignmentType;
+  assigneeId: string;
+};
+
+// Ce qu'on envoie pour mettre à jour
+type UpdateZonePayload = {
+  nom?: string;
+  couleur?: string;
+  typeAssignation?: AssignmentType;
+  assigneeId?: string;
+};
+
+
+const API_URL = 'http://localhost:3000/zones';
+
+const getZones = async (): Promise<ZoneFromAPI[]> => {
+  const response = await axios.get(API_URL);
+  return response.data;
+};
+
+const createZone = async (data: CreateZonePayload): Promise<ZoneFromAPI> => {
+  const response = await axios.post(API_URL, data);
+  return response.data;
+};
+
+const updateZone = async (id: string, data: UpdateZonePayload): Promise<ZoneFromAPI> => {
+    const response = await axios.put(`${API_URL}/${id}`, data);
+    return response.data;
+};
+
+const deleteZone = async (id: string): Promise<void> => {
+  await axios.delete(`${API_URL}/${id}`);
+};
+
+export const zoneService = {
+  getZones,
+  createZone,
+  updateZone,
+  deleteZone,
+};
+
+
+# --- components/charts/GenericPieChart.tsx ---
+// src/components/charts/GenericPieChart.tsx
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+
+interface GenericPieChartProps {
+  title: string;
+  data: any[];
+  dataKey: string;
+  nameKey: string;
+  colors: string[];
+}
+
+export const GenericPieChart = ({ title, data, dataKey, colors }: GenericPieChartProps) => {
+  return (
+    <Card className="h-full flex flex-col">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="flex-1 pb-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))' }} />
+            <Pie data={data} cx="50%" cy="50%" innerRadius={60} outerRadius={90} fill="#8884d8" paddingAngle={3} dataKey={dataKey} label={({ percent }) => `${(percent * 100).toFixed(0)}%`} labelLine={false}>
+              {data.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+              ))}
+            </Pie>
+            <Legend iconSize={10} wrapperStyle={{ fontSize: '14px', paddingTop: '20px' }} />
+          </PieChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+};
+
+
+# --- components/ui/GenericTable.tsx ---
+// src/components/ui/GenericTable.tsx
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+interface Column {
+  key: string;
+  header: string;
+  className?: string;
+}
+
+interface GenericTableProps {
+  title: string;
+  description: string;
+  columns: Column[];
+  data: any[];
+}
+
+export const GenericTable = ({ title, description, columns, data }: GenericTableProps) => {
+  return (
+    <Card className="h-full">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {columns.map(col => (
+                <TableHead key={col.key} className={col.className}>{col.header}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((row, rowIndex) => (
+              <TableRow key={rowIndex}>
+                {columns.map(col => (
+                  <TableCell key={col.key} className={`${col.className ?? ''} font-medium`}>{row[col.key]}</TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+};
+
+
+# --- components/ui/checkbox.tsx ---
+import * as React from "react"
+import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
+import { CheckIcon } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+function Checkbox({
+  className,
+  ...props
+}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+  return (
+    <CheckboxPrimitive.Root
+      data-slot="checkbox"
+      className={cn(
+        "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 shrink-0 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
+      {...props}
+    >
+      <CheckboxPrimitive.Indicator
+        data-slot="checkbox-indicator"
+        className="flex items-center justify-center text-current transition-none"
+      >
+        <CheckIcon className="size-3.5" />
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Root>
+  )
+}
+
+export { Checkbox }
+
+
+
+# --- pages/admin/suivi/SuiviSidebar.tsx ---
+// src/pages/admin/suivi/SuiviSidebar.tsx
+import { AudioPlayer } from './AudioPlayer';
+import { HistoryList } from './HistoryList';
+import type { Commercial, Transcription } from './types';
+
+interface SuiviSidebarProps {
+  activeCommercial: Commercial | null;
+  transcriptions: Transcription[];
+  commercialsMap: { [id: string]: { name: string; avatarFallback: string } };
+  onHistoryItemClick: (transcription: Transcription) => void;
+  liveText: string;
+  isProspecting: boolean;
+  audioChunks: Blob[]; // NOUVEAU
+}
+
+export const SuiviSidebar = (props: SuiviSidebarProps) => {
+  return (
+    <div className="bg-zinc-50 rounded-lg flex flex-col h-full gap-6 p-4 border border-zinc-200 shadow-sm">
+      <AudioPlayer 
+        activeCommercial={props.activeCommercial}
+        liveText={props.liveText}
+        isProspecting={props.isProspecting}
+        audioChunks={props.audioChunks} // Transmission des données audio
+      />
+      <HistoryList 
+        transcriptions={props.transcriptions} 
+        onHistoryItemClick={props.onHistoryItemClick}
+        commercials={props.commercialsMap}
+      />
+    </div>
+  );
+};
+
+
+# --- components/ui/avatar.tsx ---
+import * as React from "react"
+import * as AvatarPrimitive from "@radix-ui/react-avatar"
+
+import { cn } from "@/lib/utils"
+
+function Avatar({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Root>) {
+  return (
+    <AvatarPrimitive.Root
+      data-slot="avatar"
+      className={cn(
+        "relative flex size-8 shrink-0 overflow-hidden rounded-full",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AvatarImage({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+  return (
+    <AvatarPrimitive.Image
+      data-slot="avatar-image"
+      className={cn("aspect-square size-full", className)}
+      {...props}
+    />
+  )
+}
+
+function AvatarFallback({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+  return (
+    <AvatarPrimitive.Fallback
+      data-slot="avatar-fallback"
+      className={cn(
+        "bg-muted flex size-full items-center justify-center rounded-full",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Avatar, AvatarImage, AvatarFallback }
+
+
+
+# --- components/ui/Modal.tsx ---
+// src/components/ui/Modal.tsx
+import type { ReactNode } from 'react';
+
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}
+
+export const Modal = ({ isOpen, onClose, children }: ModalProps) => {
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    // Le conteneur principal qui couvre toute la page
+    <div 
+      className="fixed inset-0 flex items-center justify-center bg-black/80 animate-in fade-in-0"
+      onClick={onClose} // Ferme la modale si on clique sur le fond
+    >
+      {/* La boîte de dialogue elle-même */}
+      <div
+        className="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-md animate-in zoom-in-95"
+        onClick={(e) => e.stopPropagation()} // Empêche la fermeture si on clique à l'intérieur
+      >
+        {/* Le contenu que l'on passera à la modale */}
+        {children}
+      </div>
+    </div>
+  );
+};
+
+
+# --- services/statistics.service.ts ---
+// frontend-shadcn/src/services/statistics.service.ts
+import axios from 'axios';
+
+const API_URL = 'http://localhost:3000/statistics';
+
+// Définition des types pour les filtres
+export type PeriodType = 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+export type StatEntityType = 'COMMERCIAL' | 'EQUIPE' | 'MANAGER';
+
+export interface StatisticsQuery {
+  period: PeriodType;
+  entityType?: StatEntityType;
+  entityId?: string;
+}
+
+// Le service pour récupérer les statistiques
+const getStatistics = async (query: StatisticsQuery) => {
+  // On utilise `params` pour qu'axios formate correctement les query params dans l'URL
+  const response = await axios.get(API_URL, { params: query });
+  return response.data;
+};
+
+export const statisticsService = {
+  getStatistics,
+};
+
+
+# --- pages/admin/suivi/types.ts ---
+// src/pages/admin/suivi/types.ts
+
+// Type pour un commercial, peut être enrichi
+export interface Commercial {
+    id: string;
+    name: string;
+    avatarFallback: string;
+    position: [number, number]; // [latitude, longitude]
+    equipe: string;
+  }
+  
+  // Type pour une entrée de l'historique des transcriptions
+  export interface Transcription {
+    id: string;
+    commercialId: string;
+    commercialName: string;
+    date: Date;
+    snippet: string; // Un extrait de la transcription
+    fullText: string; // La transcription complète
+  }
+  
+  // Type pour une zone géographique
+  export interface Zone {
+    id: string;
+    name: string;
+    color: string;
+    latlng: [number, number];
+    radius: number;
+  }
+
+
+# --- components/ui/label.tsx ---
+import * as React from "react"
+import * as LabelPrimitive from "@radix-ui/react-label"
+
+import { cn } from "@/lib/utils"
+
+function Label({
+  className,
+  ...props
+}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+  return (
+    <LabelPrimitive.Root
+      data-slot="label"
+      className={cn(
+        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Label }
+
+
+
+# --- pages/admin/Dashboard/TableSkeleton.tsx ---
+// frontend-shadcn/src/pages/admin/TableSkeleton.tsx
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+
+export const TableSkeleton = () => (
+  <Card className="animate-in fade-in-0 duration-500">
+    <CardHeader>
+      <Skeleton className="h-6 w-1/2" />
+    </CardHeader>
+    <CardContent className="space-y-3">
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-full" />
+    </CardContent>
+  </Card>
+);
+
+
+# --- main.tsx ---
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.tsx'
+import './index.css'
+import { AuthProvider } from './contexts/AuthContext.tsx' // <-- Importer
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <AuthProvider> {/* <-- Envelopper App */}
+      <App />
+    </AuthProvider>
+  </React.StrictMode>,
+)
+
+
+# --- components/ui/skeleton.tsx ---
+import { cn } from "@/lib/utils"
+
+function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="skeleton"
+      className={cn("bg-accent animate-pulse rounded-md", className)}
+      {...props}
+    />
+  )
+}
+
+export { Skeleton }
+
+
+
+# --- pages/directeur/DashboardDirecteur.tsx ---
+// Fichier: src/pages/admin/DashboardAdmin.tsx
+const DashboardDirecteur = () => {
+    return (
+      <div className="p-8">
+          <h1 className="text-3xl font-bold">Tableau de Bord - Admin</h1>
+      </div>
+    );
+  };
+  export default DashboardDirecteur;
+
+
+# --- lib/utils.ts ---
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
