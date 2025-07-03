@@ -42,6 +42,7 @@ model Commercial {
   managerId String // Redundant if derived from equipe.managerId, but kept for direct association as per frontend
   zones     Zone[]   @relation("CommercialZones")
   immeubles Immeuble[] @relation("ImmeubleProspectors")
+  historiques HistoriqueProspection[]
 }
 
 model Zone {
@@ -83,6 +84,7 @@ model Immeuble {
   digicode           String?
   portes             Porte[]
   prospectors        Commercial[]     @relation("ImmeubleProspectors")
+  historiques        HistoriqueProspection[]
 }
 
 model Porte {
@@ -93,6 +95,26 @@ model Porte {
   commentaire String?
   immeubleId  String
   immeuble    Immeuble    @relation(fields: [immeubleId], references: [id])
+}
+
+model HistoriqueProspection {
+  id                String     @id @default(uuid())
+  dateProspection   DateTime   @default(now())
+  
+  commercialId      String
+  commercial        Commercial @relation(fields: [commercialId], references: [id])
+  
+  immeubleId        String
+  immeuble          Immeuble   @relation(fields: [immeubleId], references: [id])
+
+  // Snapshot des résultats
+  nbPortesVisitees  Int
+  nbContratsSignes  Int
+  nbRdvPris         Int
+  nbRefus           Int
+  nbAbsents         Int
+  
+  commentaire       String?
 }
 
 enum ImmeubleStatus {

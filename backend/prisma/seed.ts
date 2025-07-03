@@ -42,7 +42,7 @@ async function main() {
       managerId: manager.id,
     },
   });
-  console.log(`Created commercial: ${commercial1.prenom} ${commercial1.nom}`);
+  console.log(`Created commercial: ${commercial1.prenom} ${commercial1.nom} (ID: ${commercial1.id})`);
 
   const commercial2 = await prisma.commercial.upsert({
     where: { email: 'bob.durand@example.com' },
@@ -55,7 +55,7 @@ async function main() {
       managerId: manager.id,
     },
   });
-  console.log(`Created commercial: ${commercial2.prenom} ${commercial2.nom}`);
+  console.log(`Created commercial: ${commercial2.prenom} ${commercial2.nom} (ID: ${commercial2.id})`);
 
   // 4. Create Zone
   const zone = await prisma.zone.upsert({
@@ -132,6 +132,102 @@ async function main() {
     skipDuplicates: true,
   });
   console.log(`Created 2 portes for immeuble ${immeuble2.adresse}`);
+
+  // 7. Create HistoriqueProspection
+  await prisma.historiqueProspection.createMany({
+    data: [
+      {
+        dateProspection: new Date('2024-06-01T10:00:00Z'),
+        commercialId: commercial1.id,
+        immeubleId: immeuble1.id,
+        nbPortesVisitees: 5,
+        nbContratsSignes: 2,
+        nbRdvPris: 1,
+        nbRefus: 1,
+        nbAbsents: 1,
+        commentaire: 'Première visite réussie, 2 contrats signés.',
+      },
+      {
+        dateProspection: new Date('2024-06-05T14:30:00Z'),
+        commercialId: commercial2.id,
+        immeubleId: immeuble2.id,
+        nbPortesVisitees: 3,
+        nbContratsSignes: 1,
+        nbRdvPris: 0,
+        nbRefus: 1,
+        nbAbsents: 1,
+        commentaire: 'Visite en duo, 1 contrat signé.',
+      },
+      {
+        dateProspection: new Date('2024-06-10T09:00:00Z'),
+        commercialId: commercial1.id,
+        immeubleId: immeuble1.id,
+        nbPortesVisitees: 4,
+        nbContratsSignes: 0,
+        nbRdvPris: 2,
+        nbRefus: 1,
+        nbAbsents: 1,
+        commentaire: 'Prospection intense, 2 RDV pris.',
+      },
+      {
+        dateProspection: new Date('2024-06-15T11:00:00Z'),
+        commercialId: commercial1.id,
+        immeubleId: immeuble1.id,
+        nbPortesVisitees: 6,
+        nbContratsSignes: 3,
+        nbRdvPris: 0,
+        nbRefus: 2,
+        nbAbsents: 1,
+        commentaire: 'Excellent passage, 3 contrats supplémentaires.',
+      },
+      {
+        dateProspection: new Date('2024-06-20T16:00:00Z'),
+        commercialId: commercial2.id,
+        immeubleId: immeuble2.id,
+        nbPortesVisitees: 4,
+        nbContratsSignes: 0,
+        nbRdvPris: 1,
+        nbRefus: 2,
+        nbAbsents: 1,
+        commentaire: 'Suivi de RDV, un refus et un absent.',
+      },
+      {
+        dateProspection: new Date('2024-06-25T09:30:00Z'),
+        commercialId: commercial1.id,
+        immeubleId: immeuble1.id,
+        nbPortesVisitees: 5,
+        nbContratsSignes: 1,
+        nbRdvPris: 0,
+        nbRefus: 3,
+        nbAbsents: 1,
+        commentaire: 'Journée difficile, 1 contrat malgré tout.',
+      },
+      {
+        dateProspection: new Date('2024-07-01T10:00:00Z'),
+        commercialId: commercial1.id,
+        immeubleId: immeuble1.id,
+        nbPortesVisitees: 7,
+        nbContratsSignes: 2,
+        nbRdvPris: 1,
+        nbRefus: 2,
+        nbAbsents: 2,
+        commentaire: 'Début de mois prometteur, 2 contrats.',
+      },
+      {
+        dateProspection: new Date('2024-07-02T13:00:00Z'),
+        commercialId: commercial2.id,
+        immeubleId: immeuble2.id,
+        nbPortesVisitees: 3,
+        nbContratsSignes: 0,
+        nbRdvPris: 0,
+        nbRefus: 3,
+        nbAbsents: 0,
+        commentaire: "Pas de succès aujourd'hui.",
+      },
+    ],
+    skipDuplicates: true,
+  });
+  console.log(`Created historique prospection entries.`);
 
   console.log(`Seeding finished.`);
 }

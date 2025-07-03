@@ -1,6 +1,8 @@
 // src/pages/commercial/DashboardCommercialPage.tsx
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useAuth } from '@/contexts/AuthContext';
 // CORRECTION : Rétablissement des chemins d'import spécifiques
 import StatCard from '@/components/ui-admin/StatCard';
 import { Button } from '@/components/ui-admin/button';
@@ -21,40 +23,66 @@ import { ZoneFocusMap } from './ZoneFocusMap';
 import { cn } from '@/lib/utils';
 
 // ... (données simulées inchangées)
-const commercialData = {
-  week: {
-    stats: { rdvPris: 12, contratsSignes: 3, tauxConclusion: 25, portesProspectees: 85, heuresTravaillees: 38 },
-    activitePortes: [
-      { name: 'Lun', Portes: 15, RDV: 3, Contrats: 1 }, { name: 'Mar', Portes: 22, RDV: 4, Contrats: 1 }, { name: 'Mer', Portes: 18, RDV: 2, Contrats: 0 }, { name: 'Jeu', Portes: 25, RDV: 3, Contrats: 1 }, { name: 'Ven', Portes: 5, RDV: 0, Contrats: 0 },
-    ],
-  },
-  month: {
-    stats: { rdvPris: 48, contratsSignes: 11, tauxConclusion: 22.9, portesProspectees: 340, heuresTravaillees: 152 },
-    activitePortes: [
-      { name: 'S1', Portes: 80, RDV: 10, Contrats: 3 }, { name: 'S2', Portes: 95, RDV: 15, Contrats: 4 }, { name: 'S3', Portes: 75, RDV: 11, Contrats: 2 }, { name: 'S4', Portes: 90, RDV: 12, Contrats: 2 },
-    ],
-  },
-};
-const zoneAssignee = {
-  nom: "Opéra - Grands Boulevards",
-  latlng: [48.872, 2.34] as [number, number],
-  radius: 1200,
-  color: "hsl(var(--winvest-blue-moyen))"
-};
-const immeublesDansZone = [
-    { id: 'imm-1', adresse: '10 Rue de la Paix', latlng: [48.87, 2.335] as [number, number] },
-    { id: 'imm-2', adresse: '25 Bd des Capucines', latlng: [48.871, 2.33] as [number, number] },
-];
-const accesRapides = [
-    { title: "Démarrer une prospection", description: "Lancez l'interface d'écoute.", href: "/commercial/prospecting", icon: PlayCircle },
-    { title: "Ajouter un immeuble", description: "Enregistrez un nouveau bâtiment.", href: "/commercial/add-immeuble", icon: PlusCircle },
-    { title: "Voir mes statistiques", description: "Analysez vos performances en détail.", href: "/commercial/stats", icon: BarChart2 },
-];
-
-
 const CommercialDashboardPage = () => {
     const [timeFilter, setTimeFilter] = useState<'week' | 'month'>('week');
-    const currentData = commercialData[timeFilter];
+    const { user } = useAuth();
+    const [stats, setStats] = useState<any>(null);
+    const [history, setHistory] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const API_BASE_URL = 'http://localhost:3000'; // Assuming backend runs on port 3000
+
+    useEffect(() => {
+        const fetchCommercialData = async () => {
+            if (!user || !user.id) {
+                setError('Commercial ID not available.');
+                setLoading(false);
+                return;
+            }
+
+            setLoading(true);
+            setError(null);
+            try {
+                const statsResponse = await axios.get(`${API_BASE_URL}/statistics/commercial/${user.id}`);
+                setStats(statsResponse.data);
+
+                const historyResponse = await axios.get(`${API_BASE_URL}/statistics/commercial/${user.id}/history`);
+                setHistory(historyResponse.data);
+
+            } catch (err) {
+                console.error('Error fetching commercial data:', err);
+                setError('Failed to load commercial data.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchCommercialData();
+    }, [user]);
+
+    // Transform data for GenericLineChart
+    const activitePortesData = history?.map((item: any) => ({
+        name: item.adresse, // Or a more appropriate label for the x-axis
+        Portes: item.tauxCouverture, // Using tauxCouverture as a proxy for "Portes" for now
+        RDV: item.rdvPris,
+        Contrats: item.contrats,
+    })) || [];
+
+    if (loading) {
+        return <div className="text-center py-8">Chargement des données...</div>;
+    }
+
+    if (error) {
+        return <div className="text-center py-8 text-red-500">{error}</div>;
+    }
+
+    // Use fetched stats and history
+    const currentStats = stats?.kpis || { immeublesVisites: 0, portesVisitees: 0, contratsSignes: 0, tauxDeConversion: 0 };
+    const repartitionStatuts = stats?.repartitionStatuts || {};
+
+    // Calculate total portes for percentage
+    const totalPortes = Object.values(repartitionStatuts).reduce((sum: any, count: any) => sum + count, 0);
 
     return (
         <div className="space-y-8">
@@ -115,17 +143,68 @@ const CommercialDashboardPage = () => {
                     </div>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                    <StatCard title="Contrats Signés" value={currentData.stats.contratsSignes} Icon={CheckCircle} color="text-emerald-500" />
-                    <StatCard title="RDV Pris" value={currentData.stats.rdvPris} Icon={Briefcase} color="text-sky-500" />
-                    <StatCard title="Taux de Conclusion" value={currentData.stats.tauxConclusion} Icon={Percent} color="text-violet-500" suffix="%" />
-                    <StatCard title="Portes Prospectées" value={currentData.stats.portesProspectees} Icon={DoorOpen} color="text-orange-500" />
-                    <StatCard title="Heures Travaillées" value={currentData.stats.heuresTravaillees} Icon={Clock} color="text-amber-500" suffix="h" />
+                    <StatCard title="Immeubles Visitées" value={currentStats.immeublesVisites} Icon={MapPin} color="text-blue-500" />
+                    <StatCard title="Portes Visitées" value={currentStats.portesVisitees} Icon={DoorOpen} color="text-orange-500" />
+                    <StatCard title="Contrats Signés" value={currentStats.contratsSignes} Icon={CheckCircle} color="text-emerald-500" />
+                    <StatCard title="Taux de Conversion" value={currentStats.tauxDeConversion} Icon={Percent} color="text-violet-500" suffix="%" />
+                    {/* Add a placeholder for Heures Travaillées if needed, or remove if not available from backend */}
+                    <StatCard title="Heures Travaillées" value={0} Icon={Clock} color="text-amber-500" suffix="h" />
                 </div>
             </div>
 
+            <Card>
+                <CardHeader>
+                    <CardTitle>Répartition des Statuts</CardTitle>
+                    <CardDescription>Proportion de chaque statut sur l'ensemble des portes prospectées.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {Object.entries(repartitionStatuts).map(([status, count]) => (
+                            <div key={status} className="flex items-center justify-between p-3 border rounded-md">
+                                <span className="font-medium">{status.replace(/_/g, ' ')}</span>
+                                <span className="text-lg font-bold">{((count as number / totalPortes) * 100 || 0).toFixed(2)}%</span>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Historique de Prospection</CardTitle>
+                    <CardDescription>Détail des visites et performances par immeuble.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Immeuble</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Dernière Visite</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Taux Couverture</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RDV Pris</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contrats Signés</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {history?.map((item: any) => (
+                                    <tr key={item.id}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.adresse}, {item.ville}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.dateDerniereVisite ? new Date(item.dateDerniereVisite).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.tauxCouverture}%</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.rdvPris}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.contrats}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+
             <GenericLineChart 
                 title="Entonnoir de Prospection"
-                data={currentData.activitePortes} 
+                data={activitePortesData} 
                 xAxisDataKey="name" 
                 lines={[
                     { dataKey: 'Portes', name: "Portes Prospectées", stroke: 'hsl(var(--winvest-blue-profond))' },
