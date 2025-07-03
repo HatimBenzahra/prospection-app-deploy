@@ -190,10 +190,10 @@ const CommercialDashboardPage = () => {
                                 {history?.map((item: any) => (
                                     <tr key={item.id}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.adresse}, {item.ville}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.dateDerniereVisite ? new Date(item.dateDerniereVisite).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.dateProspection ? new Date(item.dateProspection).toLocaleDateString() : 'N/A'}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.tauxCouverture}%</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.rdvPris}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.contrats}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.nbRdvPris}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.nbContratsSignes}</td>
                                     </tr>
                                 ))}
                             </tbody>

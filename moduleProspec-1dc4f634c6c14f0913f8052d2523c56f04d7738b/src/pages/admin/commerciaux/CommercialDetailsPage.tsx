@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { statisticsService } from '@/services/statistics.service';
 import StatCard from '@/components/ui-admin/StatCard';
@@ -117,10 +117,10 @@ const CommercialDetailsPage = () => {
                 {history.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.adresse}, {item.ville}</TableCell>
-                    <TableCell>{item.dateDerniereVisite ? new Date(item.dateDerniereVisite).toLocaleDateString() : 'N/A'}</TableCell>
+                    <TableCell>{item.dateProspection ? new Date(item.dateProspection).toLocaleDateString() : 'N/A'}</TableCell>
                     <TableCell className="text-center">{item.tauxCouverture}%</TableCell>
-                    <TableCell className="text-center">{item.rdvPris}</TableCell>
-                    <TableCell className="text-center">{item.contrats}</TableCell>
+                    <TableCell className="text-center">{item.nbRdvPris}</TableCell>
+                    <TableCell className="text-center">{item.nbContratsSignes}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
