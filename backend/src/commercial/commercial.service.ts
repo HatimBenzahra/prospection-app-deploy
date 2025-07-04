@@ -12,7 +12,16 @@ export class CommercialService {
   }
 
   findAll() {
-    return this.prisma.commercial.findMany({ include: { equipe: { include: { manager: true } } } });
+    return this.prisma.commercial.findMany({
+      include: {
+        equipe: {
+          include: {
+            manager: true,
+          },
+        },
+        historiques: true, // Include historiques to sum contracts
+      },
+    });
   }
 
   findOne(id: string) {

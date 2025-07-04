@@ -47,20 +47,36 @@ const CommerciauxPage = () => {
       const equipesMap = new Map(equipesFromApi.map((e) => [e.id, e.nom] as const));
       const managersMap = new Map(managersFromApi.map((m) => [m.id, `${m.prenom} ${m.nom}`] as const));
 
-      const enrichedCommerciaux: Commercial[] = commerciauxFromApi.map((comm, index) => ({
-        id: comm.id,
-        nom: comm.nom,
-        prenom: comm.prenom,
-        email: comm.email,
-        telephone: comm.telephone || '',
-        equipeId: comm.equipeId,
-        managerId: comm.managerId, 
-        manager: managersMap.get(comm.managerId) || "N/A",
-        equipe: equipesMap.get(comm.equipeId) || "N/A",
+      const enrichedCommerciaux: Commercial[] = commerciauxFromApi.map((comm) => {
+        const totalContratsSignes = comm.historiques.reduce(
+          (sum, history) => sum + history.nbContratsSignes,
+          0,
+        );
+        return {
+          id: comm.id,
+          nom: comm.nom,
+          prenom: comm.prenom,
+          email: comm.email,
+          telephone: comm.telephone || '',
+          equipeId: comm.equipeId,
+          managerId: comm.managerId,
+          manager: managersMap.get(comm.managerId) || 'N/A',
+          equipe: equipesMap.get(comm.equipeId) || 'N/A',
+          totalContratsSignes: totalContratsSignes,
+        };
+      });
+
+      // Sort commercials by totalContratsSignes for ranking
+      enrichedCommerciaux.sort(
+        (a, b) => b.totalContratsSignes - a.totalContratsSignes,
+      );
+
+      const rankedCommerciaux = enrichedCommerciaux.map((comm, index) => ({
+        ...comm,
         classement: index + 1,
       }));
 
-      setData(enrichedCommerciaux);
+      setData(rankedCommerciaux);
     } catch (error) { console.error("Erreur lors de la récupération des données:", error); } 
     finally { setLoading(false); }
   };
