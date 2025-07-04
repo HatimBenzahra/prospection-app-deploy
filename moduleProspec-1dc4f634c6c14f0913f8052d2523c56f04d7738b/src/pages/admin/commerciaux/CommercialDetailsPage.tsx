@@ -7,7 +7,8 @@ import { GenericPieChart } from '@/components/charts/GenericPieChart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
 import { Building, DoorOpen, Handshake, Target, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui-admin/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui-admin/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui-admin/tooltip';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui-admin/table';
 
 const CommercialDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -72,7 +73,18 @@ const CommercialDetailsPage = () => {
         <StatCard title="Immeubles Visitées" value={stats.kpis.immeublesVisites} Icon={Building} />
         <StatCard title="Portes Visitées" value={stats.kpis.portesVisitees} Icon={DoorOpen} />
         <StatCard title="Contrats Signés" value={stats.kpis.contratsSignes} Icon={Handshake} />
-        <StatCard title="Taux de Conversion" value={stats.kpis.tauxDeConversion} Icon={Target} suffix="%" />
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="cursor-help">
+                <StatCard title="Taux de Conversion" value={stats.kpis.tauxDeConversion} Icon={Target} suffix="%" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Le taux de conversion représente le rapport entre le nombre de contrats signés et le nombre total de portes visitées. Il mesure l’efficacité du commercial à conclure des ventes.</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

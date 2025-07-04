@@ -35,62 +35,55 @@ export class StatisticsService {
       nbAbsents: entry.nbAbsents,
       commentaire: entry.commentaire,
       // Calculate tauxCouverture based on nbPortesVisitees and immeuble.nbPortesTotal
-      tauxCouverture: entry.immeuble.nbPortesTotal > 0 ? (entry.nbPortesVisitees / entry.immeuble.nbPortesTotal) * 100 : 0,
+      tauxCouverture: entry.immeuble.nbPortesTotal > 0 ? Math.min((entry.nbPortesVisitees / entry.immeuble.nbPortesTotal) * 100, 100) : 0,
     }));
   }
 
   async getStatsForCommercial(commercialId: string) {
     const commercial = await this.prisma.commercial.findUnique({
       where: { id: commercialId },
+      include: {
+        historiques: {
+          include: {
+            immeuble: true,
+          },
+        },
+      },
     });
 
     if (!commercial) {
       throw new NotFoundException(`Commercial with ID ${commercialId} not found`);
     }
 
-    const historyEntries = await this.prisma.historiqueProspection.findMany({
+    const immeubleIds = commercial.historiques.map((h) => h.immeubleId);
+
+    const statusCounts = await this.prisma.porte.groupBy({
+      by: ['statut'],
       where: {
-        commercialId: commercialId,
+        immeubleId: {
+          in: immeubleIds,
+        },
+      },
+      _count: {
+        statut: true,
       },
     });
 
-    let totalImmeublesVisites = 0;
-    let totalPortesVisitees = 0;
-    let totalContratsSignes = 0;
-    let totalRdvPris = 0;
-    let totalRefus = 0;
-    let totalAbsents = 0;
+    const repartitionStatuts = statusCounts.reduce((acc, current) => {
+      acc[current.statut] = current._count.statut;
+      return acc;
+    }, {} as Record<PorteStatut, number>);
 
-    const statusCounts: Record<PorteStatut, number> = {
-      NON_VISITE: 0,
-      VISITE: 0,
-      ABSENT: 0,
-      REFUS: 0,
-      CURIEUX: 0,
-      CONTRAT_SIGNE: 0,
-    };
-
-    // Aggregate data from history entries
-    historyEntries.forEach(entry => {
-      totalImmeublesVisites += 1; // Each entry represents a visit to an immeuble
-      totalPortesVisitees += entry.nbPortesVisitees;
-      totalContratsSignes += entry.nbContratsSignes;
-      totalRdvPris += entry.nbRdvPris;
-      totalRefus += entry.nbRefus;
-      totalAbsents += entry.nbAbsents;
-
-      // This part is tricky as HistoriqueProspection doesn't directly store PorteStatut counts.
-      // For now, we'll approximate based on the outcomes.
-      // A more robust solution would involve storing detailed porte statuses per history entry.
-      statusCounts.VISITE += entry.nbPortesVisitees;
-      statusCounts.CONTRAT_SIGNE += entry.nbContratsSignes;
-      statusCounts.REFUS += entry.nbRefus;
-      statusCounts.ABSENT += entry.nbAbsents;
-      // We don't have direct data for NON_VISITE or CURIEUX from history entries,
-      // so they might remain 0 or need to be inferred differently.
+    const totalPortesVisitees = await this.prisma.porte.count({
+      where: {
+        immeubleId: {
+          in: immeubleIds,
+        },
+        statut: { not: 'NON_VISITE' },
+      },
     });
 
-    const totalPortesProspectees = totalPortesVisitees + totalRefus + totalAbsents; // Approximation
+    const totalContratsSignes = repartitionStatuts.CONTRAT_SIGNE || 0;
     const tauxDeConversion = totalPortesVisitees > 0 ? (totalContratsSignes / totalPortesVisitees) * 100 : 0;
 
     return {
@@ -100,13 +93,13 @@ export class StatisticsService {
         email: commercial.email,
       },
       kpis: {
-        immeublesVisites: totalImmeublesVisites,
+        immeublesVisites: commercial.historiques.length,
         portesVisitees: totalPortesVisitees,
         contratsSignes: totalContratsSignes,
-        rdvPris: totalRdvPris,
-        tauxDeConversion: parseFloat(tauxDeConversion.toFixed(2)),
+        rdvPris: commercial.historiques.reduce((sum, entry) => sum + entry.nbRdvPris, 0),
+        tauxDeConversion: parseFloat(Math.min(tauxDeConversion, 100).toFixed(2)),
       },
-      repartitionStatuts: statusCounts,
+      repartitionStatuts,
     };
   }
 
