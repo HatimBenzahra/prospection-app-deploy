@@ -33,9 +33,9 @@ const ManagerDetailsPage = () => {
     const equipesColumns = useMemo(() => createEquipesColumns(), []);
     // On exclut les colonnes redondantes pour la liste des commerciaux
     const commerciauxColumns = useMemo(() => {
-        const allCols = createCommerciauxColumns(false, () => {});
+        const allCols = createCommerciauxColumns(false, () => {}, managerId);
         return allCols.filter(col => col.id !== 'manager' && col.id !== 'equipe');
-    }, []);
+    }, [managerId]);
 
     // Chargement des données au montage
     useEffect(() => {
@@ -157,7 +157,12 @@ const ManagerDetailsPage = () => {
                 <StatCard title="Nb. Équipes" value={manager.equipes.length} Icon={Users} color="text-yellow-500"/>
             </div>
 
-            <GenericLineChart title="Évolution de la Performance Globale" data={perfHistory} xAxisDataKey="name" lines={[{ dataKey: 'perf', stroke: 'hsl(var(--winvest-blue-nuit))' , name: 'Performance (%)' }]} />
+            <GenericLineChart 
+                title="Évolution de la Performance Globale"
+                data={perfHistory} 
+                xAxisDataKey="name" 
+                lines={[{ dataKey: 'perf', stroke: 'hsl(var(--winvest-blue-nuit))' , name: 'Performance (%)' }]} 
+            />
             
             <div className="space-y-4">
                 <DataTable

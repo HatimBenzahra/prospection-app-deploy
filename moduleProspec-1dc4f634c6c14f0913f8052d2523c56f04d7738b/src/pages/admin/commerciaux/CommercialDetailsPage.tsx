@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { statisticsService } from '@/services/statistics.service';
 import StatCard from '@/components/ui-admin/StatCard';
 import { GenericPieChart } from '@/components/charts/GenericPieChart';
@@ -14,6 +14,7 @@ import { commercialService } from '@/services/commercial.service';
 const CommercialDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [stats, setStats] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [commercial, setCommercial] = useState<any>(null);
@@ -62,17 +63,26 @@ const CommercialDetailsPage = () => {
     value: value as number,
   }));
 
+  const handleBackClick = () => {
+    const fromManager = location.state?.fromManager;
+    if (fromManager) {
+      navigate(`/admin/managers/${fromManager}`);
+    } else {
+      navigate('/admin/commerciaux');
+    }
+  };
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center">
-        <Button variant="outline" size="icon" className="mr-4" onClick={() => navigate('/admin/commerciaux')}>
+        <Button variant="outline" size="icon" className="mr-4" onClick={handleBackClick}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-2xl font-bold">
           Statistiques de {stats.commercialInfo.prenom} {stats.commercialInfo.nom}
         </h1>
       </div>
-
+      
       <Card>
         <CardHeader>
           <CardTitle>Informations Personnelles</CardTitle>
@@ -125,10 +135,10 @@ const CommercialDetailsPage = () => {
           </CardHeader>
           <CardContent>
             <div style={{ height: '350px' }}>
-              <GenericPieChart 
-              title='graphe'
-                data={pieData} 
-                dataKey="value" 
+              <GenericPieChart
+                title="Répartition des Statuts"
+                data={pieData}
+                dataKey="value"
                 nameKey="name"
                 colors={['#22c55e', '#f97316', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6']}
               />

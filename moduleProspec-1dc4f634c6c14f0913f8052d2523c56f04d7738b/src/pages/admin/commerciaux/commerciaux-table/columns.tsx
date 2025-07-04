@@ -33,7 +33,7 @@ const SortableHeader = ({ title, column }: { title: string, column: any }) => (
   </Button>
 )
 
-export const createColumns = (isDeleteMode: boolean, onEdit: (commercial: Commercial) => void): ColumnDef<Commercial>[] => {
+export const createColumns = (isDeleteMode: boolean, onEdit: (commercial: Commercial) => void, managerIdForBack?: string): ColumnDef<Commercial>[] => {
   const columns: ColumnDef<Commercial>[] = [
     // --- Colonne de sélection ---
     ...(isDeleteMode ? [{
@@ -133,7 +133,7 @@ export const createColumns = (isDeleteMode: boolean, onEdit: (commercial: Commer
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button asChild variant="ghost" className="h-8 w-8 p-0">
-                                    <Link to={`/admin/commerciaux/${commercial.id}`} onClick={(e) => { e.stopPropagation(); }}>
+                                    <Link to={`/admin/commerciaux/${commercial.id}`} state={{ fromManager: managerIdForBack }} onClick={(e) => { e.stopPropagation(); }}>
                                         <Eye className="h-4 w-4" />
                                         <span className="sr-only">Voir les détails</span>
                                     </Link>
