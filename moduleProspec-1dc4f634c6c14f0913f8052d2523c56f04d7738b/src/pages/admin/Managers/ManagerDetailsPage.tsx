@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { RowSelectionState } from "@tanstack/react-table";
-import { ArrowLeft, BarChart2, Briefcase, CheckCircle, Target, Trophy, Users } from 'lucide-react';
+import { ArrowLeft, BarChart2, Briefcase, CheckCircle, Target, Trophy, Users, User, Mail, Phone } from 'lucide-react';
 
 import { Button } from '@/components/ui-admin/button';
 import { Skeleton } from '@/components/ui-admin/skeleton';
@@ -14,11 +14,16 @@ import type { Commercial } from '../commerciaux/commerciaux-table/columns';
 import { createColumns as createCommerciauxColumns } from "../commerciaux/commerciaux-table/columns";
 import { createEquipesColumns, type EquipeDuManager } from './managers-table/equipes-columns';
 
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
+
+import { statisticsService } from '@/services/statistics.service';
+
 const ManagerDetailsPage = () => {
     const { managerId } = useParams<{ managerId: string }>();
     const navigate = useNavigate();
     
     const [manager, setManager] = useState<any>(null);
+    const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     
     const [selectedTeam, setSelectedTeam] = useState<EquipeDuManager | null>(null);
@@ -36,24 +41,26 @@ const ManagerDetailsPage = () => {
     useEffect(() => {
         if (managerId) {
             setLoading(true);
-            managerService.getManagerDetails(managerId).then(data => {
-                // Formater les données des équipes pour la DataTable
-                const formattedEquipes = data.equipes.map((e: any) => ({
+            Promise.all([
+                managerService.getManagerDetails(managerId),
+                statisticsService.getStatsForManager(managerId)
+            ]).then(([managerData, statsData]) => {
+                const formattedEquipes = managerData.equipes.map((e: any) => ({
                     id: e.id,
                     nom: e.nom,
                     nbCommerciaux: e.commerciaux.length,
-                    // On stocke les commerciaux directement pour un accès facile
                     commerciaux: e.commerciaux.map((c: any, index: number) => ({
                         ...c,
-                        manager: `${data.prenom} ${data.nom}`,
-                        managerId: data.id,
+                        manager: `${managerData.prenom} ${managerData.nom}`,
+                        managerId: managerData.id,
                         equipe: e.nom,
                         equipeId: e.id,
-                        classement: index + 1, // Classement simple pour l'affichage
+                        classement: index + 1,
                         telephone: c.telephone || '',
                     }))
                 }));
-                setManager({ ...data, equipes: formattedEquipes });
+                setManager({ ...managerData, equipes: formattedEquipes });
+                setStats(statsData);
                 setLoading(false);
             }).catch(err => {
                 console.error("Erreur de chargement des détails du manager:", err);
@@ -92,7 +99,7 @@ const ManagerDetailsPage = () => {
     if (!manager) return <div>Manager non trouvé.</div>;
 
     // Préparation des données pour les graphiques et stats
-    const currentStats = manager.stats || { rdvPris: 0, contratsSignes: 0, tauxConclusion: 0 };
+    const currentStats = stats?.kpis || { rdvPris: 0, contratsSignes: 0, tauxConclusion: 0 };
     const perfHistory = [
         { name: 'S-4', perf: 78 }, { name: 'S-3', perf: 80 }, { name: 'S-2', perf: 85 },
         { name: 'S-1', perf: 81 }, { name: 'Cette sem.', perf: currentStats.tauxConclusion }
@@ -103,10 +110,45 @@ const ManagerDetailsPage = () => {
         <div className="space-y-8">
             <Button variant="outline" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" /> Retour</Button>
             
-            <div className="rounded-lg border bg-card text-card-foreground p-6 shadow-sm">
-                <h3 className="text-2xl font-semibold leading-none tracking-tight">{manager.prenom} {manager.nom}</h3>
-                <p className="text-sm text-muted-foreground pt-1.5">Informations et statistiques globales de la semaine</p>
-            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Informations Personnelles</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="flex items-center space-x-2">
+                        <User className="h-5 w-5 text-gray-500" />
+                        <span>{manager.prenom} {manager.nom}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Mail className="h-5 w-5 text-gray-500" />
+                        <span>{manager.email}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Phone className="h-5 w-5 text-gray-500" />
+                        <span>{manager.telephone || 'N/A'}</span>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Informations Personnelles</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="flex items-center space-x-2">
+                        <User className="h-5 w-5 text-gray-500" />
+                        <span>{manager.prenom} {manager.nom}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Mail className="h-5 w-5 text-gray-500" />
+                        <span>{manager.email}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Phone className="h-5 w-5 text-gray-500" />
+                        <span>{manager.telephone || 'N/A'}</span>
+                    </div>
+                </CardContent>
+            </Card>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <StatCard title="Contrats (Total)" value={currentStats.contratsSignes} Icon={CheckCircle} color="text-emerald-500" />
@@ -115,7 +157,7 @@ const ManagerDetailsPage = () => {
                 <StatCard title="Nb. Équipes" value={manager.equipes.length} Icon={Users} color="text-yellow-500"/>
             </div>
 
-            <GenericLineChart title="Évolution de la Performance Globale" data={perfHistory} xAxisDataKey="name" lines={[{ dataKey: 'perf', stroke: 'hsl(var(--chart-2))', name: 'Performance (%)' }]} />
+            <GenericLineChart title="Évolution de la Performance Globale" data={perfHistory} xAxisDataKey="name" lines={[{ dataKey: 'perf', stroke: 'hsl(var(--winvest-blue-nuit))' , name: 'Performance (%)' }]} />
             
             <div className="space-y-4">
                 <DataTable

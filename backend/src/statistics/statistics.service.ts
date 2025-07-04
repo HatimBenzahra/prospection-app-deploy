@@ -43,11 +43,7 @@ export class StatisticsService {
     const commercial = await this.prisma.commercial.findUnique({
       where: { id: commercialId },
       include: {
-        historiques: {
-          include: {
-            immeuble: true,
-          },
-        },
+        historiques: true,
       },
     });
 
@@ -55,36 +51,36 @@ export class StatisticsService {
       throw new NotFoundException(`Commercial with ID ${commercialId} not found`);
     }
 
-    const immeubleIds = commercial.historiques.map((h) => h.immeubleId);
-
-    const statusCounts = await this.prisma.porte.groupBy({
-      by: ['statut'],
-      where: {
-        immeubleId: {
-          in: immeubleIds,
-        },
+    const aggregatedStats = commercial.historiques.reduce(
+      (acc, history) => {
+        acc.immeublesVisites.add(history.immeubleId);
+        acc.portesVisitees += history.nbPortesVisitees;
+        acc.contratsSignes += history.nbContratsSignes;
+        acc.rdvPris += history.nbRdvPris;
+        acc.refus += history.nbRefus;
+        acc.absents += history.nbAbsents;
+        return acc;
       },
-      _count: {
-        statut: true,
+      {
+        immeublesVisites: new Set<string>(),
+        portesVisitees: 0,
+        contratsSignes: 0,
+        rdvPris: 0,
+        refus: 0,
+        absents: 0,
       },
-    });
+    );
 
-    const repartitionStatuts = statusCounts.reduce((acc, current) => {
-      acc[current.statut] = current._count.statut;
-      return acc;
-    }, {} as Record<PorteStatut, number>);
+    const tauxDeConversion =
+      aggregatedStats.portesVisitees > 0
+        ? (aggregatedStats.contratsSignes / aggregatedStats.portesVisitees) * 100
+        : 0;
 
-    const totalPortesVisitees = await this.prisma.porte.count({
-      where: {
-        immeubleId: {
-          in: immeubleIds,
-        },
-        statut: { not: 'NON_VISITE' },
-      },
-    });
-
-    const totalContratsSignes = repartitionStatuts.CONTRAT_SIGNE || 0;
-    const tauxDeConversion = totalPortesVisitees > 0 ? (totalContratsSignes / totalPortesVisitees) * 100 : 0;
+    const repartitionStatuts = {
+      [PorteStatut.CONTRAT_SIGNE]: aggregatedStats.contratsSignes,
+      [PorteStatut.REFUS]: aggregatedStats.refus,
+      [PorteStatut.ABSENT]: aggregatedStats.absents,
+    };
 
     return {
       commercialInfo: {
@@ -93,13 +89,62 @@ export class StatisticsService {
         email: commercial.email,
       },
       kpis: {
-        immeublesVisites: commercial.historiques.length,
-        portesVisitees: totalPortesVisitees,
-        contratsSignes: totalContratsSignes,
-        rdvPris: commercial.historiques.reduce((sum, entry) => sum + entry.nbRdvPris, 0),
+        immeublesVisites: aggregatedStats.immeublesVisites.size,
+        portesVisitees: aggregatedStats.portesVisitees,
+        contratsSignes: aggregatedStats.contratsSignes,
+        rdvPris: aggregatedStats.rdvPris,
         tauxDeConversion: parseFloat(Math.min(tauxDeConversion, 100).toFixed(2)),
       },
       repartitionStatuts,
+    };
+  }
+
+  async getStatsForManager(managerId: string) {
+    const commercials = await this.prisma.commercial.findMany({
+      where: { managerId },
+      include: {
+        historiques: true,
+      },
+    });
+
+    if (!commercials.length) {
+      return {
+        kpis: {
+          contratsSignes: 0,
+          rdvPris: 0,
+          tauxConclusion: 0,
+        },
+      };
+    }
+
+    const stats = commercials.reduce(
+      (acc, commercial) => {
+        const commercialStats = commercial.historiques.reduce(
+          (commAcc, h) => {
+            commAcc.contratsSignes += h.nbContratsSignes;
+            commAcc.rdvPris += h.nbRdvPris;
+            return commAcc;
+          },
+          { contratsSignes: 0, rdvPris: 0 },
+        );
+        acc.totalContratsSignes += commercialStats.contratsSignes;
+        acc.totalRdvPris += commercialStats.rdvPris;
+        return acc;
+      },
+      { totalContratsSignes: 0, totalRdvPris: 0 },
+    );
+
+    const tauxConclusion =
+      stats.totalRdvPris > 0
+        ? (stats.totalContratsSignes / stats.totalRdvPris) * 100
+        : 0;
+
+    return {
+      kpis: {
+        contratsSignes: stats.totalContratsSignes,
+        rdvPris: stats.totalRdvPris,
+        tauxConclusion: parseFloat(tauxConclusion.toFixed(2)),
+      },
     };
   }
 

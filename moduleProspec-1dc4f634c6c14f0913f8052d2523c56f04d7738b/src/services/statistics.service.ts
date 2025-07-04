@@ -30,8 +30,14 @@ const getCommercialHistory = async (commercialId: string) => {
   return response.data;
 };
 
+const getStatsForManager = async (managerId: string) => {
+  const response = await axios.get(`${API_URL}/manager/${managerId}`);
+  return response.data;
+};
+
 export const statisticsService = {
   getStatistics,
   getStatsForCommercial,
   getCommercialHistory,
+  getStatsForManager,
 };

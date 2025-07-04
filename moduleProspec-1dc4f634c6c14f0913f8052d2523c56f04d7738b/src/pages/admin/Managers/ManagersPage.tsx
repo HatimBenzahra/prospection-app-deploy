@@ -33,13 +33,39 @@ const ManagersPage = () => {
     setLoading(true);
     try {
       const managers = await managerService.getManagers();
-      const formattedManagers = managers.map((m, index) => ({ 
-        ...m, 
-        telephone: m.telephone || '', // Assurer que le téléphone n'est jamais null pour le formulaire
-        classement: index + 1, 
-        nbEquipes: 0 
+      const formattedManagers = managers.map((m) => {
+        const nbEquipes = m.equipes.length;
+        const totalContratsSignes = m.equipes.reduce((accEquipe, equipe) => {
+          return (
+            accEquipe +
+            equipe.commerciaux.reduce((accCommercial, commercial) => {
+              return (
+                accCommercial +
+                commercial.historiques.reduce((accHistory, history) => {
+                  return accHistory + history.nbContratsSignes;
+                }, 0)
+              );
+            }, 0)
+          );
+        }, 0);
+
+        return {
+          ...m,
+          telephone: m.telephone || '',
+          nbEquipes: nbEquipes,
+          totalContratsSignes: totalContratsSignes,
+        };
+      });
+
+      // Sort managers by totalContratsSignes for ranking
+      formattedManagers.sort((a, b) => b.totalContratsSignes - a.totalContratsSignes);
+
+      const rankedManagers = formattedManagers.map((m, index) => ({
+        ...m,
+        classement: index + 1,
       }));
-      setData(formattedManagers);
+
+      setData(rankedManagers);
     } catch (error) {
       console.error("Erreur lors de la récupération des managers:", error);
     } finally {

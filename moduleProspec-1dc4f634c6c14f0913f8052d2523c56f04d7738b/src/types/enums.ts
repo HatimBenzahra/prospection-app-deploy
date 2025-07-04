@@ -22,7 +22,7 @@ export enum ProspectingMode {
 
 // AJOUT DE L'ENUM MANQUANT
 export enum PeriodType {
-  WEEKLY = 'WEEKLY',
-  MONTHLY = 'MONTHLY',
-  YEARLY = 'YEARLY',
+  WEEKLY,
+  MONTHLY,
+  YEARLY,
 }

@@ -16,6 +16,11 @@ export class StatisticsController {
     return this.statisticsService.getStatsForCommercial(id);
   }
 
+  @Get('manager/:id')
+  getManagerStats(@Param('id') id: string) {
+    return this.statisticsService.getStatsForManager(id);
+  }
+
   @Get()
   getStatistics(
     @Query('period') period: PeriodType,

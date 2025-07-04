@@ -72,7 +72,7 @@ const CommerciauxPage = () => {
   
   const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!editingCommercial) return;
-    setEditingCommercial({ ...editingCommercial, [e.target.id]: e.target.value });
+    setEditingCommercial({ ...editingCommercial, [e.target.name]: e.target.value });
   };
   
   const handleEditSelectChange = (equipeId: string) => {
@@ -209,10 +209,10 @@ const CommerciauxPage = () => {
         <h2 className="text-lg font-semibold mb-4">Modifier le commercial</h2>
         {editingCommercial && (
             <div className="grid gap-4">
-            <div className="space-y-1"><Label htmlFor="nom">Nom</Label><Input id="nom" value={editingCommercial.nom} onChange={handleEditInputChange} /></div>
-            <div className="space-y-1"><Label htmlFor="prenom">Prénom</Label><Input id="prenom" value={editingCommercial.prenom} onChange={handleEditInputChange} /></div>
-            <div className="space-y-1"><Label htmlFor="email">Email</Label><Input id="email" type="email" value={editingCommercial.email} onChange={handleEditInputChange} /></div>
-            <div className="space-y-1"><Label htmlFor="telephone">Téléphone</Label><Input id="telephone" type="tel" value={editingCommercial.telephone || ''} onChange={handleEditInputChange} /></div>
+            <div className="space-y-1"><Label htmlFor="nom">Nom</Label><Input id="nom" name="nom" value={editingCommercial.nom} onChange={handleEditInputChange} /></div>
+            <div className="space-y-1"><Label htmlFor="prenom">Prénom</Label><Input id="prenom" name="prenom" value={editingCommercial.prenom} onChange={handleEditInputChange} /></div>
+            <div className="space-y-1"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" value={editingCommercial.email} onChange={handleEditInputChange} /></div>
+            <div className="space-y-1"><Label htmlFor="telephone">Téléphone</Label><Input id="telephone" name="telephone" type="tel" value={editingCommercial.telephone || ''} onChange={handleEditInputChange} /></div>
             <div className="space-y-1">
                 <Label htmlFor="equipeId">Équipe</Label>
                 <Select onValueChange={handleEditSelectChange} value={editingCommercial.equipeId}>

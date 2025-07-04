@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -21,70 +18,68 @@ model Manager {
 }
 
 model Equipe {
-  id          String      @id @default(uuid())
+  id          String       @id @default(uuid())
   nom         String
   managerId   String
-  manager     Manager     @relation(fields: [managerId], references: [id])
   commerciaux Commercial[]
-  zones       Zone[]      @relation("EquipeZones")
+  manager     Manager      @relation(fields: [managerId], references: [id])
+  zones       Zone[]       @relation("EquipeZones")
 
   @@unique([nom, managerId])
 }
 
 model Commercial {
-  id        String   @id @default(uuid())
-  nom       String
-  prenom    String
-  email     String   @unique
-  telephone String?
-  equipeId  String
-  equipe    Equipe   @relation(fields: [equipeId], references: [id])
-  managerId String // Redundant if derived from equipe.managerId, but kept for direct association as per frontend
-  zones     Zone[]   @relation("CommercialZones")
-  immeubles Immeuble[] @relation("ImmeubleProspectors")
+  id          String                  @id @default(uuid())
+  nom         String
+  prenom      String
+  email       String                  @unique
+  telephone   String?
+  equipeId    String
+  managerId   String
+  equipe      Equipe                  @relation(fields: [equipeId], references: [id])
   historiques HistoriqueProspection[]
+  zones       Zone[]                  @relation("CommercialZones")
+  immeubles   Immeuble[]              @relation("ImmeubleProspectors")
 }
 
 model Zone {
-  id             String         @id @default(uuid())
-  nom            String
-  latitude       Float
-  longitude      Float
-  rayonMetres    Float
-  couleur        String
-  createdAt      DateTime       @default(now())
-  immeubles      Immeuble[]
+  id              String         @id @default(uuid())
+  nom             String
+  latitude        Float
+  longitude       Float
+  rayonMetres     Float
+  couleur         String
+  createdAt       DateTime       @default(now())
   typeAssignation AssignmentType
-  
-  // Polymorphic association for assignee
-  equipeId       String?
-  equipe         Equipe?        @relation("EquipeZones", fields: [equipeId], references: [id])
-  managerId      String?
-  manager        Manager?       @relation("ManagerZones", fields: [managerId], references: [id])
-  commercialId   String?
-  commercial     Commercial?    @relation("CommercialZones", fields: [commercialId], references: [id])
+  equipeId        String?
+  managerId       String?
+  commercialId    String?
+  immeubles       Immeuble[]
+  commercial      Commercial?    @relation("CommercialZones", fields: [commercialId], references: [id])
+  equipe          Equipe?        @relation("EquipeZones", fields: [equipeId], references: [id])
+  manager         Manager?       @relation("ManagerZones", fields: [managerId], references: [id])
 
   @@unique([nom, typeAssignation])
 }
 
 model Immeuble {
-  id                 String           @id @default(uuid())
+  id                 String                  @id @default(uuid())
   adresse            String
   ville              String
   codePostal         String
-  status             ImmeubleStatus   @default(A_VISITER)
+  status             ImmeubleStatus          @default(A_VISITER)
   nbPortesTotal      Int
   prospectingMode    ProspectingMode
   dateDerniereVisite DateTime?
   zoneId             String
-  zone               Zone             @relation(fields: [zoneId], references: [id])
   latitude           Float
   longitude          Float
   hasElevator        Boolean
   digicode           String?
-  portes             Porte[]
-  prospectors        Commercial[]     @relation("ImmeubleProspectors")
   historiques        HistoriqueProspection[]
+  zone               Zone                    @relation(fields: [zoneId], references: [id])
+  portes             Porte[]
+  prospectors        Commercial[]            @relation("ImmeubleProspectors")
 }
 
 model Porte {
@@ -98,23 +93,18 @@ model Porte {
 }
 
 model HistoriqueProspection {
-  id                String     @id @default(uuid())
-  dateProspection   DateTime   @default(now())
-  
-  commercialId      String
-  commercial        Commercial @relation(fields: [commercialId], references: [id])
-  
-  immeubleId        String
-  immeuble          Immeuble   @relation(fields: [immeubleId], references: [id])
-
-  // Snapshot des résultats
-  nbPortesVisitees  Int
-  nbContratsSignes  Int
-  nbRdvPris         Int
-  nbRefus           Int
-  nbAbsents         Int
-  
-  commentaire       String?
+  id               String     @id @default(uuid())
+  dateProspection  DateTime   @default(now())
+  commercialId     String
+  immeubleId       String
+  nbPortesVisitees Int
+  nbContratsSignes Int
+  nbRdvPris        Int
+  nbRefus          Int
+  nbAbsents        Int
+  commentaire      String?
+  commercial       Commercial @relation(fields: [commercialId], references: [id])
+  immeuble         Immeuble   @relation(fields: [immeubleId], references: [id])
 }
 
 enum ImmeubleStatus {

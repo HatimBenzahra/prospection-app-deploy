@@ -12,11 +12,23 @@ export class ManagerService {
   }
 
   findAll() {
-    return this.prisma.manager.findMany();
+    return this.prisma.manager.findMany({
+      include: {
+        equipes: {
+          include: {
+            commerciaux: {
+              include: {
+                historiques: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 
   findOne(id: string) {
-    return this.prisma.manager.findUnique({ where: { id } });
+    return this.prisma.manager.findUnique({ where: { id }, include: { equipes: { include: { commerciaux: true } } } });
   }
 
   update(id: string, updateManagerDto: UpdateManagerDto) {

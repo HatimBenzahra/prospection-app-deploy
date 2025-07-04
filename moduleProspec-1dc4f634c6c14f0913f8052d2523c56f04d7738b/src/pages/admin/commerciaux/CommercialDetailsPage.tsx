@@ -5,16 +5,18 @@ import { statisticsService } from '@/services/statistics.service';
 import StatCard from '@/components/ui-admin/StatCard';
 import { GenericPieChart } from '@/components/charts/GenericPieChart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
-import { Building, DoorOpen, Handshake, Target, ArrowLeft } from 'lucide-react';
+import { Building, DoorOpen, Handshake, Target, ArrowLeft, User, Phone, Mail, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui-admin/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui-admin/tooltip';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui-admin/table';
+import { commercialService } from '@/services/commercial.service';
 
 const CommercialDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [commercial, setCommercial] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,12 +25,14 @@ const CommercialDetailsPage = () => {
       const fetchData = async () => {
         try {
           setLoading(true);
-          const [statsData, historyData] = await Promise.all([
+          const [statsData, historyData, commercialData] = await Promise.all([
             statisticsService.getStatsForCommercial(id),
-            statisticsService.getCommercialHistory(id)
+            statisticsService.getCommercialHistory(id),
+            commercialService.getCommercialDetails(id),
           ]);
           setStats(statsData);
           setHistory(historyData);
+          setCommercial(commercialData);
           setError(null);
         } catch (err) {
           setError('Erreur lors de la récupération des données.');
@@ -49,7 +53,7 @@ const CommercialDetailsPage = () => {
     return <div className="text-red-500">{error}</div>;
   }
 
-  if (!stats) {
+  if (!stats || !commercial) {
     return <div>Aucune statistique disponible pour ce commercial.</div>;
   }
 
@@ -68,6 +72,30 @@ const CommercialDetailsPage = () => {
           Statistiques de {stats.commercialInfo.prenom} {stats.commercialInfo.nom}
         </h1>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Informations Personnelles</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex items-center space-x-2">
+            <User className="h-5 w-5 text-gray-500" />
+            <span>{commercial.prenom} {commercial.nom}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Phone className="h-5 w-5 text-gray-500" />
+            <span>{commercial.telephone || 'N/A'}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Mail className="h-5 w-5 text-gray-500" />
+            <span>{commercial.email}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <UserCheck className="h-5 w-5 text-gray-500" />
+            <span>{commercial.equipe.manager.prenom} {commercial.equipe.manager.nom}</span>
+          </div>
+        </CardContent>
+      </Card>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Immeubles Visitées" value={stats.kpis.immeublesVisites} Icon={Building} />
@@ -98,6 +126,7 @@ const CommercialDetailsPage = () => {
           <CardContent>
             <div style={{ height: '350px' }}>
               <GenericPieChart 
+              title='graphe'
                 data={pieData} 
                 dataKey="value" 
                 nameKey="name"
