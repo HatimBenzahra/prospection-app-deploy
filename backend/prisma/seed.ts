@@ -277,128 +277,57 @@ async function main() {
   console.log(`Created ${immeuble4.nbPortesTotal} portes for immeuble ${immeuble4.adresse}`);
 
   // --- HistoriqueProspection ---
-  const historiqueEntries = [
-    // Alice - Immeuble 1
-    {
-      dateProspection: new Date('2024-06-01T10:00:00Z'),
-      commercialId: commercialAlice.id,
-      immeubleId: immeuble1.id,
-      nbPortesVisitees: 3, nbContratsSignes: 1, nbRdvPris: 1, nbRefus: 0, nbAbsents: 1,
-      commentaire: 'Première visite, 1 contrat.',
-    },
-    {
-      dateProspection: new Date('2024-06-05T14:30:00Z'),
-      commercialId: commercialAlice.id,
-      immeubleId: immeuble1.id,
-      nbPortesVisitees: 2, nbContratsSignes: 0, nbRdvPris: 1, nbRefus: 1, nbAbsents: 0,
-      commentaire: 'Suivi, 1 RDV pris.',
-    },
-    // Bob - Immeuble 2
-    {
-      dateProspection: new Date('2024-06-02T11:00:00Z'),
-      commercialId: commercialBob.id,
-      immeubleId: immeuble2.id,
-      nbPortesVisitees: 4, nbContratsSignes: 2, nbRdvPris: 0, nbRefus: 1, nbAbsents: 1,
-      commentaire: 'Bonne journée, 2 contrats.',
-    },
-    {
-      dateProspection: new Date('2024-06-06T09:00:00Z'),
-      commercialId: commercialBob.id,
-      immeubleId: immeuble2.id,
-      nbPortesVisitees: 3, nbContratsSignes: 0, nbRdvPris: 0, nbRefus: 2, nbAbsents: 1,
-      commentaire: 'Difficile, beaucoup de refus.',
-    },
-    // Charlie - Immeuble 3
-    {
-      dateProspection: new Date('2024-06-03T13:00:00Z'),
-      commercialId: commercialCharlie.id,
-      immeubleId: immeuble3.id,
-      nbPortesVisitees: 5, nbContratsSignes: 1, nbRdvPris: 2, nbRefus: 1, nbAbsents: 1,
-      commentaire: 'Nouveau secteur, 1 contrat et 2 RDV.',
-    },
-    {
-      dateProspection: new Date('2024-06-07T10:00:00Z'),
-      commercialId: commercialCharlie.id,
-      immeubleId: immeuble3.id,
-      nbPortesVisitees: 4, nbContratsSignes: 0, nbRdvPris: 1, nbRefus: 1, nbAbsents: 2,
-      commentaire: 'Quelques absents.',
-    },
-    // Diana - Immeuble 4
-    {
-      dateProspection: new Date('2024-06-04T15:00:00Z'),
-      commercialId: commercialDiana.id,
-      immeubleId: immeuble4.id,
-      nbPortesVisitees: 3, nbContratsSignes: 1, nbRdvPris: 0, nbRefus: 0, nbAbsents: 2,
-      commentaire: 'Bonne prise de contact.',
-    },
-    {
-      dateProspection: new Date('2024-06-08T11:00:00Z'),
-      commercialId: commercialDiana.id,
-      immeubleId: immeuble4.id,
-      nbPortesVisitees: 2, nbContratsSignes: 0, nbRdvPris: 0, nbRefus: 1, nbAbsents: 1,
-      commentaire: 'Peu de succès aujourd\'hui.',
-    },
-    // Plus de données pour Alice et Bob
-    {
-      dateProspection: new Date('2024-06-10T09:30:00Z'),
-      commercialId: commercialAlice.id,
-      immeubleId: immeuble1.id,
-      nbPortesVisitees: 4, nbContratsSignes: 2, nbRdvPris: 0, nbRefus: 1, nbAbsents: 1,
-      commentaire: 'Deux contrats de plus !',
-    },
-    {
-      dateProspection: new Date('2024-06-12T16:00:00Z'),
-      commercialId: commercialBob.id,
-      immeubleId: immeuble2.id,
-      nbPortesVisitees: 5, nbContratsSignes: 1, nbRdvPris: 1, nbRefus: 1, nbAbsents: 2,
-      commentaire: 'Un contrat et un RDV.',
-    },
-    {
-      dateProspection: new Date('2024-06-15T10:00:00Z'),
-      commercialId: commercialCharlie.id,
-      immeubleId: immeuble3.id,
-      nbPortesVisitees: 6, nbContratsSignes: 0, nbRdvPris: 3, nbRefus: 2, nbAbsents: 1,
-      commentaire: 'Beaucoup de RDV pris.',
-    },
-    {
-      dateProspection: new Date('2024-06-18T14:00:00Z'),
-      commercialId: commercialDiana.id,
-      immeubleId: immeuble4.id,
-      nbPortesVisitees: 4, nbContratsSignes: 1, nbRdvPris: 0, nbRefus: 1, nbAbsents: 2,
-      commentaire: 'Un contrat inattendu.',
-    },
-    {
-      dateProspection: new Date('2024-06-20T11:00:00Z'),
-      commercialId: commercialAlice.id,
-      immeubleId: immeuble1.id,
-      nbPortesVisitees: 3, nbContratsSignes: 0, nbRdvPris: 0, nbRefus: 2, nbAbsents: 1,
-      commentaire: 'Journée calme.',
-    },
-    {
-      dateProspection: new Date('2024-06-22T13:00:00Z'),
-      commercialId: commercialBob.id,
-      immeubleId: immeuble2.id,
-      nbPortesVisitees: 6, nbContratsSignes: 3, nbRdvPris: 0, nbRefus: 1, nbAbsents: 2,
-      commentaire: 'Très productive !',
-    },
-    {
-      dateProspection: new Date('2024-06-25T09:00:00Z'),
-      commercialId: commercialCharlie.id,
-      immeubleId: immeuble3.id,
-      nbPortesVisitees: 5, nbContratsSignes: 1, nbRdvPris: 1, nbRefus: 1, nbAbsents: 2,
-      commentaire: 'Un contrat et un RDV.',
-    },
-    {
-      dateProspection: new Date('2024-06-28T10:00:00Z'),
-      commercialId: commercialDiana.id,
-      immeubleId: immeuble4.id,
-      nbPortesVisitees: 3, nbContratsSignes: 0, nbRdvPris: 0, nbRefus: 2, nbAbsents: 1,
-      commentaire: 'Pas de chance.',
-    },
-  ];
+  const today = new Date();
+  const historicalEntries = [];
+
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(today.getFullYear(), today.getMonth() - i, 15);
+
+    historicalEntries.push(
+      // Alice - Immeuble 1
+      {
+        dateProspection: new Date(date.setDate(1)),
+        commercialId: commercialAlice.id,
+        immeubleId: immeuble1.id,
+        nbPortesVisitees: 3 + i, nbContratsSignes: 1 + i, nbRdvPris: 1, nbRefus: 0, nbAbsents: 1,
+        commentaire: `Visite mois ${i}, 1 contrat.`,
+      },
+      {
+        dateProspection: new Date(date.setDate(5)),
+        commercialId: commercialAlice.id,
+        immeubleId: immeuble1.id,
+        nbPortesVisitees: 2 + i, nbContratsSignes: 0, nbRdvPris: 1, nbRefus: 1, nbAbsents: 0,
+        commentaire: `Suivi mois ${i}, 1 RDV pris.`,
+      },
+      // Bob - Immeuble 2
+      {
+        dateProspection: new Date(date.setDate(2)),
+        commercialId: commercialBob.id,
+        immeubleId: immeuble2.id,
+        nbPortesVisitees: 4 + i, nbContratsSignes: 2 + i, nbRdvPris: 0, nbRefus: 1, nbAbsents: 1,
+        commentaire: `Bonne journée mois ${i}, 2 contrats.`,
+      },
+      // Charlie - Immeuble 3
+      {
+        dateProspection: new Date(date.setDate(3)),
+        commercialId: commercialCharlie.id,
+        immeubleId: immeuble3.id,
+        nbPortesVisitees: 5 + i, nbContratsSignes: 1 + i, nbRdvPris: 2, nbRefus: 1, nbAbsents: 1,
+        commentaire: `Nouveau secteur mois ${i}, 1 contrat et 2 RDV.`,
+      },
+      // Diana - Immeuble 4
+      {
+        dateProspection: new Date(date.setDate(4)),
+        commercialId: commercialDiana.id,
+        immeubleId: immeuble4.id,
+        nbPortesVisitees: 3 + i, nbContratsSignes: 1 + i, nbRdvPris: 0, nbRefus: 0, nbAbsents: 2,
+        commentaire: `Bonne prise de contact mois ${i}.`,
+      }
+    );
+  }
 
   await prisma.historiqueProspection.createMany({
-    data: historiqueEntries,
+    data: historicalEntries,
     skipDuplicates: true,
   });
   console.log(`Created historique prospection entries.`);

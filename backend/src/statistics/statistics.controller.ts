@@ -21,6 +21,11 @@ export class StatisticsController {
     return this.statisticsService.getStatsForManager(id);
   }
 
+  @Get('manager/:id/history')
+  getManagerPerformanceHistory(@Param('id') id: string) {
+    return this.statisticsService.getManagerPerformanceHistory(id);
+  }
+
   @Get()
   getStatistics(
     @Query('period') period: PeriodType,

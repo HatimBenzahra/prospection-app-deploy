@@ -100,12 +100,28 @@ export class StatisticsService {
   }
 
   async getStatsForManager(managerId: string) {
-    const commercials = await this.prisma.commercial.findMany({
-      where: { managerId },
+    const managerWithEquipesAndCommerciaux = await this.prisma.manager.findUnique({
+      where: { id: managerId },
       include: {
-        historiques: true,
+        equipes: {
+          include: {
+            commerciaux: {
+              include: {
+                historiques: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    if (!managerWithEquipesAndCommerciaux) {
+      throw new NotFoundException(`Manager with ID ${managerId} not found`);
+    }
+
+    const commercials = managerWithEquipesAndCommerciaux.equipes.flatMap(
+      (equipe) => equipe.commerciaux,
+    );
 
     if (!commercials.length) {
       return {
@@ -148,52 +164,48 @@ export class StatisticsService {
     };
   }
 
+  async getManagerPerformanceHistory(managerId: string) {
+    const histories = await this.prisma.historiqueProspection.findMany({
+      where: {
+        commercial: {
+          equipe: {
+            managerId: managerId,
+          },
+        },
+      },
+      orderBy: {
+        dateProspection: 'asc',
+      },
+    });
+
+    const monthlyStats = new Map<string, { contrats: number; rdv: number }>();
+
+    histories.forEach((h) => {
+      const month = h.dateProspection.toISOString().substring(0, 7); // YYYY-MM
+      if (!monthlyStats.has(month)) {
+        monthlyStats.set(month, { contrats: 0, rdv: 0 });
+      }
+      const current = monthlyStats.get(month)!;
+      current.contrats += h.nbContratsSignes;
+      current.rdv += h.nbRdvPris;
+    });
+
+    const perfHistory = Array.from(monthlyStats.entries())
+      .sort(([monthA], [monthB]) => monthA.localeCompare(monthB))
+      .map(([month, data]) => ({
+        name: month,
+        perf: data.rdv > 0 ? (data.contrats / data.rdv) * 100 : 0,
+      }));
+
+    return perfHistory;
+  }
+
   async getStatistics(
     period: PeriodType,
     entityType?: StatEntityType,
     entityId?: string,
   ) {
-    // This is a placeholder. Real implementation will involve complex Prisma queries
-    // to calculate KPIs, leaderboard, history, and performance data based on period and entity filters.
-    // For now, returning mock-like data structure.
 
-    const kpis = {
-      contratsSignes: { value: 120, change: 10 },
-      rdvPris: { value: 300, change: 5 },
-      tauxConclusion: { value: 40, change: 2 },
-      tauxRepassage: { value: 70, change: -3 },
-    };
 
-    const leaderboard = [
-      { rank: 1, name: 'Alice Leroy', avatar: 'AL', value: 25, change: 5 },
-      { rank: 2, name: 'Paul Bernard', avatar: 'PB', value: 20, change: 3 },
-      { rank: 3, name: 'Chloe Petit', avatar: 'CP', value: 18, change: 1 },
-    ];
-
-    const history = [
-      { name: 'Jan', Contrats: 10, RDV: 30 },
-      { name: 'Feb', Contrats: 12, RDV: 35 },
-      { name: 'Mar', Contrats: 15, RDV: 40 },
-    ];
-
-    const performanceData = [
-      { name: 'Alice', contrats: 25, rdv_sans_contrat: 10 },
-      { name: 'Paul', contrats: 20, rdv_sans_contrat: 15 },
-      { name: 'Chloe', contrats: 18, rdv_sans_contrat: 12 },
-    ];
-
-    const performanceParRegion = [
-      { name: 'Nord', value: 50 },
-      { name: 'Sud', value: 30 },
-      { name: 'Est', value: 20 },
-    ];
-
-    return {
-      kpis,
-      leaderboard,
-      history,
-      performanceData,
-      performanceParRegion,
-    };
   }
 }

@@ -17,17 +17,13 @@ const ProspectingSetupPage = () => {
     const [duoEmail, setDuoEmail] = useState('');
 
     const handleStartSolo = () => {
-        // Logique pour démarrer en solo
         console.log(`Démarrage en SOLO pour l'immeuble ${buildingId}`);
-        // Rediriger vers la liste des portes
         navigate(`/commercial/prospecting/doors/${buildingId}`);
     };
 
     const handleInviteDuo = () => {
-        // Logique pour inviter un coéquipier
         if (duoEmail) {
             console.log(`Invitation envoyée à ${duoEmail} pour l'immeuble ${buildingId}`);
-            // Ici, on pourrait afficher un état "En attente de réponse"
             alert(`Invitation envoyée à ${duoEmail} !`);
         }
     };
@@ -45,7 +41,6 @@ const ProspectingSetupPage = () => {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {/* Sélecteur de mode */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Card 
                             onClick={() => setMode('solo')}
@@ -71,7 +66,6 @@ const ProspectingSetupPage = () => {
                         </Card>
                     </div>
 
-                    {/* Section Duo conditionnelle */}
                     {mode === 'duo' && (
                         <div className="space-y-2 animate-in fade-in-0">
                             <Label htmlFor="duo-email">Email du coéquipier</Label>
@@ -96,7 +90,6 @@ const ProspectingSetupPage = () => {
                     )}
                 </CardContent>
 
-                {/* --- Bouton de validation pour le mode SOLO --- */}
                 {mode === 'solo' && (
                     <CardFooter className="flex justify-end">
                         <Button 

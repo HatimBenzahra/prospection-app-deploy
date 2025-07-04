@@ -1,7 +1,7 @@
 // src/pages/commercial/SelectBuildingPage.tsx
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DataTable } from '@/components/data-table/DataTable'; // On réutilise la DataTable
+import { DataTable } from '@/components/data-table/DataTable';
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table';
 import { Button } from '@/components/ui-admin/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-admin/card';
@@ -37,7 +37,7 @@ const createBuildingColumns = (): ColumnDef<BuildingData>[] => [
         name="select-building"
         checked={row.getIsSelected()}
         onChange={(e) => row.toggleSelected(e.currentTarget.checked)}
-        className="h-4 w-4"
+        className="h-4 w-4 accent-primary"
       />
     ),
   },
@@ -71,9 +71,8 @@ const SelectBuildingPage = () => {
     const navigate = useNavigate();
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
     
-    // Trier les immeubles par date d'ajout, du plus récent au plus ancien
     const sortedBuildings = useMemo(() => 
-        MOCK_BUILDINGS.sort((a, b) => b.dateAjout.getTime() - a.dateAjout.getTime()), 
+        [...MOCK_BUILDINGS].sort((a, b) => b.dateAjout.getTime() - a.dateAjout.getTime()), 
         []
     );
 
@@ -83,8 +82,6 @@ const SelectBuildingPage = () => {
 
     const handleNext = () => {
         if (selectedBuildingId) {
-            // Pour l'instant, on navigue vers une page placeholder.
-            // C'est ici qu'on intégrera la logique solo/duo.
             navigate(`/commercial/prospecting/setup/${selectedBuildingId}`);
         }
     };

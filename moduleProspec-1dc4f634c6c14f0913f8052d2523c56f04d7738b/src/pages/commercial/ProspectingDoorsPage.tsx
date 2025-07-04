@@ -8,20 +8,34 @@ import { ArrowLeft, Building } from 'lucide-react';
 import { Button } from '@/components/ui-admin/button';
 import { Skeleton } from '@/components/ui-admin/skeleton';
 
-// Simuler la récupération des détails d'un immeuble
-const getBuildingDetails = async (id: string | undefined): Promise<{ id: string; adresse: string; nbPortesTotal: number } | null> => {
-    if (!id) return null;
-    console.log(`Fetching details for building ${id}...`);
-    await new Promise(resolve => setTimeout(resolve, 500)); 
-    const buildings = [
-        { id: 'imm-1', adresse: '10 Rue de la Paix', nbPortesTotal: 25 },
-        { id: 'imm-2', adresse: '25 Bd des Capucines', nbPortesTotal: 40 },
-        { id: 'imm-3', adresse: '15 Av. des Champs-Élysées', nbPortesTotal: 60 },
-    ];
-    return buildings.find(b => b.id === id) || null;
+// --- DÉBUT DE LA CORRECTION ---
+// On définit ici une base de données simulée pour cette page.
+// IMPORTANT : Ces données doivent être IDENTIQUES à celles de la page de sélection.
+type BuildingDetails = {
+  id: string;
+  adresse: string;
+  nbPortes: number;
 };
 
-// Un composant de chargement plus visuel
+const MOCK_BUILDINGS_DATABASE: BuildingDetails[] = [
+  { id: 'imm-1', adresse: '10 Rue de la Paix', nbPortes: 25 },
+  { id: 'imm-2', adresse: '25 Bd des Capucines', nbPortes: 40 },
+  { id: 'imm-3', adresse: '15 Av. des Champs-Élysées', nbPortes: 60 },
+];
+
+// La fonction recherche maintenant dans la base de données simulée de cette page.
+const getBuildingDetails = async (id: string | undefined): Promise<BuildingDetails | null> => {
+    if (!id) return null;
+    console.log(`Recherche de l'immeuble ${id} dans la BDD simulée...`);
+    await new Promise(resolve => setTimeout(resolve, 500)); 
+    
+    const building = MOCK_BUILDINGS_DATABASE.find(b => b.id === id);
+    
+    return building || null;
+};
+// --- FIN DE LA CORRECTION ---
+
+
 const LoadingSkeleton = () => (
     <div className="container mx-auto py-8">
         <Skeleton className="h-10 w-48 mb-4" />
@@ -41,11 +55,10 @@ const LoadingSkeleton = () => (
     </div>
 );
 
-
 const ProspectingDoorsPage = () => {
     const { buildingId } = useParams<{ buildingId: string }>();
     const navigate = useNavigate();
-    const [building, setBuilding] = useState<{ id: string; adresse: string; nbPortesTotal: number } | null>(null);
+    const [building, setBuilding] = useState<BuildingDetails | null>(null);
     const [portes, setPortes] = useState<Porte[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -53,7 +66,7 @@ const ProspectingDoorsPage = () => {
         getBuildingDetails(buildingId).then(details => {
             if (details) {
                 setBuilding(details);
-                const initialPortes = Array.from({ length: details.nbPortesTotal }, (_, i) => ({
+                const initialPortes = Array.from({ length: details.nbPortes }, (_, i) => ({
                     id: `${buildingId}-porte-${i + 1}`, 
                     numero: String(i + 1),
                     statut: "Non visité" as const,
@@ -64,7 +77,7 @@ const ProspectingDoorsPage = () => {
             }
             setIsLoading(false);
         });
-    }, [buildingId]); // J'ai remis la dépendance pour être plus correct, mais le bug initial venait de la logique de rendu
+    }, [buildingId]);
 
     const handleEdit = (porteNumero: string) => {
         alert(`Éditer la porte n°${porteNumero}`);
@@ -100,13 +113,12 @@ const ProspectingDoorsPage = () => {
                         Prospection : {building.adresse}
                     </CardTitle>
                     <CardDescription>
-                        Voici la liste des {building.nbPortesTotal} portes à prospecter. Mettez à jour leur statut au fur et à mesure.
+                        Voici la liste des {building.nbPortes} portes à prospecter. Mettez à jour leur statut au fur et à mesure.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {/* --- CORRECTION ICI --- */}
                     <DataTable
-                        title="" // On ajoute la prop 'title' requise avec une chaîne vide
+                        title="Portes"
                         columns={columns}
                         data={portes}
                         filterColumnId="numero"

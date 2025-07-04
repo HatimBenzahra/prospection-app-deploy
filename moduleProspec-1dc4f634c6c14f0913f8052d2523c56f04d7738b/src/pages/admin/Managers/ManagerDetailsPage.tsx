@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { RowSelectionState } from "@tanstack/react-table";
-import { ArrowLeft, BarChart2, Briefcase, CheckCircle, Target, Trophy, Users, User, Mail, Phone } from 'lucide-react';
+import { ArrowLeft, Briefcase, CheckCircle, Target, Users, User, Mail, Phone } from 'lucide-react';
 
 import { Button } from '@/components/ui-admin/button';
 import { Skeleton } from '@/components/ui-admin/skeleton';
@@ -24,6 +24,7 @@ const ManagerDetailsPage = () => {
     
     const [manager, setManager] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
+    const [perfHistory, setPerfHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     
     const [selectedTeam, setSelectedTeam] = useState<EquipeDuManager | null>(null);
@@ -43,8 +44,9 @@ const ManagerDetailsPage = () => {
             setLoading(true);
             Promise.all([
                 managerService.getManagerDetails(managerId),
-                statisticsService.getStatsForManager(managerId)
-            ]).then(([managerData, statsData]) => {
+                statisticsService.getStatsForManager(managerId),
+                statisticsService.getManagerPerformanceHistory(managerId)
+            ]).then(([managerData, statsData, historyData]) => {
                 const formattedEquipes = managerData.equipes.map((e: any) => ({
                     id: e.id,
                     nom: e.nom,
@@ -61,6 +63,7 @@ const ManagerDetailsPage = () => {
                 }));
                 setManager({ ...managerData, equipes: formattedEquipes });
                 setStats(statsData);
+                setPerfHistory(historyData);
                 setLoading(false);
             }).catch(err => {
                 console.error("Erreur de chargement des détails du manager:", err);
@@ -100,35 +103,12 @@ const ManagerDetailsPage = () => {
 
     // Préparation des données pour les graphiques et stats
     const currentStats = stats?.kpis || { rdvPris: 0, contratsSignes: 0, tauxConclusion: 0 };
-    const perfHistory = [
-        { name: 'S-4', perf: 78 }, { name: 'S-3', perf: 80 }, { name: 'S-2', perf: 85 },
-        { name: 'S-1', perf: 81 }, { name: 'Cette sem.', perf: currentStats.tauxConclusion }
-    ];
     const commerciauxDeLequipeSelectionnee = manager.equipes.find((e: any) => e.id === selectedTeam?.id)?.commerciaux || [];
 
     return (
         <div className="space-y-8">
             <Button variant="outline" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" /> Retour</Button>
             
-            <Card>
-                <CardHeader>
-                    <CardTitle>Informations Personnelles</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="flex items-center space-x-2">
-                        <User className="h-5 w-5 text-gray-500" />
-                        <span>{manager.prenom} {manager.nom}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Mail className="h-5 w-5 text-gray-500" />
-                        <span>{manager.email}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Phone className="h-5 w-5 text-gray-500" />
-                        <span>{manager.telephone || 'N/A'}</span>
-                    </div>
-                </CardContent>
-            </Card>
 
             <Card>
                 <CardHeader>
@@ -161,7 +141,7 @@ const ManagerDetailsPage = () => {
                 title="Évolution de la Performance Globale"
                 data={perfHistory} 
                 xAxisDataKey="name" 
-                lines={[{ dataKey: 'perf', stroke: 'hsl(var(--winvest-blue-nuit))' , name: 'Performance (%)' }]} 
+                lines={[{ dataKey: 'perf', stroke: '#3b82f6', name: 'Performance (%)' }]} 
             />
             
             <div className="space-y-4">

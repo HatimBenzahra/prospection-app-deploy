@@ -4,14 +4,13 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "@/components/ui-admin/button"
 import { Badge } from "@/components/ui-admin/badge"
-import { Edit, MessageSquare, Repeat, Hash, Check, X, BellOff, User, Smile, Frown, Landmark } from "lucide-react"
+import { Edit, MessageSquare, Repeat, Hash, Check, BellOff, User, Smile, Frown, Landmark } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export type PorteStatus = "Non visité" | "Absent" | "Refus" | "Curieux" | "RDV" | "Contrat";
 
-// --- MODIFICATION ICI : On ajoute la propriété 'id' ---
 export type Porte = {
-  id: string; // Propriété obligatoire pour la DataTable
+  id: string; 
   numero: string;
   statut: PorteStatus;
   commentaire: string;
