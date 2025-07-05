@@ -16,6 +16,7 @@ type CreatePortePayload = {
   status: string;
   nbPassages?: number;
   commentaire?: string;
+  repassage?: boolean;
   immeubleId: string;
 };
 

@@ -17,6 +17,11 @@ export class ImmeubleController {
     return this.immeubleService.findAll();
   }
 
+  @Get(':id/details')
+  getImmeubleDetails(@Param('id') id: string) {
+    return this.immeubleService.getImmeubleDetails(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.immeubleService.findOne(id);

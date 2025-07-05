@@ -9,9 +9,10 @@ import { ZoneModule } from './zone/zone.module';
 import { ImmeubleModule } from './immeuble/immeuble.module';
 import { PorteModule } from './porte/porte.module';
 import { StatisticsModule } from './statistics/statistics.module';
+import { AssignmentGoalsModule } from './assignment-goals/assignment-goals.module';
 
 @Module({
-  imports: [PrismaModule, ManagerModule, EquipeModule, CommercialModule, ZoneModule, ImmeubleModule, PorteModule, StatisticsModule],
+  imports: [PrismaModule, ManagerModule, EquipeModule, CommercialModule, ZoneModule, ImmeubleModule, PorteModule, StatisticsModule, AssignmentGoalsModule],
   controllers: [AppController],
   providers: [AppService],
 })

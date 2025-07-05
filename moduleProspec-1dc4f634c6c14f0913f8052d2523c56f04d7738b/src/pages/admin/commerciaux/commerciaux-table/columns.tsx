@@ -18,7 +18,7 @@ export type Commercial = {
   manager: string;
   managerId: string;
   equipe: string;
-  equipeId: string;
+  equipeId?: string;
   classement: number;
 }
 

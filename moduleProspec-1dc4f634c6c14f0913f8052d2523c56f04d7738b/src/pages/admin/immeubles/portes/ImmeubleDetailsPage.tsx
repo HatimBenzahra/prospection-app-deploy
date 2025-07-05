@@ -13,8 +13,7 @@ import { DataTable } from '@/components/data-table/DataTable';
 import type { Porte } from './portes-columns';
 import { createPortesColumns } from './portes-columns';
 import { GenericRadialBarChart } from '@/components/ui-admin/GenericRadialBarChart';
-import { immeubleService, type ImmeubleDetailsFromAPI } from '@/services/immeuble.service';
-import { ProspectingMode } from '@/types/enums'; // <-- CORRECTION: Importer depuis notre fichier d'enums
+import { immeubleService, type ImmeubleDetailsFromApi } from '@/services/immeuble.service';
 
 // Types locaux pour la clarté du composant
 interface Prospector {
@@ -28,11 +27,15 @@ interface ImmeubleDetails {
   ville: string;
   codePostal: string;
   prospectors: Prospector[];
-  prospectingType: ProspectingMode;
+  prospectingMode: 'SOLO' | 'DUO';
   hasElevator: boolean;
   digicode: string | null;
   nbPortesTotal: number;
-  portes: Porte[]; 
+  portes: Porte[];
+  stats: {
+    contratsSignes: number;
+    rdvPris: number;
+  };
 }
 
 // --- Composants UI ---
@@ -85,17 +88,17 @@ const ImmeubleDetailsPage = () => {
                 adresse: detailsFromApi.adresse,
                 ville: detailsFromApi.ville,
                 codePostal: detailsFromApi.codePostal,
-                prospectors: (detailsFromApi.prospecteurs || []).map(p => ({
+                prospectors: (detailsFromApi.prospectors || []).map(p => ({
                     id: p.id,
                     nom: `${p.prenom} ${p.nom}`
                 })),
-                prospectingType: detailsFromApi.modeProspection,
+                prospectingMode: detailsFromApi.prospectingMode,
                 hasElevator: detailsFromApi.hasElevator,
                 digicode: detailsFromApi.digicode,
                 nbPortesTotal: detailsFromApi.nbPortesTotal,
                 portes: (detailsFromApi.portes || []).map(p => {
                     let statusText: Porte['statut'] = 'Non visité';
-                    switch(p.status) {
+                    switch(p.statut) {
                         case 'VISITE': statusText = 'Visité'; break;
                         case 'ABSENT': statusText = 'Absent'; break;
                         case 'REFUS': statusText = 'Refus'; break;
@@ -106,10 +109,11 @@ const ImmeubleDetailsPage = () => {
                         id: p.id,
                         numeroPorte: p.numeroPorte,
                         statut: statusText,
-                        passage: p.nbPassages,
+                        passage: p.passage,
                         commentaire: p.commentaire || '',
                     }
                 }),
+                stats: detailsFromApi.stats,
             };
             setImmeuble(formattedDetails);
         } catch (error) {
@@ -126,6 +130,8 @@ const ImmeubleDetailsPage = () => {
         const allPortes: Porte[] = [];
         for (let i = 1; i <= immeuble.nbPortesTotal; i++) {
             const numeroPorteStr = String(i);
+            if (immeuble.prospectingMode === 'DUO' && i % 2 !== 0) continue;
+
             const visiteExistante = visitesMap.get(numeroPorteStr);
             if (visiteExistante) {
                 allPortes.push({ ...visiteExistante });
@@ -181,9 +187,9 @@ const ImmeubleDetailsPage = () => {
                     <CardDescription>Détails et informations sur la prospection de cet immeuble.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                   <ProspectorBadge Icon={Users} label="Équipe de Prospection" prospectors={immeuble.prospectors} />
-                   <InfoBadge Icon={Users} label="Type Prospection" value={immeuble.prospectingType} />
-                   <InfoBadge Icon={MoveUpRight} label="Ascenseur" value={immeuble.hasElevator ? <Check className="text-green-600" /> : <X className="text-red-600" />} />
+                   <ProspectorBadge Icon={Users} label={immeuble.prospectingMode === 'DUO' ? "Duo de Prospection" : "Prospecteur"} prospectors={immeuble.prospectors} />
+                   <InfoBadge Icon={Check} label="Contrats Signés" value={immeuble.stats.contratsSignes} />
+                   <InfoBadge Icon={MoveUpRight} label="RDV Pris" value={immeuble.stats.rdvPris} />
                    <InfoBadge Icon={KeyRound} label="Digicode" value={immeuble.digicode || "Aucun"} />
                 </CardContent>
             </Card>

@@ -54,8 +54,9 @@ const EquipesPage = () => {
             nom: manager ? `${manager.prenom} ${manager.nom}` : "N/A",
             avatarFallback: manager ? `${manager.prenom[0]}${manager.nom[0]}` : "?",
           },
-          nbCommerciaux: 0,
-          classementGeneral: index + 1,
+          // @ts-ignore
+          nbCommerciaux: equipe._count?.commerciaux || 0,
+          classementGeneral: index + 1, // Note: Le classement est toujours basé sur l'ordre de l'API
         };
       });
       

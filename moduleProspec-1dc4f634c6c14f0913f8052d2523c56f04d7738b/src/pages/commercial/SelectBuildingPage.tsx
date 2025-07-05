@@ -27,7 +27,7 @@ const MOCK_BUILDINGS: BuildingData[] = [
 ];
 
 // Création des colonnes pour la DataTable
-const createBuildingColumns = (): ColumnDef<BuildingData>[] => [
+const createBuildingColumns = (setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>): ColumnDef<BuildingData>[] => [
   {
     id: 'select',
     header: () => null,
@@ -36,7 +36,7 @@ const createBuildingColumns = (): ColumnDef<BuildingData>[] => [
         type="radio"
         name="select-building"
         checked={row.getIsSelected()}
-        onChange={(e) => row.toggleSelected(e.currentTarget.checked)}
+        onChange={() => setRowSelection({ [row.id]: true })}
         className="h-4 w-4 accent-primary"
       />
     ),
@@ -76,12 +76,13 @@ const SelectBuildingPage = () => {
         []
     );
 
-    const columns = useMemo(() => createBuildingColumns(), []);
+    const columns = useMemo(() => createBuildingColumns(setRowSelection), []);
 
-    const selectedBuildingId = Object.keys(rowSelection)[0];
+    const selectedBuildingId = Object.keys(rowSelection).length > 0 ? sortedBuildings[parseInt(Object.keys(rowSelection)[0])].id : undefined;
 
     const handleNext = () => {
         if (selectedBuildingId) {
+            console.log(`Navigating from SelectBuildingPage with ID: ${selectedBuildingId}`);
             navigate(`/commercial/prospecting/setup/${selectedBuildingId}`);
         }
     };

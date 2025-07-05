@@ -131,8 +131,8 @@ const ImmeublesPage = () => {
             title=""
             filterColumnId="adresse"
             filterPlaceholder="Filtrer par adresse..."
-            addEntityButtonText="Ajouter un Immeuble"
-            onAddEntity={() => alert("Ajout d'immeuble à implémenter")}
+            addEntityButtonText=""
+            onAddEntity={() => {}}
             isDeleteMode={isDeleteMode}
             onToggleDeleteMode={toggleDeleteMode}
             rowSelection={rowSelection}

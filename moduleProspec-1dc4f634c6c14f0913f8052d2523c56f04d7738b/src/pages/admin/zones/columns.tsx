@@ -7,7 +7,8 @@ import { fr } from "date-fns/locale"
 import { Button } from "@/components/ui-admin/button"
 import { Badge } from "@/components/ui-admin/badge"
 import { Checkbox } from "@/components/ui-admin/checkbox"
-import { ArrowUpDown, Edit, Calendar } from "lucide-react"
+import { ArrowUpDown, Edit, Calendar, Eye } from "lucide-react"
+import { Link } from "react-router-dom";
 
 export interface Zone {
   id: string;
@@ -66,7 +67,13 @@ export const createZoneColumns = (isDeleteMode: boolean, onEdit: (zone: Zone) =>
         id: "actions",
         header: () => <div className="text-right"><Header title="Actions" /></div>,
         cell: ({ row }) => (
-            <div className="text-right">
+            <div className="text-right space-x-2">
+                <Button asChild variant="ghost" size="icon">
+                    <Link to={`/admin/zones/${row.original.id}`} onClick={(e) => e.stopPropagation()}>
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">Voir les détails</span>
+                    </Link>
+                </Button>
                 <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(row.original); }}>
                     <Edit className="h-4 w-4" />
                     <span className="sr-only">Modifier la zone</span>

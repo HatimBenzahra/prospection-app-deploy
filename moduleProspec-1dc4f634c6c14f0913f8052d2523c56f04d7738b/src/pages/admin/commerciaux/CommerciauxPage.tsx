@@ -19,6 +19,7 @@ type EquipeFromAPI = { id: string; nom: string; managerId: string };
 const CommerciauxPage = () => {
   const [data, setData] = useState<Commercial[]>([]);
   const [equipes, setEquipes] = useState<EquipeFromAPI[]>([]);
+  const [managers, setManagers] = useState<ManagerFromAPI[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -43,6 +44,7 @@ const CommerciauxPage = () => {
       ]);
 
       setEquipes(equipesFromApi);
+      setManagers(managersFromApi);
 
       const equipesMap = new Map(equipesFromApi.map((e) => [e.id, e.nom] as const));
       const managersMap = new Map(managersFromApi.map((m) => [m.id, `${m.prenom} ${m.nom}`] as const));
@@ -61,7 +63,7 @@ const CommerciauxPage = () => {
           equipeId: comm.equipeId,
           managerId: comm.managerId,
           manager: managersMap.get(comm.managerId) || 'N/A',
-          equipe: equipesMap.get(comm.equipeId) || 'N/A',
+          equipe: comm.equipeId ? equipesMap.get(comm.equipeId) || 'Non assignée' : 'Non assignée',
           totalContratsSignes: totalContratsSignes,
         };
       });
@@ -91,18 +93,18 @@ const CommerciauxPage = () => {
     setEditingCommercial({ ...editingCommercial, [e.target.name]: e.target.value });
   };
   
-  const handleEditSelectChange = (equipeId: string) => {
+  const handleEditSelectChange = (managerId: string) => {
     if (!editingCommercial) return;
-    setEditingCommercial({ ...editingCommercial, equipeId });
+    setEditingCommercial({ ...editingCommercial, managerId });
   };
 
   const handleUpdateCommercial = async () => {
     if (!editingCommercial) return;
     try {
-      const { id, nom, prenom, email, telephone, equipeId } = editingCommercial;
+      const { id, nom, prenom, email, telephone, managerId } = editingCommercial;
       
       const payload = {
-        nom, prenom, email, equipeId,
+        nom, prenom, email, managerId,
         telephone: telephone || undefined,
       };
 
@@ -123,22 +125,16 @@ const CommerciauxPage = () => {
     setNewCommercialData((prev) => ({ ...prev, equipeId }));
   };
   const handleAddCommercial = async () => {
-    const { nom, prenom, email, equipeId } = newCommercialData;
-    if (!nom || !prenom || !email || !equipeId) {
+    const { nom, prenom, email, managerId } = newCommercialData;
+    if (!nom || !prenom || !email || !managerId) {
       alert("Veuillez remplir tous les champs obligatoires.");
-      return;
-    }
-
-    const selectedEquipe = equipes.find(e => e.id === equipeId);
-    if (!selectedEquipe) {
-      alert("Équipe non valide.");
       return;
     }
 
     try {
       await commercialService.createCommercial({
         ...newCommercialData,
-        managerId: selectedEquipe.managerId, 
+        managerId: managerId, 
       });
       setIsAddModalOpen(false);
       setNewCommercialData(initialFormState);
@@ -204,12 +200,12 @@ const CommerciauxPage = () => {
           <div className="space-y-1"><Label htmlFor="email">Email</Label><Input id="email" type="email" placeholder="adresse@email.com" value={newCommercialData.email} onChange={handleAddInputChange} /></div>
           <div className="space-y-1"><Label htmlFor="telephone">Téléphone (optionnel)</Label><Input id="telephone" type="tel" placeholder="0612345678" value={newCommercialData.telephone} onChange={handleAddInputChange} /></div>
           <div className="space-y-1">
-            <Label htmlFor="equipeId">Équipe</Label>
-            <Select onValueChange={handleAddSelectChange} value={newCommercialData.equipeId}>
-              <SelectTrigger id="equipeId"><SelectValue placeholder="Sélectionner une équipe" /></SelectTrigger>
+            <Label htmlFor="managerId">Manager</Label>
+            <Select onValueChange={(value) => setNewCommercialData((prev) => ({ ...prev, managerId: value }))} value={newCommercialData.managerId}>
+              <SelectTrigger id="managerId"><SelectValue placeholder="Sélectionner un manager" /></SelectTrigger>
               <SelectContent>
-                {equipes.map((equipe) => (
-                  <SelectItem key={equipe.id} value={equipe.id}>{equipe.nom}</SelectItem>
+                {managers.map((manager) => (
+                  <SelectItem key={manager.id} value={manager.id}>{manager.prenom} {manager.nom}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -230,11 +226,11 @@ const CommerciauxPage = () => {
             <div className="space-y-1"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" value={editingCommercial.email} onChange={handleEditInputChange} /></div>
             <div className="space-y-1"><Label htmlFor="telephone">Téléphone</Label><Input id="telephone" name="telephone" type="tel" value={editingCommercial.telephone || ''} onChange={handleEditInputChange} /></div>
             <div className="space-y-1">
-                <Label htmlFor="equipeId">Équipe</Label>
-                <Select onValueChange={handleEditSelectChange} value={editingCommercial.equipeId}>
-                <SelectTrigger id="equipeId"><SelectValue placeholder="Sélectionner une équipe" /></SelectTrigger>
+                <Label htmlFor="managerId">Manager</Label>
+                <Select onValueChange={handleEditSelectChange} value={editingCommercial.managerId}>
+                <SelectTrigger id="managerId"><SelectValue placeholder="Sélectionner un manager" /></SelectTrigger>
                 <SelectContent>
-                    {equipes.map((equipe) => ( <SelectItem key={equipe.id} value={equipe.id}>{equipe.nom}</SelectItem> ))}
+                    {managers.map((manager) => ( <SelectItem key={manager.id} value={manager.id}>{manager.prenom} {manager.nom}</SelectItem> ))}
                 </SelectContent>
                 </Select>
             </div>

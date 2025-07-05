@@ -3,43 +3,62 @@ import axios from 'axios';
 
 const API_URL = 'http://localhost:3000/equipes';
 
-export type EquipeFromAPI = {
+export interface EquipeFromApi {
   id: string;
   nom: string;
   managerId: string;
-};
+}
 
-type CreateEquipePayload = {
-  nom: string;
-  managerId: string;
-};
+export interface EquipeDetailsFromApi {
+    id: string;
+    nom: string;
+    manager: string;
+    stats: {
+        contratsSignes: number;
+        rdvPris: number;
+        perfMoyenne: number;
+        classementGeneral: number | string;
+        nbCommerciaux: number;
+    };
+    perfHistory: { name: string; perf: number }[];
+    commerciaux: {
+        id: string;
+        nom: string;
+        prenom: string;
+        email: string;
+        classement: number;
+    }[];
+}
 
-// AJOUT: Type pour la mise à jour
-type UpdateEquipePayload = Partial<CreateEquipePayload>;
-
-const getEquipes = async (): Promise<EquipeFromAPI[]> => {
+const getEquipes = async (): Promise<EquipeFromApi[]> => {
   const response = await axios.get(API_URL);
   return response.data;
 };
 
-const createEquipe = async (data: CreateEquipePayload): Promise<EquipeFromAPI> => {
-  const response = await axios.post(API_URL, data);
-  return response.data;
-};
-
-// AJOUT: Fonction pour mettre à jour une équipe
-const updateEquipe = async (id: string, data: UpdateEquipePayload): Promise<EquipeFromAPI> => {
-    const response = await axios.patch(`${API_URL}/${id}`, data);
+const getEquipeDetails = async (id: string): Promise<EquipeDetailsFromApi> => {
+    const response = await axios.get(`${API_URL}/${id}/details`);
     return response.data;
 };
 
-const deleteEquipe = async (id: string): Promise<void> => {
-  await axios.delete(`${API_URL}/${id}`);
+const createEquipe = async (equipeData: { nom: string; managerId: string }) => {
+  const response = await axios.post(API_URL, equipeData);
+  return response.data;
+};
+
+const updateEquipe = async (id: string, equipeData: { nom: string; managerId: string }) => {
+  const response = await axios.patch(`${API_URL}/${id}`, equipeData);
+  return response.data;
+};
+
+const deleteEquipe = async (id: string) => {
+  const response = await axios.delete(`${API_URL}/${id}`);
+  return response.data;
 };
 
 export const equipeService = {
   getEquipes,
+  getEquipeDetails,
   createEquipe,
-  updateEquipe, // AJOUT
+  updateEquipe,
   deleteEquipe,
 };

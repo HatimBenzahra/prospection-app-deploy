@@ -19,10 +19,12 @@ import CommercialDetailsPage from './pages/admin/commerciaux/CommercialDetailsPa
 import EquipesPage from './pages/admin/Equipes/EquipesPage'; 
 import EquipeDetailsPage from './pages/admin/Equipes/EquipeDetailsPage';
 import StatistiquesPage from './pages/admin/statitistiques/StatistiquesPage';
-import ZonesPage from './pages/admin/zones/ZonesPage'; 
+import ZonesPage from './pages/admin/zones/ZonesPage';
+import ZoneDetailsPage from './pages/admin/zones/ZoneDetailsPage'; 
 import ImmeublesPage from './pages/admin/immeubles/ImmeublesPage';
 import ImmeubleDetailsPage from './pages/admin/immeubles/portes/ImmeubleDetailsPage';
 import SuiviPage from './pages/admin/suivi/SuiviPage';
+import AssignmentGoalsPage from './pages/admin/assignment-goals/AssignmentGoalsPage';
 
 // --- Pages Commercial ---
 import CommercialDashboardPage from './pages/commercial/DashboardCommercial';
@@ -63,9 +65,11 @@ function App() {
             <Route path="commerciaux/:id" element={<CommercialDetailsPage />} />
             <Route path="statistiques" element={<StatistiquesPage />} />
             <Route path="zones" element={<ZonesPage />} /> 
+            <Route path="zones/:zoneId" element={<ZoneDetailsPage />} /> 
             <Route path="immeubles" element={<ImmeublesPage />} />
             <Route path="immeubles/:immeubleId" element={<ImmeubleDetailsPage />} />
             <Route path="suivi" element={<SuiviPage />} />
+            <Route path="assignations-objectifs" element={<AssignmentGoalsPage />} />
           </Route>
 
           {/* --- Layout pour les commerciaux --- */}

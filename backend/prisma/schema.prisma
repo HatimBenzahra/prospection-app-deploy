@@ -40,6 +40,7 @@ model Commercial {
   historiques HistoriqueProspection[]
   zones       Zone[]                  @relation("CommercialZones")
   immeubles   Immeuble[]              @relation("ImmeubleProspectors")
+  currentMonthlyGoal Int?
 }
 
 model Zone {
@@ -106,6 +107,8 @@ model HistoriqueProspection {
   commercial       Commercial @relation(fields: [commercialId], references: [id])
   immeuble         Immeuble   @relation(fields: [immeubleId], references: [id])
 }
+
+
 
 enum ImmeubleStatus {
   A_VISITER

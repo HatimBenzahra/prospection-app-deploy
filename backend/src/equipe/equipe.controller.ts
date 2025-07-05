@@ -17,6 +17,11 @@ export class EquipeController {
     return this.equipeService.findAll();
   }
 
+  @Get(':id/details')
+  getEquipeDetails(@Param('id') id: string) {
+    return this.equipeService.getEquipeDetails(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.equipeService.findOne(id);

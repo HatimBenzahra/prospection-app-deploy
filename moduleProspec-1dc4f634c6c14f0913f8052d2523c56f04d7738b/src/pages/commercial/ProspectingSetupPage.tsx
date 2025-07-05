@@ -16,7 +16,10 @@ const ProspectingSetupPage = () => {
     const [mode, setMode] = useState<ProspectingMode | null>(null);
     const [duoEmail, setDuoEmail] = useState('');
 
+    console.log(`ProspectingSetupPage loaded with buildingId: ${buildingId}`);
+
     const handleStartSolo = () => {
+        console.log(`Navigating from ProspectingSetupPage with ID: ${buildingId}`);
         console.log(`Démarrage en SOLO pour l'immeuble ${buildingId}`);
         navigate(`/commercial/prospecting/doors/${buildingId}`);
     };

@@ -9,42 +9,28 @@ import { ArrowLeft, Users, CheckCircle, Briefcase, Target, Trophy } from "lucide
 import { Skeleton } from "@/components/ui-admin/skeleton";
 import StatCard from "@/components/ui-admin/StatCard";
 import { GenericLineChart } from "@/components/charts/GenericLineChart";
-
-// --- MOCK DATA ---
-const allEquipesDetails = {
-    "eq-alpha": {
-        id: "eq-alpha", nom: "Alpha", manager: "Dupont Jean",
-        stats: { contratsSignes: 45, rdvPris: 130, perfMoyenne: 85, classementGeneral: 1, nbCommerciaux: 8 },
-        perfHistory: [{ name: 'S-4', perf: 78 }, { name: 'S-3', perf: 80 }, { name: 'S-2', perf: 85 }, { name: 'S-1', perf: 81 }, { name: 'Actuelle', perf: 85 }],
-        commerciaux: [
-            { id: "com-001", nom: "Leroy", prenom: "Alice", email: "alice.leroy@example.com", manager: "Dupont Jean", equipe: "Alpha", classement: 1 },
-            { id: "com-003", nom: "Fournier", prenom: "Chloé", email: "chloe.fournier@example.com", manager: "Dupont Jean", equipe: "Alpha", classement: 3 },
-            { id: "com-006", nom: "Roux", prenom: "Hugo", email: "hugo.roux@example.com", manager: "Dupont Jean", equipe: "Alpha", classement: 6 },
-            { id: "com-010", nom: "Blanc", prenom: "Nicolas", email: "nicolas.blanc@example.com", manager: "Dupont Jean", equipe: "Alpha", classement: 10 },
-            { id: "com-014", nom: "Collet", prenom: "Maxime", email: "maxime.collet@example.com", manager: "Dupont Jean", equipe: "Alpha", classement: 14 },
-        ]
-    },
-    // ... ajouter d'autres équipes si nécessaire
-};
-
-async function getEquipeDetails(equipeId: string): Promise<any> {
-    // @ts-ignore
-    return new Promise(resolve => setTimeout(() => resolve(allEquipesDetails[equipeId] || null), 500));
-}
+import { equipeService, type EquipeDetailsFromApi } from "@/services/equipe.service";
 
 const EquipeDetailsPage = () => {
   const { equipeId } = useParams<{ equipeId: string }>();
   const navigate = useNavigate();
-  const [equipeDetails, setEquipeDetails] = useState<any>(null);
+  const [equipeDetails, setEquipeDetails] = useState<EquipeDetailsFromApi | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (equipeId) {
       setLoading(true);
-      getEquipeDetails(equipeId).then(data => {
-        setEquipeDetails(data);
-        setLoading(false);
-      });
+      equipeService.getEquipeDetails(equipeId)
+        .then(data => {
+          setEquipeDetails(data);
+        })
+        .catch(error => {
+          console.error("Erreur lors de la récupération des détails de l'équipe:", error);
+          setEquipeDetails(null); // Reset in case of error
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
   }, [equipeId]);
 
@@ -69,7 +55,7 @@ const EquipeDetailsPage = () => {
   }
 
   if (!equipeDetails) {
-    return <div>Équipe non trouvée.</div>;
+    return <div>Équipe non trouvée ou erreur de chargement.</div>;
   }
 
   return (

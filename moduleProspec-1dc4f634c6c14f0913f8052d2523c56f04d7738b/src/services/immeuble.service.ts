@@ -1,63 +1,56 @@
-// frontend-shadcn/src/services/immeuble.service.ts
 import axios from 'axios';
-import type { PorteStatus, ProspectingMode } from '@/types/enums';
 
 const API_URL = 'http://localhost:3000/immeubles';
 
-// Ce que l'API renvoie pour la liste (j'ajoute aussi les champs ici pour la cohérence)
-export type ImmeubleFromAPI = {
+export interface ImmeubleFromApi {
   id: string;
   adresse: string;
   ville: string;
   codePostal: string;
-  status: "A_VISITER" | "VISITE" | "RDV_PRIS" | "INACCESSIBLE";
+  zone: { nom: string };
+  prospectors: { prenom: string; nom: string }[];
+  status: string;
+}
+
+export interface ImmeubleDetailsFromApi extends ImmeubleFromApi {
+  stats: {
+    contratsSignes: number;
+    rdvPris: number;
+  };
   nbPortesTotal: number;
-  latitude: number;
-  longitude: number;
-  zoneId: string;
-  dateDerniereVisite: string | null;
-  zone: { nom: string } | null;
-  prospecteurs: { id: string; prenom: string; nom: string }[];
-  // Ajout des champs manquants pour la liste aussi
-  modeProspection: ProspectingMode;
-  hasElevator: boolean;
-  digicode: string | null;
-};
+  prospectingMode: 'SOLO' | 'DUO';
+  portes: { id: string; numeroPorte: string; statut: string }[];
+}
 
-// Ce que l'API renvoie pour les détails
-export type PorteFromAPI = {
-    id: string;
-    numeroPorte: string;
-    status: PorteStatus;
-    nbPassages: number;
-    commentaire: string | null;
-};
-export type ImmeubleDetailsFromAPI = ImmeubleFromAPI & {
-    portes: PorteFromAPI[];
-};
-
-type UpdatePortePayload = {
-    status?: PorteStatus;
-    commentaire?: string;
-};
-
-const getImmeubles = async (): Promise<ImmeubleFromAPI[]> => {
+const getImmeubles = async (): Promise<ImmeubleFromApi[]> => {
   const response = await axios.get(API_URL);
   return response.data;
 };
 
-const getImmeubleDetails = async (id: string): Promise<ImmeubleDetailsFromAPI> => {
-    const response = await axios.get(`${API_URL}/${id}`);
-    return response.data;
+const getImmeubleDetails = async (id: string): Promise<ImmeubleDetailsFromApi> => {
+  const response = await axios.get(`${API_URL}/${id}/details`);
+  return response.data;
 };
 
-const updatePorte = async (porteId: string, data: UpdatePortePayload): Promise<PorteFromAPI> => {
-    const response = await axios.patch(`${API_URL}/portes/${porteId}`, data);
-    return response.data;
+const createImmeuble = async (immeubleData: any) => {
+  const response = await axios.post(API_URL, immeubleData);
+  return response.data;
+};
+
+const updateImmeuble = async (id: string, immeubleData: any) => {
+  const response = await axios.patch(`${API_URL}/${id}`, immeubleData);
+  return response.data;
+};
+
+const deleteImmeuble = async (id: string) => {
+  const response = await axios.delete(`${API_URL}/${id}`);
+  return response.data;
 };
 
 export const immeubleService = {
   getImmeubles,
   getImmeubleDetails,
-  updatePorte,
+  createImmeuble,
+  updateImmeuble,
+  deleteImmeuble,
 };

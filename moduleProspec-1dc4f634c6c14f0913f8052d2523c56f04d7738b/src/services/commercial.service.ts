@@ -9,7 +9,7 @@ export type CommercialFromAPI = {
   prenom: string;
   email: string;
   telephone: string | null;
-  equipeId: string;
+  equipeId?: string;
   managerId: string;
 };
 
@@ -18,7 +18,7 @@ type CreateCommercialPayload = {
   prenom: string;
   email: string;
   telephone?: string;
-  equipeId: string;
+  equipeId?: string;
   managerId: string; // Ajout du managerId
 };
 

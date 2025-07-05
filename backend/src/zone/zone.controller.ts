@@ -17,6 +17,11 @@ export class ZoneController {
     return this.zoneService.findAll();
   }
 
+  @Get(':id/details')
+  getZoneDetails(@Param('id') id: string) {
+    return this.zoneService.getZoneDetails(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.zoneService.findOne(id);

@@ -32,9 +32,8 @@ const zoneCenterIcon = new L.Icon({
 });
 
 interface ZoneCreatorModalProps {
-  onValidateAndAssign: (data: { id?: string; center: LatLng; radius: number; name: string; typeAssignation: AssignmentType; assigneeId: string; color: string; }) => void;
+  onValidate: (data: { id?: string; center: LatLng; radius: number; name: string; color: string; }) => void;
   onClose: () => void;
-  assignmentLists: any;
   existingZones: ZoneTableType[]; 
   zoneToEdit?: ZoneTableType | null;
 }
@@ -81,15 +80,14 @@ const ZoneMarker = ({ zone }: { zone: { latlng: L.LatLngExpression } }) => {
     return ( <Marker position={zone.latlng} icon={zoneCenterIcon} eventHandlers={{ dblclick: handleDoubleClick }} /> );
 };
 
-export const ZoneCreatorModal = ({ onValidateAndAssign, onClose, assignmentLists, existingZones, zoneToEdit }: ZoneCreatorModalProps) => {
+export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdit }: ZoneCreatorModalProps) => {
     const isEditMode = !!zoneToEdit;
 
     const [center, setCenter] = useState<L.LatLng | null>(isEditMode ? L.latLng(zoneToEdit.latlng[0], zoneToEdit.latlng[1]) : null);
     const [radius, setRadius] = useState(isEditMode ? zoneToEdit.radius : 0);
     const [step, setStep] = useState(isEditMode ? 3 : 1);
     const [zoneName, setZoneName] = useState(isEditMode ? zoneToEdit.name : '');
-    const [assignmentType, setAssignmentType] = useState<AssignmentType>(AssignmentType.EQUIPE);
-    const [assignmentId, setAssignmentId] = useState('');
+    const [zoneColor, setZoneColor] = useState(isEditMode ? zoneToEdit.color : '#3388ff'); // Default blue
     
     const featureGroupRef = useRef<FeatureGroupType>(null);
 
@@ -98,17 +96,13 @@ export const ZoneCreatorModal = ({ onValidateAndAssign, onClose, assignmentLists
         setStep(nextStep);
     };
     const handleMouseMove = (latlng: L.LatLng) => { if (center) setRadius(center.distanceTo(latlng)); };
-    const handleReset = () => { setCenter(null); setRadius(0); setStep(1); };
+    const handleReset = () => { setCenter(null); setRadius(0); setStep(1); setZoneName(''); setZoneColor('#3388ff'); };
 
     const handleValidate = () => {
         if (center && zoneName) {
-            if (isEditMode || assignmentId) {
-                onValidateAndAssign({
-                    id: zoneToEdit?.id, center, radius, name: zoneName,
-                    typeAssignation: assignmentType, assigneeId: assignmentId,
-                    color: zoneToEdit?.color || (assignmentType === 'EQUIPE' ? 'green' : assignmentType === 'MANAGER' ? 'purple' : 'orange')
-                });
-            } else { alert("Veuillez sélectionner une assignation."); }
+            onValidate({
+                id: zoneToEdit?.id, center, radius, name: zoneName, color: zoneColor
+            });
         }
     };
     
@@ -124,7 +118,7 @@ export const ZoneCreatorModal = ({ onValidateAndAssign, onClose, assignmentLists
                         {existingZones.filter(z => z.id !== zoneToEdit?.id).map(zone => (
                             <React.Fragment key={`existing-${zone.id}`}>
                                 <Circle center={zone.latlng} radius={zone.radius} pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.2, weight: 2, dashArray: '5, 5' }} >
-                                    <Popup><b>{zone.name}</b> (existante)<br />Assignée à : {zone.assignedTo}</Popup>
+                                    <Popup><b>{zone.name}</b> (existante)</Popup>
                                 </Circle>
                                 <ZoneMarker zone={zone} />
                             </React.Fragment>
@@ -137,7 +131,7 @@ export const ZoneCreatorModal = ({ onValidateAndAssign, onClose, assignmentLists
                 <div className="absolute top-4 left-4 z-[1000] bg-white p-4 rounded-lg shadow-xl w-full max-w-sm">
                     <div className="flex justify-between items-center mb-2">
                         <h3 className="font-semibold text-lg">
-                            {isEditMode ? "Modifier la Zone" : step === 1 ? "Étape 1: Définir le centre" : step === 2 ? "Étape 2: Définir le rayon" : "Étape 3: Nommer et assigner"}
+                            {isEditMode ? "Modifier la Zone" : step === 1 ? "Étape 1: Définir le centre" : step === 2 ? "Étape 2: Définir le rayon" : "Étape 3: Nommer la zone"}
                         </h3>
                         <Button variant="ghost" size="icon" onClick={handleReset} title="Recommencer le tracé"><RotateCcw className="h-4 w-4" /></Button>
                     </div>
@@ -147,16 +141,9 @@ export const ZoneCreatorModal = ({ onValidateAndAssign, onClose, assignmentLists
                     {step === 3 && (
                         <div className="space-y-3 animate-in fade-in-0">
                             <div className="space-y-1"><Label htmlFor="zone-name">Nom de la zone</Label><Input id="zone-name" value={zoneName} onChange={e => setZoneName(e.target.value)} placeholder="Ex: Zone Commerciale Nord"/></div>
-                            <p className="text-sm font-medium text-muted-foreground pt-2">{isEditMode ? "Changer l'assignation (optionnel)" : "Assigner à :"}</p>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1"><Label htmlFor="edit-type">Type</Label>
-                                    <Select value={assignmentType} onValueChange={v => setAssignmentType(v as AssignmentType)}><SelectTrigger id="edit-type"><SelectValue/></SelectTrigger>
-                                        <SelectContent><SelectItem value="EQUIPE">Équipe</SelectItem><SelectItem value="MANAGER">Manager</SelectItem><SelectItem value="COMMERCIAL">Commercial</SelectItem></SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-1"><Label htmlFor="edit-assign">Nom</Label>
-                                    <Combobox options={(assignmentLists[assignmentType.toLowerCase() + 's'] || []).map((item: any) => ({ value: item.id, label: item.nom }))} value={assignmentId} onChange={setAssignmentId} placeholder="Rechercher..."/>
-                                </div>
+                            <div className="space-y-1">
+                                <Label htmlFor="zone-color">Couleur de la zone</Label>
+                                <Input id="zone-color" type="color" value={zoneColor} onChange={e => setZoneColor(e.target.value)} />
                             </div>
                         </div>
                     )}

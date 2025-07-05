@@ -15,6 +15,7 @@ export type Porte = {
   statut: PorteStatus;
   commentaire: string;
   repassage: boolean;
+  nbPassages: number;
 };
 
 export const statusConfig: Record<PorteStatus, { className: string; icon: React.ElementType }> = {
@@ -26,8 +27,10 @@ export const statusConfig: Record<PorteStatus, { className: string; icon: React.
     "Contrat": { className: "bg-emerald-100 text-emerald-800 border-emerald-300", icon: Landmark },
 };
 
+export const statusList = Object.keys(statusConfig) as PorteStatus[];
+
 export const createDoorsColumns = (
-    onEdit: (porteNumero: string) => void
+    onEdit: (porteId: string) => void
 ): ColumnDef<Porte>[] => [
     {
       accessorKey: "numero",
@@ -48,6 +51,13 @@ export const createDoorsColumns = (
         const config = statusConfig[statut];
         return <Badge variant="outline" className={cn("font-medium", config.className)}><config.icon className="mr-1.5 h-3 w-3"/>{statut}</Badge>;
       }
+    },
+    {
+        accessorKey: "nbPassages",
+        header: "Passages",
+        cell: ({ row }) => {
+            return <span>{row.original.nbPassages}</span>
+        }
     },
     {
         accessorKey: "repassage",
@@ -80,7 +90,7 @@ export const createDoorsColumns = (
         id: "actions",
         cell: ({ row }) => (
             <div className="text-right">
-                <Button variant="ghost" size="icon" onClick={() => onEdit(row.original.numero)}>
+                <Button variant="ghost" size="icon" onClick={() => onEdit(row.original.id)}>
                     <Edit className="h-4 w-4" />
                 </Button>
             </div>

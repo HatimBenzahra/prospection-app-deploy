@@ -1,7 +1,7 @@
 // src/layout/AdminNavContent.tsx
 import { NavLink } from 'react-router-dom';
 import { Button } from '@/components/ui-admin/button';
-import { Users, Flag, PieChart, MapPin, FileText, Settings, LayoutDashboard, AudioLines, Building2 } from 'lucide-react';
+import { Users, Flag, PieChart, MapPin, FileText, Settings, LayoutDashboard, AudioLines, Building2, Target } from 'lucide-react';
 
 // Liens spécifiques à l'administrateur
 const adminNavLinks = [
@@ -12,6 +12,7 @@ const adminNavLinks = [
   { to: '/admin/immeubles', text: 'Immeubles', icon: Building2 },
   { to: '/admin/suivi', text: 'Suivi', icon: AudioLines },
   { to: '/admin/zones', text: 'Zones', icon: MapPin },
+  { to: '/admin/assignations-objectifs', text: 'Assignations & Objectifs', icon: Target },
   { to: '/admin/statistiques', text: 'Statistiques', icon: PieChart },
   { to: '/admin/rapports', text: 'Rapports & exports', icon: FileText },
   { to: '/admin/parametres', text: 'Paramètres', icon: Settings },

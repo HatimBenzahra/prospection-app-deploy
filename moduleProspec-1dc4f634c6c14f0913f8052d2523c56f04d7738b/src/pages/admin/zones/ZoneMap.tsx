@@ -44,8 +44,16 @@ interface Zone {
   radius: number;
 }
 
+interface Immeuble {
+  id: string;
+  adresse: string;
+  latlng: L.LatLngExpression;
+  status: string;
+}
+
 interface ZoneMapProps {
   existingZones: Zone[];
+  immeubles?: Immeuble[]; // Rendre les immeubles optionnels
   onAddZoneClick: () => void;
   zoneToFocus: string | null;
   onFocusClear: () => void;
@@ -81,13 +89,21 @@ const SearchControl = () => {
 const MapBoundsFitter = ({ featureGroupRef, zones }: { featureGroupRef: React.RefObject<FeatureGroupType | null>; zones: Zone[] }) => {
     const map = useMap();
     useEffect(() => {
+        console.log("MapBoundsFitter received zones:", zones);
         if (!featureGroupRef.current || zones.length === 0) {
-            map.setView([48.8566, 2.3522], 12);
+            if (zones.length > 0) {
+                map.setView(zones[0].latlng, 12); // Center on the first zone if available
+            } else {
+                map.setView([48.8566, 2.3522], 12); // Default to Paris
+            }
             return;
         }
         const bounds = featureGroupRef.current.getBounds();
         if (bounds.isValid()) {
             map.fitBounds(bounds, { padding: [50, 50] });
+        } else if (zones.length > 0) {
+            // Fallback if bounds are not valid (e.g., single point or all zones at same coordinate)
+            map.setView(zones[0].latlng, 15);
         }
     }, [zones, featureGroupRef, map]); 
     return null;
@@ -101,7 +117,7 @@ const ZoneDisplay = ({ zone }: { zone: Zone }) => {
     return (
         <>
             <Circle key={`circle-${zone.id}`} center={zone.latlng} radius={zone.radius} pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.2 }}>
-                <Popup><b>{zone.name}</b><br />Assignée à : {zone.assignedTo}</Popup>
+                <Popup><b>{zone.name}</b></Popup>
             </Circle>
             <Marker key={`marker-${zone.id}`} position={zone.latlng} icon={zoneCenterIcon} eventHandlers={{ dblclick: handleDoubleClick, }}/>
         </>
@@ -122,7 +138,7 @@ const MapFocusController = ({ zones, zoneToFocus, onFocusClear }: { zones: Zone[
     return null;
 }
 
-export const ZoneMap = ({ existingZones, zoneToFocus, onFocusClear }: ZoneMapProps) => {
+export const ZoneMap = ({ existingZones, immeubles = [], zoneToFocus, onFocusClear }: ZoneMapProps) => {
     const featureGroupRef = useRef<FeatureGroupType>(null);
     const [isModalFullscreen, setIsModalFullscreen] = useState(false);
 
@@ -155,6 +171,14 @@ export const ZoneMap = ({ existingZones, zoneToFocus, onFocusClear }: ZoneMapPro
             <FeatureGroup ref={featureGroupRef}>
                 {existingZones.map(zone => (
                     <ZoneDisplay key={zone.id} zone={zone} />
+                ))}
+                {immeubles.map(immeuble => (
+                    <Marker key={immeuble.id} position={immeuble.latlng}>
+                        <Popup>
+                            <b>{immeuble.adresse}</b><br />
+                            Statut: {immeuble.status}
+                        </Popup>
+                    </Marker>
                 ))}
             </FeatureGroup>
         </MapContainer>

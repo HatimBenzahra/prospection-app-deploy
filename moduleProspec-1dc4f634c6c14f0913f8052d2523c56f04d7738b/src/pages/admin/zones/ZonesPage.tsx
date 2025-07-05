@@ -25,11 +25,7 @@ const ZonesPage = () => {
   const [view, setView] = useState<'table' | 'map'>('table');
   const [existingZones, setExistingZones] = useState<ZoneTableType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [assignmentLists, setAssignmentLists] = useState<{
-    equipes: Assignee[];
-    managers: Assignee[];
-    commerciaux: Assignee[];
-  }>({ equipes: [], managers: [], commerciaux: [] });
+  
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
   const [editingZone, setEditingZone] = useState<ZoneTableType | null>(null);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
@@ -44,28 +40,14 @@ const ZonesPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [zones, equipes, managers, commerciaux] = await Promise.all([
+      const [zones] = await Promise.all([
         zoneService.getZones(),
-        equipeService.getEquipes(),
-        managerService.getManagers(),
-        commercialService.getCommerciaux(),
       ]);
-
-      const equipesMap = new Map(equipes.map(e => [e.id, e.nom]));
-      const managersMap = new Map(managers.map(m => [m.id, `${m.prenom} ${m.nom}`]));
-      const commerciauxMap = new Map(commerciaux.map(c => [c.id, `${c.prenom} ${c.nom}`]));
-
-      const getAssigneeName = (zone: ZoneFromAPI) => {
-        if (zone.typeAssignation === 'EQUIPE' && zone.equipeId) return equipesMap.get(zone.equipeId) || 'N/A';
-        if (zone.typeAssignation === 'MANAGER' && zone.managerId) return managersMap.get(zone.managerId) || 'N/A';
-        if (zone.typeAssignation === 'COMMERCIAL' && zone.commercialId) return commerciauxMap.get(zone.commercialId) || 'N/A';
-        return 'Non assignée';
-      };
 
       const formattedZones: ZoneTableType[] = zones.map(z => ({
         id: z.id,
         name: z.nom,
-        assignedTo: getAssigneeName(z),
+        assignedTo: 'Non assignée', // Plus d'assignation directe ici
         color: z.couleur || 'gray',
         latlng: [z.latitude, z.longitude],
         radius: z.rayonMetres,
@@ -73,11 +55,6 @@ const ZonesPage = () => {
       }));
 
       setExistingZones(formattedZones);
-      setAssignmentLists({
-        equipes: equipes.map(e => ({ id: e.id, nom: e.nom })),
-        managers: managers.map(m => ({ id: m.id, nom: `${m.prenom} ${m.nom}` })),
-        commerciaux: commerciaux.map(c => ({ id: c.id, nom: `${c.prenom} ${c.nom}` })),
-      });
     } catch (error) {
       console.error('Erreur de chargement des données:', error);
     } finally {
@@ -100,8 +77,6 @@ const ZonesPage = () => {
     center: L.LatLng;
     radius: number;
     name: string;
-    typeAssignation: AssignmentType;
-    assigneeId: string;
     color: string;
   }) => {
     const payload: any = {
@@ -110,19 +85,8 @@ const ZonesPage = () => {
       longitude: data.center.lng,
       rayonMetres: data.radius,
       couleur: data.color,
-      typeAssignation: data.typeAssignation,
+      typeAssignation: AssignmentType.EQUIPE, // Valeur par défaut, car l'assignation est gérée ailleurs
     };
-
-    // Correction: Assigner le bon ID en fonction du type
-    if (data.assigneeId) {
-      if (data.typeAssignation === AssignmentType.EQUIPE) {
-        payload.equipeId = data.assigneeId;
-      } else if (data.typeAssignation === AssignmentType.MANAGER) {
-        payload.managerId = data.assigneeId;
-      } else if (data.typeAssignation === AssignmentType.COMMERCIAL) {
-        payload.commercialId = data.assigneeId;
-      }
-    }
 
     try {
       if (data.id) {
@@ -202,9 +166,8 @@ const ZonesPage = () => {
     <div className="h-full flex flex-col gap-6">
       {isCreatorOpen && (
         <ZoneCreatorModal
-          onValidateAndAssign={handleZoneValidated}
+          onValidate={handleZoneValidated}
           onClose={handleCloseCreator}
-          assignmentLists={assignmentLists}
           existingZones={existingZones}
           zoneToEdit={editingZone}
         />
