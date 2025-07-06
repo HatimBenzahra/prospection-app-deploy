@@ -1,4 +1,3 @@
-// frontend-shadcn/src/pages/admin/zones/ZoneCreatorModal.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Circle, Marker, useMapEvents, Popup, useMap, FeatureGroup } from 'react-leaflet';
 import type { FeatureGroup as FeatureGroupType, LatLng } from 'leaflet';
@@ -8,10 +7,7 @@ import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
 import { Button } from '@/components/ui-admin/button';
 import { Input } from '@/components/ui-admin/input';
 import { Label } from '@/components/ui-admin/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui-admin/select';
-import { Combobox } from '@/components/ui-admin/Combobox';
 import { Check, X, RotateCcw, MousePointerClick } from 'lucide-react';
-import { AssignmentType } from '@/types/enums';
 import type { Zone as ZoneTableType } from './columns';
 
 // --- Patch Leaflet et icônes ---
@@ -45,7 +41,7 @@ const MapEventsHandler = ({ onMapClick, onMouseMove, step }: any) => {
     });
     return null;
 };
-const SearchControl = () => {
+        const SearchControl = () => {
     const map = useMap();
     useEffect(() => {
         const provider = new OpenStreetMapProvider({ params: { countrycodes: 'fr', 'accept-language': 'fr' } });

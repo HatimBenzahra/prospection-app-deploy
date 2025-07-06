@@ -35,13 +35,13 @@ const ManagersPage = () => {
       const managers = await managerService.getManagers();
       const formattedManagers = managers.map((m) => {
         const nbEquipes = m.equipes.length;
-        const totalContratsSignes = m.equipes.reduce((accEquipe, equipe) => {
+        const totalContratsSignes = m.equipes.reduce((accEquipe: number, equipe: any) => {
           return (
             accEquipe +
-            equipe.commerciaux.reduce((accCommercial, commercial) => {
+            equipe.commerciaux.reduce((accCommercial: number, commercial: any) => {
               return (
                 accCommercial +
-                commercial.historiques.reduce((accHistory, history) => {
+                commercial.historiques.reduce((accHistory: number, history: any) => {
                   return accHistory + history.nbContratsSignes;
                 }, 0)
               );

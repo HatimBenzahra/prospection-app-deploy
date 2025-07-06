@@ -1,4 +1,3 @@
-// frontend-shadcn/src/pages/admin/Managers/ManagerDetailsPage.tsx
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { RowSelectionState } from "@tanstack/react-table";
@@ -18,27 +17,45 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/
 
 import { statisticsService } from '@/services/statistics.service';
 
+interface ManagerDetails {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone?: string;
+  equipes: EquipeDuManager[];
+}
+
+interface ManagerStats {
+  contratsSignes: number;
+  rdvPris: number;
+  tauxConclusion: number;
+}
+
+interface PerformanceHistoryItem {
+  name: string;
+  performance: number;
+  [key: string]: string | number;
+}
+
 const ManagerDetailsPage = () => {
     const { managerId } = useParams<{ managerId: string }>();
     const navigate = useNavigate();
     
-    const [manager, setManager] = useState<any>(null);
-    const [stats, setStats] = useState<any>(null);
-    const [perfHistory, setPerfHistory] = useState<any[]>([]);
+    const [manager, setManager] = useState<ManagerDetails | null>(null);
+    const [stats, setStats] = useState<ManagerStats | null>(null);
+    const [perfHistory, setPerfHistory] = useState<PerformanceHistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     
     const [selectedTeam, setSelectedTeam] = useState<EquipeDuManager | null>(null);
     const [teamRowSelection, setTeamRowSelection] = React.useState<RowSelectionState>({});
 
-    // Les colonnes des tableaux
     const equipesColumns = useMemo(() => createEquipesColumns(), []);
-    // On exclut les colonnes redondantes pour la liste des commerciaux
     const commerciauxColumns = useMemo(() => {
         const allCols = createCommerciauxColumns(false, () => {}, managerId);
         return allCols.filter(col => col.id !== 'manager' && col.id !== 'equipe');
     }, [managerId]);
 
-    // Chargement des données au montage
     useEffect(() => {
         if (managerId) {
             setLoading(true);
@@ -51,7 +68,7 @@ const ManagerDetailsPage = () => {
                     id: e.id,
                     nom: e.nom,
                     nbCommerciaux: e.commerciaux.length,
-                    commerciaux: e.commerciaux.map((c: any, index: number) => ({
+                    commerciaux: e.commerciaux.map((c: Commercial, index: number) => ({
                         ...c,
                         manager: `${managerData.prenom} ${managerData.nom}`,
                         managerId: managerData.id,
@@ -72,7 +89,6 @@ const ManagerDetailsPage = () => {
         }
     }, [managerId]);
 
-    // Gère le clic sur une ligne d'équipe pour afficher/cacher ses commerciaux
     const handleTeamRowClick = (equipe: EquipeDuManager) => {
         if (selectedTeam?.id === equipe.id) {
             setSelectedTeam(null);
@@ -83,7 +99,6 @@ const ManagerDetailsPage = () => {
         }
     };
     
-    // Affichage de chargement
     if (loading) {
         return (
             <div className="space-y-6 animate-pulse">
@@ -98,12 +113,10 @@ const ManagerDetailsPage = () => {
         );
     }
     
-    // Si le manager n'est pas trouvé
     if (!manager) return <div>Manager non trouvé.</div>;
 
-    // Préparation des données pour les graphiques et stats
-    const currentStats = stats?.kpis || { rdvPris: 0, contratsSignes: 0, tauxConclusion: 0 };
-    const commerciauxDeLequipeSelectionnee = manager.equipes.find((e: any) => e.id === selectedTeam?.id)?.commerciaux || [];
+    const currentStats = stats || { rdvPris: 0, contratsSignes: 0, tauxConclusion: 0 };
+    const commerciauxDeLequipeSelectionnee = manager.equipes.find((e) => e.id === selectedTeam?.id)?.commerciaux || [];
 
     return (
         <div className="space-y-8">
@@ -141,7 +154,7 @@ const ManagerDetailsPage = () => {
                 title="Évolution de la Performance Globale"
                 data={perfHistory} 
                 xAxisDataKey="name" 
-                lines={[{ dataKey: 'perf', stroke: '#3b82f6', name: 'Performance (%)' }]} 
+                lines={[{ dataKey: 'performance', stroke: '#3b82f6', name: 'Performance (%)' }]} 
             />
             
             <div className="space-y-4">

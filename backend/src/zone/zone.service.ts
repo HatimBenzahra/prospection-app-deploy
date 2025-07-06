@@ -18,7 +18,10 @@ export class ZoneService {
   }
 
   findOne(id: string) {
-    return this.prisma.zone.findUnique({ where: { id }, include: { equipe: true, manager: true, commercial: true } });
+    return this.prisma.zone.findUnique({
+      where: { id },
+      include: { equipe: true, manager: true, commercial: true },
+    });
   }
 
   async getZoneDetails(zoneId: string) {

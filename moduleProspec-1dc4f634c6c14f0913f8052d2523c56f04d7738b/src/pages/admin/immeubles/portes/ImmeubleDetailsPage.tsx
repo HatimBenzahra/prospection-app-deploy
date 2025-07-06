@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
-    ArrowLeft, Building, Users, Check, X, MoveUpRight, KeyRound 
+    ArrowLeft, Building, Users, Check, MoveUpRight, KeyRound 
 } from 'lucide-react';
 
 import { Button } from '@/components/ui-admin/button';
@@ -13,7 +13,7 @@ import { DataTable } from '@/components/data-table/DataTable';
 import type { Porte } from './portes-columns';
 import { createPortesColumns } from './portes-columns';
 import { GenericRadialBarChart } from '@/components/ui-admin/GenericRadialBarChart';
-import { immeubleService, type ImmeubleDetailsFromApi } from '@/services/immeuble.service';
+import { immeubleService } from '@/services/immeuble.service';
 
 // Types locaux pour la clarté du composant
 interface Prospector {

@@ -35,7 +35,7 @@ const EquipeDetailsPage = () => {
   }, [equipeId]);
 
   const commerciauxColumns = useMemo(() => {
-    const allCols = createCommerciauxColumns(false); // Pas de mode suppression
+    const allCols = createCommerciauxColumns(false, () => {}); // Pas de mode suppression
     // On exclut les colonnes 'manager' et 'equipe' car redondantes ici
     return allCols.filter(col => col.id !== 'manager' && col.id !== 'equipe');
   }, []);
@@ -77,7 +77,7 @@ const EquipeDetailsPage = () => {
         <StatCard title="Contrats Signés" value={equipeDetails.stats.contratsSignes} Icon={CheckCircle} color="text-emerald-500" />
         <StatCard title="RDV Pris" value={equipeDetails.stats.rdvPris} Icon={Briefcase} color="text-sky-500"/>
         <StatCard title="Performance Moyenne" value={equipeDetails.stats.perfMoyenne} Icon={Target} suffix="%" color="text-amber-500"/>
-        <StatCard title="Classement Général" value={equipeDetails.stats.classementGeneral} Icon={Trophy} prefix="#" color="text-yellow-500"/>
+        <StatCard title="Classement Général" value={Number(equipeDetails.stats.classementGeneral)} Icon={Trophy} prefix="#" color="text-yellow-500"/>
       </div>
 
       <GenericLineChart
@@ -88,7 +88,7 @@ const EquipeDetailsPage = () => {
       />
 
       <DataTable 
-        columns={commerciauxColumns} 
+        columns={commerciauxColumns as any} 
         data={equipeDetails.commerciaux} 
         title={`Membres de l'équipe (${equipeDetails.commerciaux.length})`}
         filterColumnId="nom"

@@ -1,5 +1,3 @@
-// frontend-shadcn/src/pages/admin/Equipes/EquipesPage.tsx
-
 import React, { useState, useEffect, useMemo } from "react";
 import type { Equipe } from "./equipes-table/columns";
 import { createEquipesColumns } from "./equipes-table/columns";
@@ -44,7 +42,7 @@ const EquipesPage = () => {
       setManagersList(managersFromApi);
 
       const managersMap = new Map(managersFromApi.map(m => [m.id, m]));
-      const enrichedEquipes: Equipe[] = equipesFromApi.map((equipe, index) => {
+      const enrichedEquipes: Equipe[] = equipesFromApi.map((equipe) => {
         const manager = managersMap.get(equipe.managerId);
         return {
           id: equipe.id,
@@ -54,9 +52,8 @@ const EquipesPage = () => {
             nom: manager ? `${manager.prenom} ${manager.nom}` : "N/A",
             avatarFallback: manager ? `${manager.prenom[0]}${manager.nom[0]}` : "?",
           },
-          // @ts-ignore
-          nbCommerciaux: equipe._count?.commerciaux || 0,
-          classementGeneral: index + 1, // Note: Le classement est toujours basé sur l'ordre de l'API
+          nbCommerciaux: 0, // This will be set by the backend or re-calculated if needed
+          classementGeneral: 0, // This will be set by the backend or re-calculated if needed
         };
       });
       

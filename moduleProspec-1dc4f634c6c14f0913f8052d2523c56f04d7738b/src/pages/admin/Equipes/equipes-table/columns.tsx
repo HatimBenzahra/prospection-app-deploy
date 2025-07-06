@@ -1,7 +1,4 @@
-// frontend-shadcn/src/pages/admin/Equipes/equipes-table/columns.tsx
-"use client"
-
-import type { ColumnDef } from "@tanstack/react-table"
+import type { Column, ColumnDef } from "@tanstack/react-table"
 import { Link } from "react-router-dom"
 import { ArrowUpDown, Users as CommerciauxIcon, Eye, Award, Edit } from "lucide-react"
 import { Button } from "@/components/ui-admin/button"
@@ -14,7 +11,7 @@ export type Equipe = {
   id: string;
   nom: string;
   manager: {
-    id: string; // AJOUT: id du manager pour la modale d'édition
+    id: string; 
     nom: string;
     avatarFallback: string;
   };
@@ -25,7 +22,7 @@ export type Equipe = {
 const Header = ({ title }: { title: string }) => (
   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
 )
-const SortableHeader = ({ title, column }: { title: string, column: any }) => (
+const SortableHeader = ({ title, column }: { title: string, column: Column<Equipe, unknown> }) => (
   <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="p-0 h-8 hover:bg-transparent">
     <Header title={title} />
     <ArrowUpDown className="ml-2 h-3 w-3" />

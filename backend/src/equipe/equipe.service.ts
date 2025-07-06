@@ -12,18 +12,21 @@ export class EquipeService {
   }
 
   findAll() {
-    return this.prisma.equipe.findMany({ 
-      include: { 
+    return this.prisma.equipe.findMany({
+      include: {
         manager: true,
         _count: {
-          select: { commerciaux: true }
-        }
-      }
+          select: { commerciaux: true },
+        },
+      },
     });
   }
 
   findOne(id: string) {
-    return this.prisma.equipe.findUnique({ where: { id }, include: { manager: true, commerciaux: true } });
+    return this.prisma.equipe.findUnique({
+      where: { id },
+      include: { manager: true, commerciaux: true },
+    });
   }
 
   async getEquipeDetails(equipeId: string) {
@@ -46,7 +49,7 @@ export class EquipeService {
     // 1. Calcul des KPIs de l'équipe
     const equipeStats = equipe.commerciaux.reduce(
       (acc, commercial) => {
-        commercial.historiques.forEach(h => {
+        commercial.historiques.forEach((h) => {
           acc.contratsSignes += h.nbContratsSignes;
           acc.rdvPris += h.nbRdvPris;
           acc.portesVisitees += h.nbPortesVisitees;
@@ -56,13 +59,21 @@ export class EquipeService {
       { contratsSignes: 0, rdvPris: 0, portesVisitees: 0 },
     );
 
-    const perfMoyenne = equipeStats.portesVisitees > 0 ? (equipeStats.contratsSignes / equipeStats.portesVisitees) * 100 : 0;
+    const perfMoyenne =
+      equipeStats.portesVisitees > 0
+        ? (equipeStats.contratsSignes / equipeStats.portesVisitees) * 100
+        : 0;
 
     // 2. Classement des commerciaux au sein de l'équipe
-    const commerciauxAvecStats = equipe.commerciaux.map(c => {
-      const totalContrats = c.historiques.reduce((sum, h) => sum + h.nbContratsSignes, 0);
-      return { ...c, totalContrats };
-    }).sort((a, b) => b.totalContrats - a.totalContrats);
+    const commerciauxAvecStats = equipe.commerciaux
+      .map((c) => {
+        const totalContrats = c.historiques.reduce(
+          (sum, h) => sum + h.nbContratsSignes,
+          0,
+        );
+        return { ...c, totalContrats };
+      })
+      .sort((a, b) => b.totalContrats - a.totalContrats);
 
     const commerciauxClasses = commerciauxAvecStats.map((c, index) => ({
       id: c.id,
@@ -74,36 +85,48 @@ export class EquipeService {
 
     // 3. Historique de performance de l'équipe (par semaine, exemple)
     const weeklyStats = new Map<string, { contrats: number; portes: number }>();
-    equipe.commerciaux.forEach(c => {
-        c.historiques.forEach(h => {
-            const weekStart = this.getStartOfWeek(h.dateProspection).toISOString().substring(0, 10);
-            if (!weeklyStats.has(weekStart)) {
-                weeklyStats.set(weekStart, { contrats: 0, portes: 0 });
-            }
-            const current = weeklyStats.get(weekStart)!;
-            current.contrats += h.nbContratsSignes;
-            current.portes += h.nbPortesVisitees;
-        });
+    equipe.commerciaux.forEach((c) => {
+      c.historiques.forEach((h) => {
+        const weekStart = this.getStartOfWeek(h.dateProspection)
+          .toISOString()
+          .substring(0, 10);
+        if (!weeklyStats.has(weekStart)) {
+          weeklyStats.set(weekStart, { contrats: 0, portes: 0 });
+        }
+        const current = weeklyStats.get(weekStart)!;
+        current.contrats += h.nbContratsSignes;
+        current.portes += h.nbPortesVisitees;
+      });
     });
 
     const perfHistory = Array.from(weeklyStats.entries())
-        .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
-        .map(([week, data]) => ({
-            name: `S - ${week}`,
-            perf: data.portes > 0 ? (data.contrats / data.portes) * 100 : 0,
-        }));
+      .sort(
+        ([dateA], [dateB]) =>
+          new Date(dateA).getTime() - new Date(dateB).getTime(),
+      )
+      .map(([week, data]) => ({
+        name: `S - ${week}`,
+        perf: data.portes > 0 ? (data.contrats / data.portes) * 100 : 0,
+      }));
 
     // 4. Classement général de l'équipe
     const toutesLesEquipes = await this.prisma.equipe.findMany({
-        include: { commerciaux: { include: { historiques: true } } },
+      include: { commerciaux: { include: { historiques: true } } },
     });
 
-    const equipesAvecContrats = toutesLesEquipes.map(e => {
-        const totalContrats = e.commerciaux.reduce((sum, c) => sum + c.historiques.reduce((s, h) => s + h.nbContratsSignes, 0), 0);
+    const equipesAvecContrats = toutesLesEquipes
+      .map((e) => {
+        const totalContrats = e.commerciaux.reduce(
+          (sum, c) =>
+            sum + c.historiques.reduce((s, h) => s + h.nbContratsSignes, 0),
+          0,
+        );
         return { id: e.id, totalContrats };
-    }).sort((a, b) => b.totalContrats - a.totalContrats);
+      })
+      .sort((a, b) => b.totalContrats - a.totalContrats);
 
-    const classementGeneral = equipesAvecContrats.findIndex(e => e.id === equipeId) + 1;
+    const classementGeneral =
+      equipesAvecContrats.findIndex((e) => e.id === equipeId) + 1;
 
     return {
       id: equipe.id,

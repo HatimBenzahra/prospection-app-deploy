@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Building, CheckCircle, Briefcase } from 'lucide-reac
 import { Skeleton } from '@/components/ui-admin/skeleton';
 import StatCard from '@/components/ui-admin/StatCard';
 import { ZoneMap } from './ZoneMap'; // Assurez-vous que ce composant peut être réutilisé ou adapté
+import type { Zone as ZoneTableType } from './columns';
 
 const ZoneDetailsPage = () => {
   const { zoneId } = useParams<{ zoneId: string }>();
@@ -79,7 +80,7 @@ const ZoneDetailsPage = () => {
               latlng: [zoneDetails.latitude, zoneDetails.longitude],
               radius: zoneDetails.rayonMetres,
               dateCreation: zoneDetails.createdAt,
-            }]}
+            } as ZoneTableType]}
             immeubles={zoneDetails.immeubles.map(imm => ({
               id: imm.id,
               adresse: imm.adresse,

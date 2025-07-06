@@ -12,11 +12,16 @@ export class ImmeubleService {
   }
 
   findAll() {
-    return this.prisma.immeuble.findMany({ include: { zone: true, prospectors: true } });
+    return this.prisma.immeuble.findMany({
+      include: { zone: true, prospectors: true },
+    });
   }
 
   findOne(id: string) {
-    return this.prisma.immeuble.findUnique({ where: { id }, include: { zone: true, prospectors: true, portes: true } });
+    return this.prisma.immeuble.findUnique({
+      where: { id },
+      include: { zone: true, prospectors: true, portes: true },
+    });
   }
 
   async getImmeubleDetails(immeubleId: string) {
@@ -43,12 +48,12 @@ export class ImmeubleService {
       { contratsSignes: 0, rdvPris: 0 },
     );
 
-    let portesAffichees = immeuble.portes;
+    const portesAffichees = immeuble.portes;
     if (immeuble.prospectingMode === 'SOLO') {
       // Pour SOLO, on ne filtre que sur le papier, mais on les affiche toutes
       // La logique de filtrage pair/impair sera sur le front si nécessaire
     } else if (immeuble.prospectingMode === 'DUO') {
-        // Aucune filtration spécifique ici, on les affiche toutes
+      // Aucune filtration spécifique ici, on les affiche toutes
     }
 
     return {
@@ -59,7 +64,10 @@ export class ImmeubleService {
   }
 
   update(id: string, updateImmeubleDto: UpdateImmeubleDto) {
-    return this.prisma.immeuble.update({ where: { id }, data: updateImmeubleDto });
+    return this.prisma.immeuble.update({
+      where: { id },
+      data: updateImmeubleDto,
+    });
   }
 
   remove(id: string) {

@@ -8,18 +8,12 @@ import { createZoneColumns, type Zone as ZoneTableType } from './columns';
 import { Modal } from '@/components/ui-admin/Modal';
 import { ZoneCreatorModal } from './ZoneCreatorModal';
 import type { RowSelectionState } from '@tanstack/react-table';
-import { zoneService, type ZoneFromAPI } from '@/services/zone.service';
-import { managerService } from '@/services/manager.service';
-import { equipeService } from '@/services/equipe.service';
-import { commercialService } from '@/services/commercial.service';
+import { zoneService } from '@/services/zone.service';
 import { AssignmentType } from '@/types/enums';
 import L from 'leaflet';
 import { ViewToggleContainer } from '@/components/ui-admin/ViewToggleContainer';
 
-interface Assignee {
-  id: string;
-  nom: string;
-}
+
 
 const ZonesPage = () => {
   const [view, setView] = useState<'table' | 'map'>('table');

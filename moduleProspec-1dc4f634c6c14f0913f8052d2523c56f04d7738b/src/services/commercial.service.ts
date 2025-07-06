@@ -11,6 +11,7 @@ export type CommercialFromAPI = {
   telephone: string | null;
   equipeId?: string;
   managerId: string;
+  historiques: { nbContratsSignes: number }[];
 };
 
 type CreateCommercialPayload = {

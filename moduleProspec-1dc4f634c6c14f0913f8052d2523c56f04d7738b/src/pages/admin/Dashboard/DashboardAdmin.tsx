@@ -1,4 +1,4 @@
-// src/pages/admin/DashboardAdmin.tsx
+
 
 import React, { useState, useEffect } from 'react';
 import { format } from "date-fns";
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 // --- Imports des Composants ---
 import StatCard from '@/components/ui-admin/StatCard';
-import { DashboardSkeleton } from './DashboardSkeleton';
+
 import { GenericLineChart } from '@/components/charts/GenericLineChart';
 import { GenericPieChart } from '@/components/charts/GenericPieChart';
 import { GenericBarChart } from '@/components/charts/GenericBarChart';
@@ -25,8 +25,66 @@ import {
     Award, ClipboardCheck, Percent, UserCheck
 } from 'lucide-react';
 
+// --- Types pour les données du tableau de bord ---
+type ActiviteRecenteItem = {
+  id: number;
+  commercial: string;
+  action: string;
+  type: string;
+  temps: string;
+};
+
+interface DashboardStats {
+  portesVisitees: number;
+  rdvPris: number;
+  contratsSignes: number;
+  tauxOuverture: number;
+  tauxRdv: number;
+  tauxSignature: number;
+  perfMoyenne: number;
+  commerciauxActifs: number;
+  heuresProspect: number;
+}
+
+interface ManagerStats {
+  meilleurManager: string;
+  tauxConclusionMoyen: number;
+  rdvMoyen: number;
+  effectifTotal: number;
+}
+
+interface ObjectifMensuel {
+  value: number;
+  total: number;
+  title: string;
+}
+
+interface ChartData {
+  name: string;
+  [key: string]: string | number;
+}
+
+interface DashboardPeriodData {
+  stats: DashboardStats;
+  managerStats: ManagerStats;
+  objectifMensuel: ObjectifMensuel;
+  activiteRecente: ActiviteRecenteItem[];
+  portesTopeesData: ChartData[];
+  repartitionManagersData: ChartData[];
+  classementManagersGraphData: ChartData[];
+}
+
+interface DashboardDataType {
+  week: DashboardPeriodData;
+  month: DashboardPeriodData;
+  last_month: DashboardPeriodData;
+  year_to_date: DashboardPeriodData;
+  last_week: DashboardPeriodData;
+  [key: string]: DashboardPeriodData; // Pour l'accès dynamique
+}
+
 // --- Données simulées enrichies ---
-const dashboardData = {
+const dashboardData: DashboardDataType = {
   week: {
     stats: { portesVisitees: 82, rdvPris: 15, contratsSignes: 7, tauxOuverture: 18, tauxRdv: 18.3, tauxSignature: 46.7, perfMoyenne: 78, commerciauxActifs: 23, heuresProspect: 312 },
     managerStats: { meilleurManager: "Mme Martin", tauxConclusionMoyen: 42, rdvMoyen: 18, effectifTotal: 3 },
@@ -45,22 +103,14 @@ const dashboardData = {
     repartitionManagersData: [{ name: 'M. Dupont', value: 150 }, { name: 'Mme Martin', value: 180 }, { name: 'M. Bernard', value: 120 }],
     classementManagersGraphData: [{ name: 'Martin', value: 180 }, { name: 'Dupont', value: 150 }, { name: 'Bernard', value: 120 }, { name: 'Robert', value: 110 }],
   },
-  last_month: {}, year_to_date: {}
+  last_month: {} as DashboardPeriodData, 
+  year_to_date: {} as DashboardPeriodData,
+  last_week: {} as DashboardPeriodData,
 };
-// @ts-ignore
-dashboardData.last_month = dashboardData.month;
-// @ts-ignore
-dashboardData.year_to_date = dashboardData.month;
-// @ts-ignore
-dashboardData.last_week = dashboardData.week;
 
-type ActiviteRecenteItem = {
-  id: number;
-  commercial: string;
-  action: string;
-  type: string;
-  temps: string;
-};
+dashboardData.last_month = dashboardData.month;
+dashboardData.year_to_date = dashboardData.month;
+dashboardData.last_week = dashboardData.week;
 
 const ActivityBadge = ({ type }: { type: string }) => {
     switch (type) {
@@ -106,19 +156,15 @@ const TextStatCard = ({ title, value, Icon, color }: { title: string; value: str
 
 
 const DashboardAdmin = () => {
-    const [isLoading, setIsLoading] = useState(true);
-    const [timeFilter, setTimeFilter] = useState('week');
-    const [activePreset, setActivePreset] = useState('week');
+    const [timeFilter, setTimeFilter] = useState<keyof DashboardDataType>('week');
+    const [activePreset, setActivePreset] = useState<keyof DashboardDataType | 'custom'>('week');
     const [isCustomMode, setIsCustomMode] = useState(false);
     const [displayRangeLabel, setDisplayRangeLabel] = useState<string | null>(null);
 
-    const handleTimeFilterChange = (filterKey: string) => {
-        setIsLoading(true);
+    const handleTimeFilterChange = (filterKey: keyof DashboardDataType) => {
         setActivePreset(filterKey);
         setDisplayRangeLabel(null);
-        // @ts-ignore
         setTimeFilter(dashboardData[filterKey] ? filterKey : 'week');
-        setTimeout(() => setIsLoading(false), 600);
     };
 
     const handleCustomValidate = (range: {from: Date, to: Date}) => {
@@ -130,13 +176,10 @@ const DashboardAdmin = () => {
     };
 
     useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 1000);
+        const timer = setTimeout(() => {}, 1000);
         return () => clearTimeout(timer);
     }, []);
 
-    if (isLoading) return <DashboardSkeleton />;
-
-    // @ts-ignore
     const currentData = dashboardData[timeFilter] || dashboardData.week;
 
     return (
@@ -149,11 +192,10 @@ const DashboardAdmin = () => {
                 </h2>
                 {!isCustomMode ? (
                      <div className="flex items-center gap-1 rounded-lg border p-1 bg-muted/50">
-                        {/* --- CORRECTION ICI --- */}
-                        <Button variant='ghost' className={cn("transition-all", activePreset === 'week' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair))]' : 'text-black hover:bg-zinc-100')} onClick={() => handleTimeFilterChange('week')}>Cette semaine</Button>
-                        <Button variant='ghost' className={cn("transition-all", activePreset === 'month' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair))]' : 'text-black hover:bg-zinc-100')} onClick={() => handleTimeFilterChange('month')}>Ce mois</Button>
-                        <Button variant='ghost' className={cn("transition-all", activePreset === 'last_month' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair))]' : 'text-black hover:bg-zinc-100')} onClick={() => handleTimeFilterChange('last_month')}>Mois dernier</Button>
-                        <Button variant='ghost' className={cn("transition-all", activePreset === 'year_to_date' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair))]' : 'text-black hover:bg-zinc-100')} onClick={() => handleTimeFilterChange('year_to_date')}>Cette année</Button>
+                        <Button variant='ghost' className={cn("transition-all", activePreset === 'week' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair)))]' : 'text-black hover:bg-zinc-100')} onClick={() => handleTimeFilterChange('week')}>Cette semaine</Button>
+                        <Button variant='ghost' className={cn("transition-all", activePreset === 'month' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair)))]' : 'text-black hover:bg-zinc-100')} onClick={() => handleTimeFilterChange('month')}>Ce mois</Button>
+                        <Button variant='ghost' className={cn("transition-all", activePreset === 'last_month' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair)))]' : 'text-black hover:bg-zinc-100')} onClick={() => handleTimeFilterChange('last_month')}>Mois dernier</Button>
+                        <Button variant='ghost' className={cn("transition-all", activePreset === 'year_to_date' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair)))]' : 'text-black hover:bg-zinc-100')} onClick={() => handleTimeFilterChange('year_to_date')}>Cette année</Button>
                         <Button variant="ghost" className="border-l rounded-l-none" onClick={() => setIsCustomMode(true)}>Personnalisé</Button>
                      </div>
                 ) : ( <CustomDatePicker onCancel={() => { setIsCustomMode(false); setActivePreset(timeFilter); }} onValidate={handleCustomValidate} /> )}

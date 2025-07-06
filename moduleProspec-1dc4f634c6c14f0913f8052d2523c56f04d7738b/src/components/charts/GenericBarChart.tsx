@@ -1,15 +1,16 @@
-// src/components/charts/GenericBarChart.tsx
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, Cell } from 'recharts';
 
+interface ChartDataItem {
+  [key: string]: string | number;
+}
+
 interface GenericBarChartProps {
   title: string;
-  data: any[];
+  data: ChartDataItem[];
   xAxisDataKey: string;
   barDataKey: string;
-  // La prop fillColor n'est plus une simple chaîne mais peut être une fonction
-  fillColor: string | ((entry: any, index: number) => string);
+  fillColor: string | ((entry: ChartDataItem, index: number) => string);
 }
 
 const chartColors = [
@@ -31,7 +32,6 @@ export const GenericBarChart = ({ title, data, xAxisDataKey, barDataKey }: Gener
             
             <XAxis 
               dataKey={xAxisDataKey} 
-              // Couleur plus foncée et taille de police augmentée pour la lisibilité
               stroke="hsl(var(--foreground))"
               fontSize={13} 
               tickLine={false} 
@@ -54,7 +54,6 @@ export const GenericBarChart = ({ title, data, xAxisDataKey, barDataKey }: Gener
             />
             <Bar dataKey={barDataKey} radius={[4, 4, 0, 0]}>
               <LabelList dataKey={barDataKey} position="top" style={{ fill: 'hsl(var(--foreground))', fontSize: '12px' }} />
-              {/* On mappe les données pour assigner une couleur différente à chaque barre */}
               {data.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
               ))}

@@ -8,7 +8,6 @@ import { Button } from '@/components/ui-admin/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
 import { 
     MapPin, 
-    Briefcase, 
     CheckCircle, 
     Percent, 
     DoorOpen, 

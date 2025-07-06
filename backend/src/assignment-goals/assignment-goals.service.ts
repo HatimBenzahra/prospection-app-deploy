@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AssignmentType } from '@prisma/client';
 
@@ -6,13 +10,22 @@ import { AssignmentType } from '@prisma/client';
 export class AssignmentGoalsService {
   constructor(private prisma: PrismaService) {}
 
-  async assignZone(zoneId: string, assigneeId: string, assignmentType: AssignmentType) {
+  async assignZone(
+    zoneId: string,
+    assigneeId: string,
+    assignmentType: AssignmentType,
+  ) {
     const zone = await this.prisma.zone.findUnique({ where: { id: zoneId } });
     if (!zone) {
       throw new NotFoundException(`Zone with ID ${zoneId} not found`);
     }
 
-    const updateData: any = {
+    const updateData: {
+      typeAssignation: AssignmentType;
+      equipeId: string | null;
+      managerId: string | null;
+      commercialId: string | null;
+    } = {
       typeAssignation: assignmentType,
       equipeId: null,
       managerId: null,
@@ -20,21 +33,37 @@ export class AssignmentGoalsService {
     };
 
     switch (assignmentType) {
-      case AssignmentType.EQUIPE:
-        const equipe = await this.prisma.equipe.findUnique({ where: { id: assigneeId } });
-        if (!equipe) throw new NotFoundException(`Equipe with ID ${assigneeId} not found`);
+      case AssignmentType.EQUIPE: {
+        const equipe = await this.prisma.equipe.findUnique({
+          where: { id: assigneeId },
+        });
+        if (!equipe)
+          throw new NotFoundException(`Equipe with ID ${assigneeId} not found`);
         updateData.equipeId = assigneeId;
         break;
-      case AssignmentType.MANAGER:
-        const manager = await this.prisma.manager.findUnique({ where: { id: assigneeId } });
-        if (!manager) throw new NotFoundException(`Manager with ID ${assigneeId} not found`);
+      }
+      case AssignmentType.MANAGER: {
+        const manager = await this.prisma.manager.findUnique({
+          where: { id: assigneeId },
+        });
+        if (!manager)
+          throw new NotFoundException(
+            `Manager with ID ${assigneeId} not found`,
+          );
         updateData.managerId = assigneeId;
         break;
-      case AssignmentType.COMMERCIAL:
-        const commercial = await this.prisma.commercial.findUnique({ where: { id: assigneeId } });
-        if (!commercial) throw new NotFoundException(`Commercial with ID ${assigneeId} not found`);
+      }
+      case AssignmentType.COMMERCIAL: {
+        const commercial = await this.prisma.commercial.findUnique({
+          where: { id: assigneeId },
+        });
+        if (!commercial)
+          throw new NotFoundException(
+            `Commercial with ID ${assigneeId} not found`,
+          );
         updateData.commercialId = assigneeId;
         break;
+      }
       default:
         throw new BadRequestException('Invalid assignment type');
     }
@@ -46,9 +75,13 @@ export class AssignmentGoalsService {
   }
 
   async setMonthlyGoal(commercialId: string, goal: number) {
-    const commercial = await this.prisma.commercial.findUnique({ where: { id: commercialId } });
+    const commercial = await this.prisma.commercial.findUnique({
+      where: { id: commercialId },
+    });
     if (!commercial) {
-      throw new NotFoundException(`Commercial with ID ${commercialId} not found`);
+      throw new NotFoundException(
+        `Commercial with ID ${commercialId} not found`,
+      );
     }
 
     return this.prisma.commercial.update({

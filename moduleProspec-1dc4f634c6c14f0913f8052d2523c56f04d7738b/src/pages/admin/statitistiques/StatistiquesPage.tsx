@@ -1,5 +1,5 @@
 // src/pages/admin/commerciaux/CommercialDetailsPage.tsx
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
     ArrowLeft, BarChart2, Briefcase, CheckCircle, Target, Building, Trophy,
@@ -12,7 +12,6 @@ import StatCard from '@/components/ui-admin/StatCard';
 import { GenericLineChart } from '@/components/charts/GenericLineChart';
 import { GenericPieChart } from '@/components/charts/GenericPieChart';
 import { commercialService } from '@/services/commercial.service';
-import { PeriodType } from '@/types/enums';
 import { cn } from '@/lib/utils'; // N'oubliez pas d'importer 'cn'
 
 const CommercialDetailsPage = () => {

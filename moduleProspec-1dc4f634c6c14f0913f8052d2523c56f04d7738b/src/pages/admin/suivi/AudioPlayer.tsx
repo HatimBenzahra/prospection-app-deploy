@@ -1,5 +1,5 @@
 // src/pages/admin/suivi/AudioPlayer.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
 import { Avatar, AvatarFallback } from '@/components/ui-admin/avatar';
 import { Slider } from '@/components/ui-admin/slider';

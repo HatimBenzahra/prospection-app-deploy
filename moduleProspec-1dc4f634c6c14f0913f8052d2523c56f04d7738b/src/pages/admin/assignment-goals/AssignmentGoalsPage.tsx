@@ -10,11 +10,7 @@ import { zoneService } from '@/services/zone.service';
 import { managerService } from '@/services/manager.service';
 import { assignmentGoalsService } from '@/services/assignment-goals.service';
 import MapComponent from '@/components/MapComponent';
-
-export enum AssignmentType {
-  COMMERCIAL = 'COMMERCIAL',
-  MANAGER = 'MANAGER',
-}
+import { AssignmentType } from '@/types/assignment-type';
 
 interface Commercial {
   id: string;
@@ -207,7 +203,7 @@ const AssignmentGoalsPage = () => {
                 <MapComponent
                   latitude={selectedZoneDetails.latitude}
                   longitude={selectedZoneDetails.longitude}
-                  zoom={14} // Adjust zoom level as needed
+                  zoom={14} 
                   radius={selectedZoneDetails.rayonMetres}
                 />
               ) : (

@@ -1,11 +1,14 @@
-// frontend-shadcn/src/components/charts/GenericStackedBarChart.tsx
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui-admin/card";
+
+interface ChartDataItem {
+  [key: string]: string | number;
+}
 
 interface StackedBarChartProps {
   title: string;
   description: string;
-  data: any[];
+  data: ChartDataItem[];
   xAxisKey: string;
   bars: { key: string; name: string; color: string }[];
 }

@@ -25,11 +25,17 @@ export class CommercialService {
   }
 
   findOne(id: string) {
-    return this.prisma.commercial.findUnique({ where: { id }, include: { equipe: { include: { manager: true } } } });
+    return this.prisma.commercial.findUnique({
+      where: { id },
+      include: { equipe: { include: { manager: true } } },
+    });
   }
 
   update(id: string, updateCommercialDto: UpdateCommercialDto) {
-    return this.prisma.commercial.update({ where: { id }, data: updateCommercialDto });
+    return this.prisma.commercial.update({
+      where: { id },
+      data: updateCommercialDto,
+    });
   }
 
   remove(id: string) {

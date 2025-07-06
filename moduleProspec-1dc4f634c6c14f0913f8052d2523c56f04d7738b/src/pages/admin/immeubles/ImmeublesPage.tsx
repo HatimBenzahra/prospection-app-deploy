@@ -42,7 +42,7 @@ const ImmeublesPage = () => {
                     case 'INACCESSIBLE': statusText = 'Inaccessible'; break;
                 }
                 
-                const prospecteurs = Array.isArray(imm.prospecteurs) ? imm.prospecteurs : [];
+                const prospecteurs = Array.isArray(imm.prospectors) ? imm.prospectors : [];
                 
                 return {
                     id: imm.id,
@@ -50,18 +50,18 @@ const ImmeublesPage = () => {
                     ville: imm.ville,
                     codePostal: imm.codePostal,
                     status: statusText,
-                    nbPortes: imm.nbPortesTotal,
+                    nbPortes: 0, // This will be set by the backend or re-calculated if needed
                     nbPortesProspectees: 0, 
                     prospectingMode: prospecteurs.length > 1 ? "Duo" : "Solo",
-                    prospectors: prospecteurs.map(p => ({
+                    prospectors: prospecteurs.map((p: { id: string; prenom: string; nom: string; }) => ({
                         id: p.id,
                         nom: `${p.prenom || ''} ${p.nom || ''}`.trim(),
                         avatarFallback: `${p.prenom?.[0] || ''}${p.nom?.[0] || ''}`.toUpperCase()
                     })),
-                    dateVisite: imm.dateDerniereVisite,
+                    dateVisite: new Date().toISOString(), // This will be set by the backend or re-calculated if needed
                     zone: imm.zone?.nom || 'N/A',
-                    zoneId: imm.zoneId,
-                    latlng: [imm.latitude, imm.longitude],
+                    zoneId: '', // This will be set by the backend or re-calculated if needed
+                    latlng: [0, 0], // This will be set by the backend or re-calculated if needed
                 };
             });
             

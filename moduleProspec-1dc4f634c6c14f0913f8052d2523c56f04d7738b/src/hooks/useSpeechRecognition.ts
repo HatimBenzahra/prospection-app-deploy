@@ -1,4 +1,3 @@
-// frontend-shadcn/src/hooks/useSpeechRecognition.ts
 import { useState, useEffect, useRef } from 'react';
 
 // --- Définitions de types ---
@@ -64,7 +63,7 @@ export const useSpeechRecognition = () => {
     recognition.onend = () => {
       if (!stopIntentionallyRef.current) {
         try { recognition.start(); } 
-        catch (error) { setIsListening(false); }
+        catch { setIsListening(false); }
       } else {
         setIsListening(false);
       }
@@ -81,7 +80,7 @@ export const useSpeechRecognition = () => {
       stopIntentionallyRef.current = false;
       setIsListening(true);
       try { recognitionRef.current.start(); } 
-      catch (error) { setIsListening(false); }
+      catch { setIsListening(false); }
     }
   };
 

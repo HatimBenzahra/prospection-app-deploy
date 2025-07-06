@@ -1,7 +1,7 @@
 // frontend-shadcn/src/pages/admin/Managers/managers-table/columns.tsx
 "use client"
 
-import type { ColumnDef } from "@tanstack/react-table"
+import type { ColumnDef, Column } from "@tanstack/react-table"
 import { Link } from "react-router-dom"
 import { ArrowUpDown, Mail, Phone, Eye, Edit } from "lucide-react"
 import { Button } from "@/components/ui-admin/button"
@@ -18,13 +18,26 @@ export type Manager = {
   telephone: string | null
   nbEquipes: number
   classement: number
+  equipes: {
+    id: string;
+    nom: string;
+    commerciaux: {
+      id: string;
+      nom: string;
+      prenom: string;
+      telephone: string;
+      historiques: {
+        nbContratsSignes: number;
+      }[];
+    }[];
+  }[];
 }
 
 const Header = ({ title }: { title: string }) => (
   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
 )
 
-const SortableHeader = ({ title, column }: { title: string, column: any }) => (
+const SortableHeader = ({ title, column }: { title: string, column: Column<Manager> }) => (
   <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="p-0 h-8 hover:bg-transparent">
     <Header title={title} />
     <ArrowUpDown className="ml-2 h-3 w-3" />

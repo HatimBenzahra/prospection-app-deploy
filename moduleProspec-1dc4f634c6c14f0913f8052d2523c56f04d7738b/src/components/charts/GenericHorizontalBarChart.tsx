@@ -1,23 +1,16 @@
-// src/components/charts/GenericHorizontalBarChart.tsx
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, Legend } from 'recharts';
 
-/**
- * Props pour le composant GenericHorizontalBarChart.
- */
+interface ChartDataItem {
+  [key: string]: string | number;
+}
+
 interface GenericHorizontalBarChartProps {
-  /** Le titre affiché en haut de la carte. */
   title: string;
-  /** Le tableau de données pour le graphique. */
-  data: any[];
-  /** La clé de données pour l'axe Y (les catégories). */
+  data: ChartDataItem[];
   yAxisDataKey: string;
-  /** La clé de données pour la valeur des barres. */
   barDataKey: string;
-  /** La couleur de remplissage des barres. */
   fillColor: string;
-  /** Le nom de la série de données, affiché dans la légende et le tooltip. */
   barName?: string;
 }
 
@@ -35,16 +28,15 @@ export const GenericHorizontalBarChart = ({
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        {/* On augmente la hauteur pour laisser de la place à la légende en bas */}
         <ResponsiveContainer width="100%" height={350}>
           <BarChart 
-            layout="vertical" // La propriété clé pour un graphique à barres horizontales
+            layout="vertical" 
             data={data} 
             margin={{
               top: 5,
-              right: 30, // Marge pour voir les labels sur les barres
+              right: 30, 
               left: 20,
-              bottom: 20, // Marge pour la légende
+              bottom: 20, 
             }}
           >
             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
@@ -53,12 +45,12 @@ export const GenericHorizontalBarChart = ({
             
             <YAxis 
               type="category" 
-              dataKey={yAxisDataKey} // Les labels (ex: "Lundi", "Mardi") sont sur l'axe Y
+              dataKey={yAxisDataKey} 
               stroke="hsl(var(--muted-foreground))" 
               fontSize={12} 
               tickLine={false} 
               axisLine={false}
-              width={80} // Assure un espace suffisant pour les noms des jours
+              width={80} 
               tick={{ fill: 'hsl(var(--foreground))' }}
             />
             
@@ -76,9 +68,9 @@ export const GenericHorizontalBarChart = ({
             
             <Bar 
               dataKey={barDataKey} 
-              name={barName || "Valeur"} // Ce nom sera utilisé par la légende et le tooltip
+              name={barName || "Valeur"} 
               fill={fillColor} 
-              radius={[0, 4, 4, 0]} // Coins arrondis à droite
+              radius={[0, 4, 4, 0]} 
             >
               <LabelList 
                 dataKey={barDataKey} 

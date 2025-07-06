@@ -4,7 +4,9 @@ import { AssignmentType } from '@prisma/client';
 
 @Controller('assignment-goals')
 export class AssignmentGoalsController {
-  constructor(private readonly assignmentGoalsService: AssignmentGoalsService) {}
+  constructor(
+    private readonly assignmentGoalsService: AssignmentGoalsService,
+  ) {}
 
   @Post('assign-zone')
   assignZone(
@@ -12,15 +14,17 @@ export class AssignmentGoalsController {
     @Body('assigneeId') assigneeId: string,
     @Body('assignmentType') assignmentType: AssignmentType,
   ) {
-    return this.assignmentGoalsService.assignZone(zoneId, assigneeId, assignmentType);
+    return this.assignmentGoalsService.assignZone(
+      zoneId,
+      assigneeId,
+      assignmentType,
+    );
   }
 
   @Post('set-monthly-goal')
   setMonthlyGoal(
     @Body('commercialId') commercialId: string,
     @Body('goal') goal: number,
-    @Body('month') month: number,
-    @Body('year') year: number,
   ) {
     return this.assignmentGoalsService.setMonthlyGoal(commercialId, goal);
   }
@@ -32,7 +36,9 @@ export class AssignmentGoalsController {
 
   @Get('commercial/:commercialId/zones')
   getAssignedZonesForCommercial(@Param('commercialId') commercialId: string) {
-    return this.assignmentGoalsService.getAssignedZonesForCommercial(commercialId);
+    return this.assignmentGoalsService.getAssignedZonesForCommercial(
+      commercialId,
+    );
   }
 
   @Get('zone/:zoneId/commercials')

@@ -1,6 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PeriodType, StatEntityType, PorteStatut } from '@prisma/client';
+import {
+  PorteStatut,
+  PeriodType,
+  StatEntityType,
+  HistoriqueProspection,
+  Commercial,
+  Prisma,
+} from '@prisma/client';
 
 @Injectable()
 export class StatisticsService {
@@ -23,7 +30,7 @@ export class StatisticsService {
       return [];
     }
 
-    return historyEntries.map(entry => ({
+    return historyEntries.map((entry) => ({
       id: entry.id,
       adresse: entry.immeuble.adresse,
       ville: entry.immeuble.ville,
@@ -35,7 +42,13 @@ export class StatisticsService {
       nbAbsents: entry.nbAbsents,
       commentaire: entry.commentaire,
       // Calculate tauxCouverture based on nbPortesVisitees and immeuble.nbPortesTotal
-      tauxCouverture: entry.immeuble.nbPortesTotal > 0 ? Math.min((entry.nbPortesVisitees / entry.immeuble.nbPortesTotal) * 100, 100) : 0,
+      tauxCouverture:
+        entry.immeuble.nbPortesTotal > 0
+          ? Math.min(
+              (entry.nbPortesVisitees / entry.immeuble.nbPortesTotal) * 100,
+              100,
+            )
+          : 0,
     }));
   }
 
@@ -48,7 +61,9 @@ export class StatisticsService {
     });
 
     if (!commercial) {
-      throw new NotFoundException(`Commercial with ID ${commercialId} not found`);
+      throw new NotFoundException(
+        `Commercial with ID ${commercialId} not found`,
+      );
     }
 
     const aggregatedStats = commercial.historiques.reduce(
@@ -73,7 +88,8 @@ export class StatisticsService {
 
     const tauxDeConversion =
       aggregatedStats.portesVisitees > 0
-        ? (aggregatedStats.contratsSignes / aggregatedStats.portesVisitees) * 100
+        ? (aggregatedStats.contratsSignes / aggregatedStats.portesVisitees) *
+          100
         : 0;
 
     const repartitionStatuts = {
@@ -93,27 +109,30 @@ export class StatisticsService {
         portesVisitees: aggregatedStats.portesVisitees,
         contratsSignes: aggregatedStats.contratsSignes,
         rdvPris: aggregatedStats.rdvPris,
-        tauxDeConversion: parseFloat(Math.min(tauxDeConversion, 100).toFixed(2)),
+        tauxDeConversion: parseFloat(
+          Math.min(tauxDeConversion, 100).toFixed(2),
+        ),
       },
       repartitionStatuts,
     };
   }
 
   async getStatsForManager(managerId: string) {
-    const managerWithEquipesAndCommerciaux = await this.prisma.manager.findUnique({
-      where: { id: managerId },
-      include: {
-        equipes: {
-          include: {
-            commerciaux: {
-              include: {
-                historiques: true,
+    const managerWithEquipesAndCommerciaux =
+      await this.prisma.manager.findUnique({
+        where: { id: managerId },
+        include: {
+          equipes: {
+            include: {
+              commerciaux: {
+                include: {
+                  historiques: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      });
 
     if (!managerWithEquipesAndCommerciaux) {
       throw new NotFoundException(`Manager with ID ${managerId} not found`);
@@ -205,7 +224,132 @@ export class StatisticsService {
     entityType?: StatEntityType,
     entityId?: string,
   ) {
+    const getStartDate = (period: PeriodType) => {
+      const now = new Date();
+      if (period === 'WEEKLY') {
+        const dayOfWeek = now.getDay();
+        const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+        return new Date(now.setDate(diff));
+      } else if (period === 'MONTHLY') {
+        return new Date(now.getFullYear(), now.getMonth(), 1);
+      } else if (period === 'YEARLY') {
+        return new Date(now.getFullYear(), 0, 1);
+      }
+      return undefined; // Should not happen with enum validation
+    };
 
+    const startDate = getStartDate(period);
 
+    const whereConditions: Prisma.HistoriqueProspectionWhereInput = {
+      dateProspection: {
+        gte: startDate,
+      },
+    };
+
+    if (entityId && entityType) {
+      switch (entityType) {
+        case 'COMMERCIAL':
+          whereConditions.commercialId = entityId;
+          break;
+        case 'EQUIPE':
+          whereConditions.commercial = { equipeId: entityId };
+          break;
+        case 'MANAGER':
+          whereConditions.commercial = { equipe: { managerId: entityId } };
+          break;
+      }
+    }
+
+    const historiques: (HistoriqueProspection & { commercial: Commercial })[] =
+      await this.prisma.historiqueProspection.findMany({
+        where: whereConditions,
+        include: {
+          commercial: true,
+        },
+        orderBy: {
+          dateProspection: 'asc',
+        },
+      });
+
+    const stats = historiques.reduce(
+      (acc, h) => {
+        acc.totalContratsSignes += h.nbContratsSignes;
+        acc.totalRdvPris += h.nbRdvPris;
+        acc.totalPortesVisitees += h.nbPortesVisitees;
+        acc.totalRefus += h.nbRefus;
+        acc.totalAbsents += h.nbAbsents;
+        return acc;
+      },
+      {
+        totalContratsSignes: 0,
+        totalRdvPris: 0,
+        totalPortesVisitees: 0,
+        totalRefus: 0,
+        totalAbsents: 0,
+      },
+    );
+
+    const tauxDeConversion =
+      stats.totalPortesVisitees > 0
+        ? (stats.totalContratsSignes / stats.totalPortesVisitees) * 100
+        : 0;
+
+    const performanceHistory = this.calculatePerformanceHistory(
+      historiques,
+      period,
+    );
+    const repartitionStatuts = {
+      'Contrats Signés': stats.totalContratsSignes,
+      Refus: stats.totalRefus,
+      Absents: stats.totalAbsents,
+    };
+
+    return {
+      kpis: {
+        totalContratsSignes: stats.totalContratsSignes,
+        totalRdvPris: stats.totalRdvPris,
+        totalPortesVisitees: stats.totalPortesVisitees,
+        tauxDeConversion: parseFloat(tauxDeConversion.toFixed(2)),
+      },
+      performanceHistory,
+      repartitionStatuts,
+    };
+  }
+
+  private calculatePerformanceHistory(
+    historiques: HistoriqueProspection[],
+    period: PeriodType,
+  ) {
+    const formatKey = (date: Date) => {
+      if (period === 'WEEKLY') {
+        const startOfWeek = new Date(date);
+        startOfWeek.setDate(date.getDate() - date.getDay() + 1);
+        return startOfWeek.toISOString().substring(0, 10);
+      } else if (period === 'MONTHLY') {
+        return date.toISOString().substring(0, 7); // YYYY-MM
+      } else {
+        // YEARLY
+        return date.getFullYear().toString();
+      }
+    };
+
+    const aggregated = new Map<string, { contrats: number; rdv: number }>();
+
+    historiques.forEach((h) => {
+      const key = formatKey(h.dateProspection);
+      if (!aggregated.has(key)) {
+        aggregated.set(key, { contrats: 0, rdv: 0 });
+      }
+      const current = aggregated.get(key)!;
+      current.contrats += h.nbContratsSignes;
+      current.rdv += h.nbRdvPris;
+    });
+
+    return Array.from(aggregated.entries())
+      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+      .map(([name, data]) => ({
+        name,
+        performance: data.rdv > 0 ? (data.contrats / data.rdv) * 100 : 0,
+      }));
   }
 }

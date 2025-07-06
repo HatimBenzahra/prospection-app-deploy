@@ -13,12 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { commercialService } from "@/services/commercial.service";
 import { equipeService } from "@/services/equipe.service";
 import { managerService } from "@/services/manager.service";
+import type { Manager as ManagerFromAPI } from "../Managers/managers-table/columns";
 
-type EquipeFromAPI = { id: string; nom: string; managerId: string };
+
 
 const CommerciauxPage = () => {
   const [data, setData] = useState<Commercial[]>([]);
-  const [equipes, setEquipes] = useState<EquipeFromAPI[]>([]);
   const [managers, setManagers] = useState<ManagerFromAPI[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
@@ -43,7 +43,6 @@ const CommerciauxPage = () => {
         commercialService.getCommerciaux(), equipeService.getEquipes(), managerService.getManagers(),
       ]);
 
-      setEquipes(equipesFromApi);
       setManagers(managersFromApi);
 
       const equipesMap = new Map(equipesFromApi.map((e) => [e.id, e.nom] as const));
@@ -51,7 +50,7 @@ const CommerciauxPage = () => {
 
       const enrichedCommerciaux: Commercial[] = commerciauxFromApi.map((comm) => {
         const totalContratsSignes = comm.historiques.reduce(
-          (sum, history) => sum + history.nbContratsSignes,
+          (sum: number, history: any) => sum + history.nbContratsSignes,
           0,
         );
         return {
@@ -64,13 +63,18 @@ const CommerciauxPage = () => {
           managerId: comm.managerId,
           manager: managersMap.get(comm.managerId) || 'N/A',
           equipe: comm.equipeId ? equipesMap.get(comm.equipeId) || 'Non assignée' : 'Non assignée',
-          totalContratsSignes: totalContratsSignes,
+          classement: 0, // Temporary, will be set after sorting
+          totalContratsSignes,
         };
       });
 
       // Sort commercials by totalContratsSignes for ranking
       enrichedCommerciaux.sort(
-        (a, b) => b.totalContratsSignes - a.totalContratsSignes,
+        (a, b) => {
+          const aTotal = commerciauxFromApi.find(c => c.id === a.id)?.historiques.reduce((sum: number, h: any) => sum + h.nbContratsSignes, 0) || 0;
+          const bTotal = commerciauxFromApi.find(c => c.id === b.id)?.historiques.reduce((sum: number, h: any) => sum + h.nbContratsSignes, 0) || 0;
+          return bTotal - aTotal;
+        }
       );
 
       const rankedCommerciaux = enrichedCommerciaux.map((comm, index) => ({
@@ -120,9 +124,6 @@ const CommerciauxPage = () => {
 
   const handleAddInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewCommercialData((prev) => ({ ...prev, [e.target.id]: e.target.value }));
-  };
-  const handleAddSelectChange = (equipeId: string) => {
-    setNewCommercialData((prev) => ({ ...prev, equipeId }));
   };
   const handleAddCommercial = async () => {
     const { nom, prenom, email, managerId } = newCommercialData;

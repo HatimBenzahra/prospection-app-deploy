@@ -12,7 +12,17 @@ import { StatisticsModule } from './statistics/statistics.module';
 import { AssignmentGoalsModule } from './assignment-goals/assignment-goals.module';
 
 @Module({
-  imports: [PrismaModule, ManagerModule, EquipeModule, CommercialModule, ZoneModule, ImmeubleModule, PorteModule, StatisticsModule, AssignmentGoalsModule],
+  imports: [
+    PrismaModule,
+    ManagerModule,
+    EquipeModule,
+    CommercialModule,
+    ZoneModule,
+    ImmeubleModule,
+    PorteModule,
+    StatisticsModule,
+    AssignmentGoalsModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -28,11 +28,17 @@ export class ManagerService {
   }
 
   findOne(id: string) {
-    return this.prisma.manager.findUnique({ where: { id }, include: { equipes: { include: { commerciaux: true } } } });
+    return this.prisma.manager.findUnique({
+      where: { id },
+      include: { equipes: { include: { commerciaux: true } } },
+    });
   }
 
   update(id: string, updateManagerDto: UpdateManagerDto) {
-    return this.prisma.manager.update({ where: { id }, data: updateManagerDto });
+    return this.prisma.manager.update({
+      where: { id },
+      data: updateManagerDto,
+    });
   }
 
   remove(id: string) {

@@ -3,11 +3,13 @@
 
 import type { ColumnDef } from "@tanstack/react-table"
 import { Users, Flag } from "lucide-react"
+import type { Commercial } from '../../commerciaux/commerciaux-table/columns';
 
 export type EquipeDuManager = {
   id: string
   nom: string
   nbCommerciaux: number
+  commerciaux: Commercial[];
 }
 
 const Header = ({ title }: { title: string }) => (

@@ -1,11 +1,7 @@
-// frontend-shadcn/src/components/data-table/DataTable.tsx
-
-"use client"
-
 import * as React from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  type ColumnDef, type ColumnFiltersState, type SortingState, type RowSelectionState,
+  type ColumnDef, type ColumnFiltersState, type SortingState, type RowSelectionState, type Row,
   flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
   getSortedRowModel, useReactTable,
 } from "@tanstack/react-table"
@@ -60,7 +56,7 @@ export function DataTable<TData extends { id: string }, TValue>({
   const selectedRowsData = table.getFilteredSelectedRowModel().rows.map(row => row.original)
   const areRowsClickable = (onRowClick || rowLinkBasePath) && !isDeleteMode
 
-  const handleRowClick = (row: any) => {
+  const handleRowClick = (row: Row<TData>) => {
     if (isDeleteMode) {
       row.toggleSelected()
     } else if (onRowClick) {
@@ -70,10 +66,8 @@ export function DataTable<TData extends { id: string }, TValue>({
     }
   }
 
-  // Le JSX de la table, réutilisable avec ou sans Card
   const tableContent = (
     <>
-      {/* Le titre est maintenant optionnel et séparé de la barre d'outils */}
       {title && (
         <CardHeader>
           <CardTitle>{title}</CardTitle>
@@ -81,9 +75,7 @@ export function DataTable<TData extends { id: string }, TValue>({
       )}
       
       <CardContent className={!title ? "pt-6" : ""}>
-        {/* --- CORRECTION DU LAYOUT : Nouvelle barre d'outils unifiée --- */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-          {/* Section gauche : Barre de recherche */}
           <div className={cn(
             "relative w-full md:w-auto transition-all",
             searchFocused ? "ring-2 ring-primary/30 rounded-md" : "",
@@ -103,7 +95,6 @@ export function DataTable<TData extends { id: string }, TValue>({
             />
           </div>
 
-          {/* Section droite : Boutons d'action */}
           <div className="flex flex-wrap items-center gap-2">
             {customHeaderContent}
             {!isDeleteMode ? (
@@ -130,13 +121,12 @@ export function DataTable<TData extends { id: string }, TValue>({
           </div>
         </div>
         
-        {/* La table elle-même */}
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map(headerGroup=>(
               <TableRow key={headerGroup.id} className="border-b-[#EFEDED] hover:bg-transparent">
                 {headerGroup.headers.map(header=>(
-                  <TableHead key={header.id} className={cn("h-12 px-4 text-base font-semibold text-gray-600 bg-muted/50", (header.column.columnDef.meta as any)?.className)}>
+                  <TableHead key={header.id} className={cn("h-12 px-4 text-base font-semibold text-gray-600 bg-muted/50", (header.column.columnDef.meta as { className?: string })?.className)}>
                     {header.isPlaceholder?null:flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
@@ -151,7 +141,7 @@ export function DataTable<TData extends { id: string }, TValue>({
                 row.getIsSelected()&&isDeleteMode?"bg-red-50":row.getIsSelected()?"bg-blue-50":""
               )} style={{animationDelay:`${index*30}ms`}}>
                 {row.getVisibleCells().map(cell=>(
-                  <TableCell key={cell.id} className={cn("group-hover:bg-zinc-100 transition-colors duration-150 py-4 px-4", (cell.column.columnDef.meta as any)?.className)}>
+                  <TableCell key={cell.id} className={cn("group-hover:bg-zinc-100 transition-colors duration-150 py-4 px-4", (cell.column.columnDef.meta as { className?: string })?.className)}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
@@ -169,7 +159,6 @@ export function DataTable<TData extends { id: string }, TValue>({
           </TableBody>
         </Table>
         
-        {/* Pagination */}
         <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-4 pt-4">
           <div className="text-sm text-muted-foreground">
             {isDeleteMode?`${table.getFilteredSelectedRowModel().rows.length} sélectionné(s) sur ${table.getFilteredRowModel().rows.length} visible(s)`:
@@ -191,7 +180,6 @@ export function DataTable<TData extends { id: string }, TValue>({
     </>
   );
 
-  // Logique d'affichage
   if (noCardWrapper) {
     return tableContent;
   }

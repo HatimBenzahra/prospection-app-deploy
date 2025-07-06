@@ -8,18 +8,20 @@ export interface ImmeubleFromApi {
   ville: string;
   codePostal: string;
   zone: { nom: string };
-  prospectors: { prenom: string; nom: string }[];
+  prospectors: { id: string; prenom: string; nom: string }[];
   status: string;
 }
 
 export interface ImmeubleDetailsFromApi extends ImmeubleFromApi {
+  hasElevator: boolean;
+  digicode: string | null;
   stats: {
     contratsSignes: number;
     rdvPris: number;
   };
   nbPortesTotal: number;
   prospectingMode: 'SOLO' | 'DUO';
-  portes: { id: string; numeroPorte: string; statut: string }[];
+  portes: { id: string; numeroPorte: string; statut: string; passage: number; commentaire: string; nbPassages: number }[];
 }
 
 const getImmeubles = async (): Promise<ImmeubleFromApi[]> => {

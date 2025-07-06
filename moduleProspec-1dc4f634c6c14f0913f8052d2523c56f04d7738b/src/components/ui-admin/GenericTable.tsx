@@ -1,6 +1,9 @@
-// src/components/ui/GenericTable.tsx
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui-admin/table';
+
+interface ChartDataItem {
+  [key: string]: string | number;
+}
 
 interface Column {
   key: string;
@@ -12,7 +15,7 @@ interface GenericTableProps {
   title: string;
   description: string;
   columns: Column[];
-  data: any[];
+  data: ChartDataItem[];
 }
 
 export const GenericTable = ({ title, description, columns, data }: GenericTableProps) => {

@@ -24,6 +24,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ latitude, longitude, zoom, 
       }).addTo(mapRef.current);
     }
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
@@ -54,7 +55,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ latitude, longitude, zoom, 
       // If no radius, just set view
       map.setView([latitude, longitude], zoom);
     }
-  }, [mapRef.current, latitude, longitude, zoom, radius]); // Dependencies: map instance and props that affect view/layers
+  }, [latitude, longitude, zoom, radius]); // Dependencies: map instance and props that affect view/layers
 
   return <div id="map-container" ref={mapContainerRef} className="h-full w-full rounded-lg shadow-md"></div>;
 };

@@ -1,9 +1,9 @@
 // src/pages/commercial/ProspectingDoorsPage.tsx
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-admin/card';
 import { DataTable } from '@/components/data-table/DataTable';
-import { createDoorsColumns, type Porte, statusConfig, statusList } from './doors-columns';
+import { createDoorsColumns, type Porte, statusConfig, statusList, type PorteStatus } from './doors-columns';
 import { ArrowLeft, Building } from 'lucide-react';
 import { Input } from '@/components/ui-admin/input';
 import { Button } from '@/components/ui-admin/button';
@@ -12,9 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Label } from '@/components/ui-admin/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui-admin/select';
 import { Checkbox } from '@/components/ui-admin/checkbox';
-import { immeubleService, type ImmeubleDetailsFromAPI } from '@/services/immeuble.service';
+import { immeubleService, type ImmeubleDetailsFromApi } from '@/services/immeuble.service';
 import { porteService } from '@/services/porte.service';
-import type { PorteStatus } from '@/types/enums';
 import { cn } from '@/lib/utils';
 
 
@@ -40,7 +39,7 @@ const LoadingSkeleton = () => (
 const ProspectingDoorsPage = () => {
     const { buildingId } = useParams<{ buildingId: string }>();
     const navigate = useNavigate();
-    const [building, setBuilding] = useState<ImmeubleDetailsFromAPI | null>(null);
+    const [building, setBuilding] = useState<ImmeubleDetailsFromApi | null>(null);
     const [portes, setPortes] = useState<Porte[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -56,9 +55,10 @@ const ProspectingDoorsPage = () => {
                 const portesFromAPI = details.portes.map(p => ({
                     id: p.id,
                     numero: p.numeroPorte,
-                    statut: p.status as PorteStatus,
+                    statut: p.statut as PorteStatus,
                     commentaire: p.commentaire || "",
-                    repassage: p.nbPassages > 0, // Ou une autre logique si nécessaire
+                    repassage: p.passage > 0, // Ou une autre logique si nécessaire
+                    passage: p.passage,
                     nbPassages: p.nbPassages,
                 }));
                 setPortes(portesFromAPI);

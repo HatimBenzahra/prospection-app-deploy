@@ -1,9 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
+interface ChartDataItem {
+  [key: string]: string | number;
+}
+
 interface GenericPieChartProps {
   title: string;
-  data: any[];
+  data: ChartDataItem[];
   dataKey: string;
   nameKey: string;
   colors: string[];

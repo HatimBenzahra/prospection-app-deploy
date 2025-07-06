@@ -11,13 +11,62 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui-admin/table';
 import { commercialService } from '@/services/commercial.service';
 
+interface CommercialStats {
+  commercialInfo: {
+    nom: string;
+    prenom: string;
+    email: string;
+  };
+  kpis: {
+    immeublesVisites: number;
+    portesVisitees: number;
+    contratsSignes: number;
+    rdvPris: number;
+    tauxDeConversion: number;
+  };
+  repartitionStatuts: {
+    [key: string]: number;
+  };
+}
+
+interface HistoryEntry {
+  id: string;
+  adresse: string;
+  ville: string;
+  dateProspection: string;
+  nbPortesVisitees: number;
+  nbContratsSignes: number;
+  nbRdvPris: number;
+  nbRefus: number;
+  nbAbsents: number;
+  commentaire: string;
+  tauxCouverture: number;
+}
+
+interface CommercialDetails {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone?: string;
+  equipe: {
+    id: string;
+    nom: string;
+    manager: {
+      id: string;
+      nom: string;
+      prenom: string;
+    };
+  };
+}
+
 const CommercialDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const [stats, setStats] = useState<any>(null);
-  const [history, setHistory] = useState<any[]>([]);
-  const [commercial, setCommercial] = useState<any>(null);
+  const [stats, setStats] = useState<CommercialStats | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [commercial, setCommercial] = useState<CommercialDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
