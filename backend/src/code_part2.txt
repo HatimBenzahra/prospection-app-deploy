@@ -1,0 +1,724 @@
+
+
+# --- equipe/equipe.service.ts ---
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateEquipeDto } from './dto/create-equipe.dto';
+import { UpdateEquipeDto } from './dto/update-equipe.dto';
+
+@Injectable()
+export class EquipeService {
+  constructor(private prisma: PrismaService) {}
+
+  create(createEquipeDto: CreateEquipeDto) {
+    return this.prisma.equipe.create({ data: createEquipeDto });
+  }
+
+  findAll() {
+    return this.prisma.equipe.findMany({ 
+      include: { 
+        manager: true,
+        _count: {
+          select: { commerciaux: true }
+        }
+      }
+    });
+  }
+
+  findOne(id: string) {
+    return this.prisma.equipe.findUnique({ where: { id }, include: { manager: true, commerciaux: true } });
+  }
+
+  async getEquipeDetails(equipeId: string) {
+    const equipe = await this.prisma.equipe.findUnique({
+      where: { id: equipeId },
+      include: {
+        manager: true,
+        commerciaux: {
+          include: {
+            historiques: true,
+          },
+        },
+      },
+    });
+
+    if (!equipe) {
+      throw new NotFoundException(`Equipe with ID ${equipeId} not found`);
+    }
+
+    // 1. Calcul des KPIs de l'équipe
+    const equipeStats = equipe.commerciaux.reduce(
+      (acc, commercial) => {
+        commercial.historiques.forEach(h => {
+          acc.contratsSignes += h.nbContratsSignes;
+          acc.rdvPris += h.nbRdvPris;
+          acc.portesVisitees += h.nbPortesVisitees;
+        });
+        return acc;
+      },
+      { contratsSignes: 0, rdvPris: 0, portesVisitees: 0 },
+    );
+
+    const perfMoyenne = equipeStats.portesVisitees > 0 ? (equipeStats.contratsSignes / equipeStats.portesVisitees) * 100 : 0;
+
+    // 2. Classement des commerciaux au sein de l'équipe
+    const commerciauxAvecStats = equipe.commerciaux.map(c => {
+      const totalContrats = c.historiques.reduce((sum, h) => sum + h.nbContratsSignes, 0);
+      return { ...c, totalContrats };
+    }).sort((a, b) => b.totalContrats - a.totalContrats);
+
+    const commerciauxClasses = commerciauxAvecStats.map((c, index) => ({
+      id: c.id,
+      nom: c.nom,
+      prenom: c.prenom,
+      email: c.email,
+      classement: index + 1,
+    }));
+
+    // 3. Historique de performance de l'équipe (par semaine, exemple)
+    const weeklyStats = new Map<string, { contrats: number; portes: number }>();
+    equipe.commerciaux.forEach(c => {
+        c.historiques.forEach(h => {
+            const weekStart = this.getStartOfWeek(h.dateProspection).toISOString().substring(0, 10);
+            if (!weeklyStats.has(weekStart)) {
+                weeklyStats.set(weekStart, { contrats: 0, portes: 0 });
+            }
+            const current = weeklyStats.get(weekStart)!;
+            current.contrats += h.nbContratsSignes;
+            current.portes += h.nbPortesVisitees;
+        });
+    });
+
+    const perfHistory = Array.from(weeklyStats.entries())
+        .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
+        .map(([week, data]) => ({
+            name: `S - ${week}`,
+            perf: data.portes > 0 ? (data.contrats / data.portes) * 100 : 0,
+        }));
+
+    // 4. Classement général de l'équipe
+    const toutesLesEquipes = await this.prisma.equipe.findMany({
+        include: { commerciaux: { include: { historiques: true } } },
+    });
+
+    const equipesAvecContrats = toutesLesEquipes.map(e => {
+        const totalContrats = e.commerciaux.reduce((sum, c) => sum + c.historiques.reduce((s, h) => s + h.nbContratsSignes, 0), 0);
+        return { id: e.id, totalContrats };
+    }).sort((a, b) => b.totalContrats - a.totalContrats);
+
+    const classementGeneral = equipesAvecContrats.findIndex(e => e.id === equipeId) + 1;
+
+    return {
+      id: equipe.id,
+      nom: equipe.nom,
+      manager: `${equipe.manager.prenom} ${equipe.manager.nom}`,
+      stats: {
+        contratsSignes: equipeStats.contratsSignes,
+        rdvPris: equipeStats.rdvPris,
+        perfMoyenne: parseFloat(perfMoyenne.toFixed(2)),
+        classementGeneral: classementGeneral > 0 ? classementGeneral : 'N/A',
+        nbCommerciaux: equipe.commerciaux.length,
+      },
+      perfHistory,
+      commerciaux: commerciauxClasses,
+    };
+  }
+
+  private getStartOfWeek(d: Date): Date {
+    const date = new Date(d);
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    return new Date(date.setDate(diff));
+  }
+
+  update(id: string, updateEquipeDto: UpdateEquipeDto) {
+    return this.prisma.equipe.update({ where: { id }, data: updateEquipeDto });
+  }
+
+  remove(id: string) {
+    return this.prisma.equipe.delete({ where: { id } });
+  }
+}
+
+
+
+# --- assignment-goals/assignment-goals.service.ts ---
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { AssignmentType } from '@prisma/client';
+
+@Injectable()
+export class AssignmentGoalsService {
+  constructor(private prisma: PrismaService) {}
+
+  async assignZone(zoneId: string, assigneeId: string, assignmentType: AssignmentType) {
+    const zone = await this.prisma.zone.findUnique({ where: { id: zoneId } });
+    if (!zone) {
+      throw new NotFoundException(`Zone with ID ${zoneId} not found`);
+    }
+
+    const updateData: any = {
+      typeAssignation: assignmentType,
+      equipeId: null,
+      managerId: null,
+      commercialId: null,
+    };
+
+    switch (assignmentType) {
+      case AssignmentType.EQUIPE:
+        const equipe = await this.prisma.equipe.findUnique({ where: { id: assigneeId } });
+        if (!equipe) throw new NotFoundException(`Equipe with ID ${assigneeId} not found`);
+        updateData.equipeId = assigneeId;
+        break;
+      case AssignmentType.MANAGER:
+        const manager = await this.prisma.manager.findUnique({ where: { id: assigneeId } });
+        if (!manager) throw new NotFoundException(`Manager with ID ${assigneeId} not found`);
+        updateData.managerId = assigneeId;
+        break;
+      case AssignmentType.COMMERCIAL:
+        const commercial = await this.prisma.commercial.findUnique({ where: { id: assigneeId } });
+        if (!commercial) throw new NotFoundException(`Commercial with ID ${assigneeId} not found`);
+        updateData.commercialId = assigneeId;
+        break;
+      default:
+        throw new BadRequestException('Invalid assignment type');
+    }
+
+    return this.prisma.zone.update({
+      where: { id: zoneId },
+      data: updateData,
+    });
+  }
+
+  async setMonthlyGoal(commercialId: string, goal: number) {
+    const commercial = await this.prisma.commercial.findUnique({ where: { id: commercialId } });
+    if (!commercial) {
+      throw new NotFoundException(`Commercial with ID ${commercialId} not found`);
+    }
+
+    return this.prisma.commercial.update({
+      where: { id: commercialId },
+      data: { currentMonthlyGoal: goal },
+    });
+  }
+
+  async getAssignedZonesForManager(managerId: string) {
+    return this.prisma.zone.findMany({
+      where: { managerId: managerId },
+      include: { commercial: true, equipe: true },
+    });
+  }
+
+  async getAssignedZonesForCommercial(commercialId: string) {
+    return this.prisma.zone.findMany({
+      where: { commercialId: commercialId },
+      include: { manager: true, equipe: true },
+    });
+  }
+
+  async getCommercialsInZone(zoneId: string) {
+    const zone = await this.prisma.zone.findUnique({
+      where: { id: zoneId },
+      include: {
+        commercial: true, // Si la zone est directement assignée à un commercial
+        equipe: { include: { commerciaux: true } }, // Si la zone est assignée à une équipe, récupérer ses commerciaux
+      },
+    });
+
+    if (!zone) {
+      throw new NotFoundException(`Zone with ID ${zoneId} not found`);
+    }
+
+    if (zone.commercial) {
+      return [zone.commercial];
+    } else if (zone.equipe && zone.equipe.commerciaux) {
+      return zone.equipe.commerciaux;
+    }
+    return [];
+  }
+}
+
+
+# --- zone/zone.service.ts ---
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateZoneDto } from './dto/create-zone.dto';
+import { UpdateZoneDto } from './dto/update-zone.dto';
+
+@Injectable()
+export class ZoneService {
+  constructor(private prisma: PrismaService) {}
+
+  create(createZoneDto: CreateZoneDto) {
+    return this.prisma.zone.create({ data: createZoneDto });
+  }
+
+  findAll() {
+    return this.prisma.zone.findMany({
+      include: { equipe: true, manager: true, commercial: true },
+    });
+  }
+
+  findOne(id: string) {
+    return this.prisma.zone.findUnique({ where: { id }, include: { equipe: true, manager: true, commercial: true } });
+  }
+
+  async getZoneDetails(zoneId: string) {
+    const zone = await this.prisma.zone.findUnique({
+      where: { id: zoneId },
+      include: {
+        immeubles: {
+          include: {
+            historiques: true,
+            prospectors: true,
+          },
+        },
+        equipe: true,
+        manager: true,
+        commercial: true,
+      },
+    });
+
+    if (!zone) {
+      throw new NotFoundException(`Zone with ID ${zoneId} not found`);
+    }
+
+    const stats = zone.immeubles.reduce(
+      (acc, immeuble) => {
+        acc.nbImmeubles++;
+        const immeubleStats = immeuble.historiques.reduce(
+          (iAcc, h) => {
+            iAcc.contratsSignes += h.nbContratsSignes;
+            iAcc.rdvPris += h.nbRdvPris;
+            return iAcc;
+          },
+          { contratsSignes: 0, rdvPris: 0 },
+        );
+        acc.totalContratsSignes += immeubleStats.contratsSignes;
+        acc.totalRdvPris += immeubleStats.rdvPris;
+        return acc;
+      },
+      { nbImmeubles: 0, totalContratsSignes: 0, totalRdvPris: 0 },
+    );
+
+    return {
+      ...zone,
+      stats,
+    };
+  }
+
+  update(id: string, updateZoneDto: UpdateZoneDto) {
+    return this.prisma.zone.update({ where: { id }, data: updateZoneDto });
+  }
+
+  remove(id: string) {
+    return this.prisma.zone.delete({ where: { id } });
+  }
+}
+
+
+
+# --- assignment-goals/assignment-goals.controller.ts ---
+import { Controller, Post, Body, Get, Param } from '@nestjs/common';
+import { AssignmentGoalsService } from './assignment-goals.service';
+import { AssignmentType } from '@prisma/client';
+
+@Controller('assignment-goals')
+export class AssignmentGoalsController {
+  constructor(private readonly assignmentGoalsService: AssignmentGoalsService) {}
+
+  @Post('assign-zone')
+  assignZone(
+    @Body('zoneId') zoneId: string,
+    @Body('assigneeId') assigneeId: string,
+    @Body('assignmentType') assignmentType: AssignmentType,
+  ) {
+    return this.assignmentGoalsService.assignZone(zoneId, assigneeId, assignmentType);
+  }
+
+  @Post('set-monthly-goal')
+  setMonthlyGoal(
+    @Body('commercialId') commercialId: string,
+    @Body('goal') goal: number,
+    @Body('month') month: number,
+    @Body('year') year: number,
+  ) {
+    return this.assignmentGoalsService.setMonthlyGoal(commercialId, goal);
+  }
+
+  @Get('manager/:managerId/zones')
+  getAssignedZonesForManager(@Param('managerId') managerId: string) {
+    return this.assignmentGoalsService.getAssignedZonesForManager(managerId);
+  }
+
+  @Get('commercial/:commercialId/zones')
+  getAssignedZonesForCommercial(@Param('commercialId') commercialId: string) {
+    return this.assignmentGoalsService.getAssignedZonesForCommercial(commercialId);
+  }
+
+  @Get('zone/:zoneId/commercials')
+  getCommercialsInZone(@Param('zoneId') zoneId: string) {
+    return this.assignmentGoalsService.getCommercialsInZone(zoneId);
+  }
+}
+
+
+# --- immeuble/immeuble.controller.ts ---
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { ImmeubleService } from './immeuble.service';
+import { CreateImmeubleDto } from './dto/create-immeuble.dto';
+import { UpdateImmeubleDto } from './dto/update-immeuble.dto';
+
+@Controller('immeubles')
+export class ImmeubleController {
+  constructor(private readonly immeubleService: ImmeubleService) {}
+
+  @Post()
+  create(@Body() createImmeubleDto: CreateImmeubleDto) {
+    return this.immeubleService.create(createImmeubleDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.immeubleService.findAll();
+  }
+
+  @Get(':id/details')
+  getImmeubleDetails(@Param('id') id: string) {
+    return this.immeubleService.getImmeubleDetails(id);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.immeubleService.findOne(id);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateImmeubleDto: UpdateImmeubleDto) {
+    return this.immeubleService.update(id, updateImmeubleDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.immeubleService.remove(id);
+  }
+}
+
+
+
+# --- equipe/equipe.controller.ts ---
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { EquipeService } from './equipe.service';
+import { CreateEquipeDto } from './dto/create-equipe.dto';
+import { UpdateEquipeDto } from './dto/update-equipe.dto';
+
+@Controller('equipes')
+export class EquipeController {
+  constructor(private readonly equipeService: EquipeService) {}
+
+  @Post()
+  create(@Body() createEquipeDto: CreateEquipeDto) {
+    return this.equipeService.create(createEquipeDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.equipeService.findAll();
+  }
+
+  @Get(':id/details')
+  getEquipeDetails(@Param('id') id: string) {
+    return this.equipeService.getEquipeDetails(id);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.equipeService.findOne(id);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateEquipeDto: UpdateEquipeDto) {
+    return this.equipeService.update(id, updateEquipeDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.equipeService.remove(id);
+  }
+}
+
+
+
+# --- zone/zone.controller.ts ---
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { ZoneService } from './zone.service';
+import { CreateZoneDto } from './dto/create-zone.dto';
+import { UpdateZoneDto } from './dto/update-zone.dto';
+
+@Controller('zones')
+export class ZoneController {
+  constructor(private readonly zoneService: ZoneService) {}
+
+  @Post()
+  create(@Body() createZoneDto: CreateZoneDto) {
+    return this.zoneService.create(createZoneDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.zoneService.findAll();
+  }
+
+  @Get(':id/details')
+  getZoneDetails(@Param('id') id: string) {
+    return this.zoneService.getZoneDetails(id);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.zoneService.findOne(id);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateZoneDto: UpdateZoneDto) {
+    return this.zoneService.update(id, updateZoneDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.zoneService.remove(id);
+  }
+}
+
+
+
+# --- app.module.ts ---
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { PrismaModule } from './prisma/prisma.module';
+import { ManagerModule } from './manager/manager.module';
+import { EquipeModule } from './equipe/equipe.module';
+import { CommercialModule } from './commercial/commercial.module';
+import { ZoneModule } from './zone/zone.module';
+import { ImmeubleModule } from './immeuble/immeuble.module';
+import { PorteModule } from './porte/porte.module';
+import { StatisticsModule } from './statistics/statistics.module';
+import { AssignmentGoalsModule } from './assignment-goals/assignment-goals.module';
+
+@Module({
+  imports: [PrismaModule, ManagerModule, EquipeModule, CommercialModule, ZoneModule, ImmeubleModule, PorteModule, StatisticsModule, AssignmentGoalsModule],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+
+
+
+# --- porte/porte.service.ts ---
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreatePorteDto } from './dto/create-porte.dto';
+import { UpdatePorteDto } from './dto/update-porte.dto';
+
+@Injectable()
+export class PorteService {
+  constructor(private prisma: PrismaService) {}
+
+  create(createPorteDto: CreatePorteDto) {
+    return this.prisma.porte.create({ data: createPorteDto });
+  }
+
+  findAll() {
+    return this.prisma.porte.findMany();
+  }
+
+  findOne(id: string) {
+    return this.prisma.porte.findUnique({ where: { id } });
+  }
+
+  update(id: string, updatePorteDto: UpdatePorteDto) {
+    return this.prisma.porte.update({ where: { id }, data: updatePorteDto });
+  }
+
+  remove(id: string) {
+    return this.prisma.porte.delete({ where: { id } });
+  }
+}
+
+
+
+# --- immeuble/dto/create-immeuble.dto.ts ---
+import { ImmeubleStatus, ProspectingMode } from '@prisma/client';
+
+export class CreateImmeubleDto {
+  adresse: string;
+  ville: string;
+  codePostal: string;
+  status?: ImmeubleStatus;
+  nbPortesTotal: number;
+  prospectingMode: ProspectingMode;
+  dateDerniereVisite?: Date;
+  zoneId: string;
+  latitude: number;
+  longitude: number;
+  hasElevator: boolean;
+  digicode?: string;
+  prospectorsIds?: string[];
+}
+
+
+
+# --- assignment-goals/assignment-goals.module.ts ---
+import { Module } from "@nestjs/common";
+import { AssignmentGoalsService } from "./assignment-goals.service";
+import { AssignmentGoalsController } from "./assignment-goals.controller";
+import { PrismaModule } from "../prisma/prisma.module";
+
+@Module({
+  imports: [PrismaModule],
+  controllers: [AssignmentGoalsController],
+  providers: [AssignmentGoalsService],
+})
+export class AssignmentGoalsModule {}
+
+
+# --- main.ts ---
+import 'dotenv/config'; 
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  app.enableCors({
+    origin: 'http://localhost:5173',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+
+  await app.listen(process.env.PORT ?? 3000);
+}
+bootstrap();
+
+
+
+# --- commercial/commercial.module.ts ---
+import { Module } from '@nestjs/common';
+import { CommercialService } from './commercial.service';
+import { CommercialController } from './commercial.controller';
+import { PrismaModule } from '../prisma/prisma.module';
+
+@Module({
+  imports: [PrismaModule],
+  controllers: [CommercialController],
+  providers: [CommercialService],
+})
+export class CommercialModule {}
+
+
+
+# --- manager/manager.module.ts ---
+import { Module } from '@nestjs/common';
+import { ManagerService } from './manager.service';
+import { ManagerController } from './manager.controller';
+import { PrismaModule } from '../prisma/prisma.module';
+
+@Module({
+  imports: [PrismaModule],
+  controllers: [ManagerController],
+  providers: [ManagerService],
+})
+export class ManagerModule {}
+
+
+
+# --- porte/porte.module.ts ---
+import { Module } from '@nestjs/common';
+import { PorteService } from './porte.service';
+import { PorteController } from './porte.controller';
+import { PrismaModule } from '../prisma/prisma.module';
+
+@Module({
+  imports: [PrismaModule],
+  controllers: [PorteController],
+  providers: [PorteService],
+})
+export class PorteModule {}
+
+
+
+# --- zone/dto/create-zone.dto.ts ---
+import { AssignmentType } from '@prisma/client';
+
+export class CreateZoneDto {
+  nom: string;
+  latitude: number;
+  longitude: number;
+  rayonMetres: number;
+  couleur: string;
+  typeAssignation: AssignmentType;
+  equipeId?: string;
+  managerId?: string;
+  commercialId?: string;
+}
+
+
+
+# --- commercial/dto/update-commercial.dto.ts ---
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateCommercialDto } from './create-commercial.dto';
+
+export class UpdateCommercialDto extends PartialType(CreateCommercialDto) {}
+
+
+
+# --- porte/dto/create-porte.dto.ts ---
+import { PorteStatut } from '@prisma/client';
+
+export class CreatePorteDto {
+  numeroPorte: string;
+  statut: PorteStatut;
+  passage: number;
+  commentaire?: string;
+  immeubleId: string;
+}
+
+
+
+# --- manager/dto/update-manager.dto.ts ---
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateManagerDto } from './create-manager.dto';
+
+export class UpdateManagerDto extends PartialType(CreateManagerDto) {}
+
+
+
+# --- porte/dto/update-porte.dto.ts ---
+import { PartialType } from '@nestjs/mapped-types';
+import { CreatePorteDto } from './create-porte.dto';
+
+export class UpdatePorteDto extends PartialType(CreatePorteDto) {}
+
+
+
+# --- commercial/dto/create-commercial.dto.ts ---
+export class CreateCommercialDto {
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone?: string;
+  equipeId: string;
+  managerId: string;
+}
+
+
+
+# --- manager/dto/create-manager.dto.ts ---
+export class CreateManagerDto {
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone?: string;
+}
+
