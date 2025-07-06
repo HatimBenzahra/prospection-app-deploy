@@ -29,18 +29,18 @@ model Equipe {
 }
 
 model Commercial {
-  id          String                  @id @default(uuid())
-  nom         String
-  prenom      String
-  email       String                  @unique
-  telephone   String?
-  equipeId    String? // Made optional
-  managerId   String
-  equipe      Equipe?                 @relation(fields: [equipeId], references: [id]) // Made optional
-  historiques HistoriqueProspection[]
-  zones       Zone[]                  @relation("CommercialZones")
-  immeubles   Immeuble[]              @relation("ImmeubleProspectors")
+  id                 String                  @id @default(uuid())
+  nom                String
+  prenom             String
+  email              String                  @unique
+  telephone          String?
+  equipeId           String?
+  managerId          String
   currentMonthlyGoal Int?
+  equipe             Equipe?                 @relation(fields: [equipeId], references: [id])
+  historiques        HistoriqueProspection[]
+  zones              Zone[]                  @relation("CommercialZones")
+  immeubles          Immeuble[]              @relation("ImmeubleProspectors")
 }
 
 model Zone {
@@ -107,8 +107,6 @@ model HistoriqueProspection {
   commercial       Commercial @relation(fields: [commercialId], references: [id])
   immeuble         Immeuble   @relation(fields: [immeubleId], references: [id])
 }
-
-
 
 enum ImmeubleStatus {
   A_VISITER
