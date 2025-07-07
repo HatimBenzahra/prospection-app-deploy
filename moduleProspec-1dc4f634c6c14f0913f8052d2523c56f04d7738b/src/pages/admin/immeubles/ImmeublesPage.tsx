@@ -43,6 +43,8 @@ const ImmeublesPage = () => {
                 }
                 
                 const prospecteurs = Array.isArray(imm.prospectors) ? imm.prospectors : [];
+                const portes = Array.isArray(imm.portes) ? imm.portes : [];
+                const historiques = Array.isArray(imm.historiques) ? imm.historiques : [];
                 
                 return {
                     id: imm.id,
@@ -50,15 +52,15 @@ const ImmeublesPage = () => {
                     ville: imm.ville,
                     codePostal: imm.codePostal,
                     status: statusText,
-                    nbPortes: imm.portes.length,
-                    nbPortesProspectees: imm.historiques.reduce((acc, h) => acc + h.nbPortesVisitees, 0),
+                    nbPortes: portes.length,
+                    nbPortesProspectees: historiques.reduce((acc, h) => acc + h.nbPortesVisitees, 0),
                     prospectingMode: prospecteurs.length > 1 ? "Duo" : "Solo",
                     prospectors: prospecteurs.map((p: { id: string; prenom: string; nom: string; }) => ({
                         id: p.id,
                         nom: `${p.prenom || ''} ${p.nom || ''}`.trim(),
                         avatarFallback: `${p.prenom?.[0] || ''}${p.nom?.[0] || ''}`.toUpperCase()
                     })),
-                    dateVisite: imm.historiques.length > 0 ? imm.historiques[0].dateProspection : null,
+                    dateVisite: historiques.length > 0 ? historiques[0].dateProspection : null,
                     zone: imm.zone?.nom || 'N/A',
                     zoneId: imm.zone?.id || '',
                     latlng: [imm.latitude, imm.longitude],
