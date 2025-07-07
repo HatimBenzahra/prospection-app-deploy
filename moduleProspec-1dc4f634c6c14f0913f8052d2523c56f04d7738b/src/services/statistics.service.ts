@@ -4,7 +4,7 @@ import axios from 'axios';
 const API_URL = 'http://localhost:3000/statistics';
 
 // Définition des types pour les filtres
-export type PeriodType = 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+export type PeriodType = 'WEEK' | 'MONTH' | 'YEAR';
 export type StatEntityType = 'COMMERCIAL' | 'EQUIPE' | 'MANAGER';
 
 export interface StatisticsQuery {

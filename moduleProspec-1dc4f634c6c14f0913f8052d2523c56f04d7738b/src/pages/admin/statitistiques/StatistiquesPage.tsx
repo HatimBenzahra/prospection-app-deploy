@@ -1,129 +1,215 @@
-// src/pages/admin/commerciaux/CommercialDetailsPage.tsx
-import { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { 
-    ArrowLeft, BarChart2, Briefcase, CheckCircle, Target, Building, Trophy,
-    Zap, TrendingUp, Shuffle, Clock, XCircle
-} from 'lucide-react';
+// src/pages/admin/statistiques/StatistiquesPage.tsx
+import { useState, useMemo, useEffect } from 'react';
+import { statisticsService } from '@/services/statistics.service';
+import type { PeriodType, StatEntityType } from '@/services/statistics.service';
 
-import { Button } from '@/components/ui-admin/button';
-import { Skeleton } from '@/components/ui-admin/skeleton';
+// --- Imports des Composants ---
 import StatCard from '@/components/ui-admin/StatCard';
-import { GenericLineChart } from '@/components/charts/GenericLineChart';
+import { GenericBarChart } from '@/components/charts/GenericBarChart';
 import { GenericPieChart } from '@/components/charts/GenericPieChart';
-import { commercialService } from '@/services/commercial.service';
-import { cn } from '@/lib/utils'; // N'oubliez pas d'importer 'cn'
+import { LeaderboardTable } from './LeaderboardTable';
+import { Button } from '@/components/ui-admin/button';
+import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-admin/select";
 
-const CommercialDetailsPage = () => {
-    const { commercialId } = useParams<{ commercialId: string }>();
-    const navigate = useNavigate();
-    const [commercial, setCommercial] = useState<any>(null);
+
+// --- Imports des Icônes ---
+import { 
+    BarChart3, Briefcase, FileSignature, Target
+} from 'lucide-react';
+import { managerService } from '@/services/manager.service';
+import { equipeService } from '@/services/equipe.service';
+import { commercialService } from '@/services/commercial.service';
+
+const StatistiquesPage = () => {
+    const [timeFilter, setTimeFilter] = useState<PeriodType>('MONTH');
+    const [entityType, setEntityType] = useState<StatEntityType | 'ALL'>('ALL');
+    const [entityId, setEntityId] = useState<string | undefined>(undefined);
+    
+    const [statsData, setStatsData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [activePreset, setActivePreset] = useState('week');
-    const [currentStats, setCurrentStats] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const [entities, setEntities] = useState<{ id: string, nom: string }[]>([]);
+    const [loadingEntities, setLoadingEntities] = useState(false);
 
     useEffect(() => {
-        if (commercialId) {
-            setLoading(true);
-            commercialService.getCommercialDetails(commercialId)
-                .then(data => {
-                    setCommercial(data);
-                    setCurrentStats(data.stats?.WEEKLY || {});
-                })
-                .catch(err => {
-                    console.error("Erreur chargement détails commercial:", err);
-                    setCommercial(null);
-                })
-                .finally(() => setLoading(false));
-        }
-    }, [commercialId]);
-    
-    const handlePresetClick = (preset: string) => {
-        setActivePreset(preset);
-        if (!commercial?.stats) return;
+        const fetchEntities = async () => {
+            if (entityType === 'ALL') {
+                setEntities([]);
+                setEntityId(undefined);
+                return;
+            }
+            setLoadingEntities(true);
+            try {
+                let data: any[] = [];
+                if (entityType === 'MANAGER') {
+                    data = await managerService.getManagers();
+                } else if (entityType === 'EQUIPE') {
+                    data = await equipeService.getEquipes();
+                } else if (entityType === 'COMMERCIAL') {
+                    data = await commercialService.getCommerciaux();
+                }
+                setEntities(data.map((e: any) => ({ id: e.id, nom: e.nom || `${e.prenom} ${e.nom}` })));
+            } catch (err) {
+                console.error("Failed to fetch entities:", err);
+                setEntities([]);
+            } finally {
+                setLoadingEntities(false);
+            }
+        };
 
-        if (preset === 'week') setCurrentStats(commercial.stats.WEEKLY || {});
-        if (preset === 'month') setCurrentStats(commercial.stats.MONTHLY || {});
-        if (preset === 'year') setCurrentStats(commercial.stats.YEARLY || {});
+        fetchEntities();
+    }, [entityType]);
+
+    useEffect(() => {
+        const fetchStatistics = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const query = {
+                    period: timeFilter,
+                    ...(entityType !== 'ALL' && { entityType }),
+                    ...(entityType !== 'ALL' && entityId && { entityId }),
+                };
+                const data = await statisticsService.getStatistics(query);
+                setStatsData(data);
+            } catch (err) {
+                setError("Impossible de charger les statistiques.");
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchStatistics();
+    }, [timeFilter, entityType, entityId]);
+
+    const handleEntityTypeChange = (value: string) => {
+        setEntityType(value as StatEntityType | 'ALL');
+        setEntityId(undefined); // Reset entityId when type changes
     };
 
-    const rdvContratsHistory = useMemo(() => [
-        { name: 'S-4', rdv: 5, contrats: 1 },
-        { name: 'Actuel', rdv: currentStats?.rdvPris || 0, contrats: currentStats?.contratsSignes || 0 }
-    ], [currentStats]);
-    
-    const pieChartData = useMemo(() => {
-        if (!currentStats) return [];
-        const rdvSansContrat = (currentStats.rdvPris || 0) - (currentStats.contratsSignes || 0);
-        return [
-            { name: 'Contrats Signés', value: currentStats.contratsSignes || 0 },
-            { name: 'RDV sans contrat', value: rdvSansContrat < 0 ? 0 : rdvSansContrat }
-        ];
-    }, [currentStats]);
+    const handleEntityIdChange = (value: string) => {
+        setEntityId(value === 'ALL' ? undefined : value);
+    };
 
+    const currentData = useMemo(() => {
+        if (!statsData) return null;
+        
+        const kpis = {
+            contratsSignes: statsData.totalContrats ?? 0,
+            rdvPris: statsData.totalRdv ?? 0,
+            tauxConclusionGlobal: statsData.tauxConclusion ?? 0,
+            portesVisitees: statsData.totalPortesVisitees ?? 0,
+        };
 
-    if (loading) {
-        return (
-            <div className="space-y-6 animate-pulse p-6">
-                <Skeleton className="h-10 w-48" />
-                <Skeleton className="h-24 w-full" />
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">{[...Array(10)].map((_, i) => <Skeleton key={i} className="h-28 rounded-lg" />)}</div>
-                <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2"><Skeleton className="h-96 rounded-lg" /><Skeleton className="h-96 rounded-lg" /></div>
-            </div>
-        )
-    }
-    if (!commercial || !currentStats) return <div className="p-6">Données du commercial non trouvées.</div>;
-    
+        const mapToPerformer = (item: any, index: number) => ({
+            rank: index + 1,
+            name: item.name,
+            avatar: item.name.substring(0, 2).toUpperCase(),
+            value: item.value,
+            change: 0, // La propriété 'change' n'est pas fournie par l'API
+        });
+
+        const leaderboards = {
+            managers: statsData.leaderboards?.managers.map(mapToPerformer) ?? [],
+            equipes: statsData.leaderboards?.equipes.map(mapToPerformer) ?? [],
+            commerciaux: statsData.leaderboards?.commerciaux.map(mapToPerformer) ?? [],
+        };
+
+        const charts = {
+            contratsParEquipe: statsData.contratsParEquipe ?? [],
+            repartitionParManager: statsData.repartitionParManager ?? [],
+        };
+
+        return { kpis, leaderboards, charts };
+    }, [statsData]);
+
+    if (loading) return <div>Chargement des statistiques...</div>;
+    if (error) return <div className="text-red-500">{error}</div>;
+    if (!currentData) return <div>Aucune donnée disponible.</div>;
+
     return (
-        <div className="space-y-6">
-            <Button variant="outline" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" />Retour</Button>
-            
-            <div className="rounded-lg border bg-card text-card-foreground p-6 shadow">
-                <h3 className="text-2xl font-semibold">{commercial.prenom} {commercial.nom}</h3>
-                <p className="text-sm text-muted-foreground pt-1.5">Équipe : {commercial.equipe.nom} | Manager : {commercial.manager.prenom} {commercial.manager.nom}</p>
-            </div>
+        <div className="space-y-8">
+            <div className="flex flex-wrap gap-4 justify-between items-center border-b pb-4">
+                <h1 className="text-3xl font-bold tracking-tight">Statistiques Générales</h1>
+                <div className="flex items-center gap-2">
+                    <Select onValueChange={handleEntityTypeChange} defaultValue="ALL">
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Filtrer par type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Général</SelectItem>
+                            <SelectItem value="MANAGER">Manager</SelectItem>
+                            <SelectItem value="EQUIPE">Équipe</SelectItem>
+                            <SelectItem value="COMMERCIAL">Commercial</SelectItem>
+                        </SelectContent>
+                    </Select>
 
-            <div className="flex flex-wrap gap-x-6 gap-y-4 justify-between items-center border-b pb-4">
-                <h2 className="text-2xl font-semibold flex items-baseline gap-3"><BarChart2 className="h-6 w-6 text-primary self-center" /><span>Statistiques de performance</span></h2>
-                <div className="flex items-center gap-1 rounded-lg border p-1 bg-muted/50">
-                    {/* --- CORRECTION DES BOUTONS ICI --- */}
-                    <Button 
-                        variant='ghost' 
-                        className={cn("transition-all", activePreset === 'week' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair))]' : 'text-black hover:bg-zinc-100')} 
-                        onClick={() => handlePresetClick('week')}
-                    >Cette semaine</Button>
-                    <Button 
-                        variant='ghost' 
-                        className={cn("transition-all", activePreset === 'month' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair))]' : 'text-black hover:bg-zinc-100')} 
-                        onClick={() => handlePresetClick('month')}
-                    >Ce mois</Button>
-                    <Button 
-                        variant='ghost' 
-                        className={cn("transition-all", activePreset === 'year' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair))]' : 'text-black hover:bg-zinc-100')} 
-                        onClick={() => handlePresetClick('year')}
-                    >Cette année</Button>
+                    {entityType !== 'ALL' && (
+                        <Select onValueChange={handleEntityIdChange} value={entityId || 'ALL'} disabled={loadingEntities}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder={`Sélectionner ${entityType.toLowerCase()}`} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Tous</SelectItem>
+                                {entities.map(e => <SelectItem key={e.id} value={e.id}>{e.nom}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    )}
+                </div>
+                <div className="flex items-center gap-1 rounded-lg border p-1 bg-white">
+                    <Button variant='ghost' onClick={() => setTimeFilter('WEEK')} className={cn("transition-all", timeFilter === 'WEEK' ? 'bg-blue-100 text-blue-800' : '')}>Cette semaine</Button>
+                    <Button variant='ghost' onClick={() => setTimeFilter('MONTH')} className={cn("transition-all", timeFilter === 'MONTH' ? 'bg-blue-100 text-blue-800' : '')}>Ce mois</Button>
+                    <Button variant='ghost' onClick={() => setTimeFilter('YEAR')} className={cn("transition-all", timeFilter === 'YEAR' ? 'bg-blue-100 text-blue-800' : '')}>Cette année</Button>
                 </div>
             </div>
-            
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                <StatCard title="RDV Pris" value={currentStats.rdvPris || 0} Icon={Briefcase} />
-                <StatCard title="Contrats Signés" value={currentStats.contratsSignes || 0} Icon={CheckCircle} />
-                <StatCard title="Taux Conclusion" value={currentStats.tauxConclusion || 0} Icon={Target} suffix="%" />
-                <StatCard title="Classement Équipe" value={currentStats.classementEquipe || 0} Icon={Trophy} prefix="#" />
-                <StatCard title="Taux Transfo." value={currentStats.tauxTransformationPorteRdv || 0} Icon={Shuffle} suffix="%" />
-                <StatCard title="Portes Prospectées" value={currentStats.portesProspectees || 0} Icon={Building} />
-                <StatCard title="Refus" value={currentStats.refusEnregistres || 0} Icon={XCircle} />
-                <StatCard title="Heures Prospect." value={currentStats.heuresProspectees || 0} Icon={Clock} suffix="h" />
-                <StatCard title="RDV / Heure" value={currentStats.rdvParHeure || 0} Icon={Zap} />
-                <StatCard title="Contrats / Jour" value={0} Icon={TrendingUp} />
-            </div>
 
-             <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
-                 <GenericLineChart title="Historique RDV vs Contrats" data={rdvContratsHistory} xAxisDataKey="name" lines={[{ dataKey: 'rdv', name: "RDV Pris", stroke: "hsl(var(--chart-1))" }, { dataKey: 'contrats', name: "Contrats Signés", stroke: "hsl(var(--chart-5))" }]} />
-                 <GenericPieChart title="Répartition des Résultats de RDV" data={pieChartData} dataKey="value" nameKey="name" colors={['hsl(var(--chart-5))', 'hsl(var(--chart-1))']} />
-            </div>
+            <section>
+                <h2 className="text-xl font-semibold mb-4 text-zinc-800">Indicateurs de Performance Clés (KPIs)</h2>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <StatCard title="Contrats Signés" value={currentData.kpis.contratsSignes} Icon={FileSignature} color="text-emerald-500" />
+                    <StatCard title="RDV Pris" value={currentData.kpis.rdvPris} Icon={Briefcase} color="text-sky-500" />
+                    <StatCard title="Portes Visitées" value={currentData.kpis.portesVisitees} Icon={BarChart3} color="text-orange-500" />
+                    <StatCard title="Taux de Conclusion Global" value={currentData.kpis.tauxConclusionGlobal} Icon={Target} suffix="%" color="text-violet-500" />
+                </div>
+            </section>
+
+            <section>
+                <h2 className="text-xl font-semibold mb-4 text-zinc-800">Classements</h2>
+                <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
+                    <LeaderboardTable title="Top Managers" description="Basé sur le nombre de contrats signés." data={currentData.leaderboards.managers} unit="Contrats" />
+                    <LeaderboardTable title="Top Équipes" description="Basé sur le nombre de contrats signés." data={currentData.leaderboards.equipes} unit="Contrats" />
+                    <LeaderboardTable title="Top Commerciaux" description="Basé sur le nombre de contrats signés." data={currentData.leaderboards.commerciaux} unit="Contrats" />
+                </div>
+            </section>
+
+            <section>
+                <h2 className="text-xl font-semibold mb-4 text-zinc-800">Visualisations Détaillées</h2>
+                <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-7">
+                    <div className="lg:col-span-4">
+                        <GenericBarChart
+                            title="Contrats par Équipe"
+                            data={currentData.charts.contratsParEquipe}
+                            xAxisDataKey="name"
+                            barDataKey="value"
+                            fillColor="hsl(var(--primary))"
+                        />
+                    </div>
+                    <div className="lg:col-span-3">
+                        <GenericPieChart
+                            title="Répartition des Contrats par Manager"
+                            data={currentData.charts.repartitionParManager}
+                            dataKey="value"
+                            nameKey="name"
+                            colors={['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-4))']}
+                        />
+                    </div>
+                </div>
+            </section>
         </div>
     );
 };
 
-export default CommercialDetailsPage;
+export default StatistiquesPage;

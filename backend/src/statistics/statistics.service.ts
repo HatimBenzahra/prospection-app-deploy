@@ -224,93 +224,118 @@ export class StatisticsService {
   ) {
     const getStartDate = (period: PeriodType) => {
       const now = new Date();
-      if (period === 'WEEKLY') {
-        const dayOfWeek = now.getDay();
-        const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-        return new Date(now.setDate(diff));
-      } else if (period === 'MONTHLY') {
-        return new Date(now.getFullYear(), now.getMonth(), 1);
-      } else if (period === 'YEARLY') {
-        return new Date(now.getFullYear(), 0, 1);
+      let startDate: Date;
+
+      if (period === PeriodType.WEEK) {
+        const currentDay = now.getDay();
+        const diff = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
+        startDate = new Date(new Date().setDate(diff));
+      } else if (period === PeriodType.MONTH) {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      } else if (period === PeriodType.YEAR) {
+        startDate = new Date(now.getFullYear(), 0, 1);
+      } else {
+        return undefined;
       }
-      return undefined; // Should not happen with enum validation
+      startDate.setHours(0, 0, 0, 0);
+      return startDate;
     };
 
     const startDate = getStartDate(period);
+    console.log(
+      `[STATS] Fetching stats for period '${period}' from date ${startDate?.toISOString()}`,
+    );
 
-    const whereConditions: Prisma.HistoriqueProspectionWhereInput = {
-      dateProspection: {
-        gte: startDate,
-      },
+    const where: Prisma.HistoriqueProspectionWhereInput = {
+      dateProspection: { gte: startDate },
     };
 
     if (entityId && entityType) {
-      switch (entityType) {
-        case 'COMMERCIAL':
-          whereConditions.commercialId = entityId;
-          break;
-        case 'EQUIPE':
-          whereConditions.commercial = { equipeId: entityId };
-          break;
-        case 'MANAGER':
-          whereConditions.commercial = { equipe: { managerId: entityId } };
-          break;
+      if (entityType === 'COMMERCIAL') where.commercialId = entityId;
+      if (entityType === 'EQUIPE') where.commercial = { equipeId: entityId };
+      if (entityType === 'MANAGER')
+        where.commercial = { equipe: { managerId: entityId } };
+    }
+    console.log('[STATS] Using where clause:', JSON.stringify(where, null, 2));
+
+    const historiques = await this.prisma.historiqueProspection.findMany({
+      where,
+      include: {
+        commercial: { include: { equipe: { include: { manager: true } } } },
+      },
+    });
+    console.log(`[STATS] Found ${historiques.length} prospection histories.`);
+
+    // --- AGGREGATION ---
+
+    const kpis = historiques.reduce(
+      (acc, h) => {
+        acc.contrats += h.nbContratsSignes;
+        acc.rdv += h.nbRdvPris;
+        acc.portes += h.nbPortesVisitees;
+        return acc;
+      },
+      { contrats: 0, rdv: 0, portes: 0 },
+    );
+
+    const commerciauxStats: { [id: string]: { name: string; value: number } } =
+      {};
+    const equipesStats: { [id: string]: { name: string; value: number } } = {};
+    const managersStats: { [id: string]: { name: string; value: number } } = {};
+
+    for (const h of historiques) {
+      if (!h.commercial) continue;
+      const comm = h.commercial;
+      const equipe = comm.equipe;
+      const manager = equipe?.manager;
+
+      // Commercial
+      if (!commerciauxStats[comm.id])
+        commerciauxStats[comm.id] = {
+          name: `${comm.prenom} ${comm.nom}`,
+          value: 0,
+        };
+      commerciauxStats[comm.id].value += h.nbContratsSignes;
+
+      // Equipe
+      if (equipe) {
+        if (!equipesStats[equipe.id])
+          equipesStats[equipe.id] = { name: equipe.nom, value: 0 };
+        equipesStats[equipe.id].value += h.nbContratsSignes;
+      }
+
+      // Manager
+      if (manager) {
+        if (!managersStats[manager.id])
+          managersStats[manager.id] = {
+            name: `${manager.prenom} ${manager.nom}`,
+            value: 0,
+          };
+        managersStats[manager.id].value += h.nbContratsSignes;
       }
     }
 
-    const historiques: (HistoriqueProspection & { commercial: Commercial })[] =
-      await this.prisma.historiqueProspection.findMany({
-        where: whereConditions,
-        include: {
-          commercial: true,
-        },
-        orderBy: {
-          dateProspection: 'asc',
-        },
-      });
-
-    const stats = historiques.reduce(
-      (acc, h) => {
-        acc.totalContratsSignes += h.nbContratsSignes;
-        acc.totalRdvPris += h.nbRdvPris;
-        acc.totalPortesVisitees += h.nbPortesVisitees;
-        acc.totalRefus += h.nbRefus;
-        acc.totalAbsents += h.nbAbsents;
-        return acc;
-      },
-      {
-        totalContratsSignes: 0,
-        totalRdvPris: 0,
-        totalPortesVisitees: 0,
-        totalRefus: 0,
-        totalAbsents: 0,
-      },
-    );
-
-    const tauxDeConversion =
-      stats.totalPortesVisitees > 0
-        ? (stats.totalContratsSignes / stats.totalPortesVisitees) * 100
-        : 0;
-
-    const performanceHistory = this.calculatePerformanceHistory(
-      historiques,
-      period,
-    );
-    const repartitionStatuts = {
-      'Contrats Signés': stats.totalContratsSignes,
-      Refus: stats.totalRefus,
-      Absents: stats.totalAbsents,
+    const toLeaderboard = (stats: {
+      [id: string]: { name: string; value: number };
+    }) => {
+      return Object.values(stats)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10) // Top 10
+        .map((d, i) => ({ ...d, rank: i + 1 }));
     };
 
     return {
-      kpis: {
-        totalContratsSignes: stats.totalContratsSignes,
-        totalRdvPris: stats.totalRdvPris,
-        totalPortesVisitees: stats.totalPortesVisitees,
-        tauxDeConversion: parseFloat(tauxDeConversion.toFixed(2)),
+      totalContrats: kpis.contrats,
+      totalRdv: kpis.rdv,
+      totalPortesVisitees: kpis.portes,
+      tauxConclusion: kpis.rdv > 0 ? (kpis.contrats / kpis.rdv) * 100 : 0,
+      leaderboards: {
+        managers: toLeaderboard(managersStats),
+        equipes: toLeaderboard(equipesStats),
+        commerciaux: toLeaderboard(commerciauxStats),
       },
-      performanceHistory,
-      repartitionStatuts,
+      contratsParEquipe: Object.values(equipesStats), // For bar chart
+      repartitionParManager: Object.values(managersStats), // For pie chart
     };
   }
 
@@ -319,11 +344,11 @@ export class StatisticsService {
     period: PeriodType,
   ) {
     const formatKey = (date: Date) => {
-      if (period === 'WEEKLY') {
+      if (period === PeriodType.WEEK) {
         const startOfWeek = new Date(date);
         startOfWeek.setDate(date.getDate() - date.getDay() + 1);
         return startOfWeek.toISOString().substring(0, 10);
-      } else if (period === 'MONTHLY') {
+      } else if (period === PeriodType.MONTH) {
         return date.toISOString().substring(0, 7); // YYYY-MM
       } else {
         // YEARLY
