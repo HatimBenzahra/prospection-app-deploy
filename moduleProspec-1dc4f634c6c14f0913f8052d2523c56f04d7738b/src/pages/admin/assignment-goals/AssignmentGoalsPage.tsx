@@ -1,216 +1,139 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui-admin/select';
-import { Button } from '@/components/ui-admin/button';
-import { Input } from '@/components/ui-admin/input';
-import { Label } from '@/components/ui-admin/label';
-import { Users, MapPin, Target } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
+
+// Services
 import { commercialService } from '@/services/commercial.service';
 import { zoneService } from '@/services/zone.service';
 import { managerService } from '@/services/manager.service';
 import { assignmentGoalsService } from '@/services/assignment-goals.service';
-import MapComponent from '@/components/MapComponent';
-import { AssignmentType } from '@/types/assignment-type';
 
-interface Commercial {
-  id: string;
-  nom: string;
-  prenom: string;
-}
+// Types (supposons qu'ils sont dans un fichier types.ts)
+import { AssignmentType } from '@/types/enums';
+import { Commercial, Manager, Zone } from '@/types/types';
 
-interface Manager {
-  id: string;
-  nom: string;
-  prenom: string;
-}
+// Composants enfants (à créer dans les fichiers suivants)
+import { ZoneAssignmentCard } from '@/components/page-components/ZoneAssignmentCard';
+import { GoalSettingCard } from '@/components/page-components/GoalSettingCard';
+import { ZoneMapViewer } from '@/components/page-components/ZoneMapViewer';
 
-interface Zone {
-  id: string;
-  nom: string;
-  latitude: number;
-  longitude: number;
-  rayonMetres: number;
-}
 
 const AssignmentGoalsPage = () => {
-  const [commercials, setCommercials] = useState<Commercial[]>([]);
-  const [managers, setManagers] = useState<Manager[]>([]);
-  const [zones, setZones] = useState<Zone[]>([]);
-  const [selectedZone, setSelectedZone] = useState<string>('');
-  const [selectedZoneDetails, setSelectedZoneDetails] = useState<Zone | null>(null);
-  const [selectedAssigneeType, setSelectedAssigneeType] = useState<AssignmentType>(AssignmentType.COMMERCIAL);
-  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>('');
-  const [monthlyGoalCommercialId, setMonthlyGoalCommercialId] = useState<string>('');
-  const [monthlyGoal, setMonthlyGoal] = useState<number>(0);
+  // --- STATE MANAGEMENT ---
+  const [data, setData] = useState<{
+    commercials: Commercial[];
+    managers: Manager[];
+    zones: Zone[];
+  }>({ commercials: [], managers: [], zones: [] });
+  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
 
+  // --- DATA FETCHING ---
   useEffect(() => {
     const fetchData = async () => {
-      const [commercialsData, zonesData, managersData] = await Promise.all([
-        commercialService.getCommerciaux(),
-        zoneService.getZones(),
-        managerService.getManagers(),
-      ]);
-      setCommercials(commercialsData);
-      setZones(zonesData);
-      setManagers(managersData);
+      try {
+        setLoading(true);
+        const [commercialsData, zonesData, managersData] = await Promise.all([
+          commercialService.getCommerciaux(),
+          zoneService.getZones(),
+          managerService.getManagers(),
+        ]);
+        setData({ commercials: commercialsData, zones: zonesData, managers: managersData });
+      } catch (err) {
+        console.error("Failed to fetch initial data:", err);
+        setError("Impossible de charger les données. Veuillez rafraîchir la page.");
+        toast.error("Erreur de chargement des données.");
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
   }, []);
 
-  useEffect(() => {
-    if (selectedZone) {
-      const zone = zones.find(z => z.id === selectedZone);
-      setSelectedZoneDetails(zone || null);
-    }
-  }, [selectedZone, zones]);
-
-  const handleAssignZone = async () => {
-    if (selectedZone && selectedAssigneeId && selectedAssigneeType) {
-      try {
-        await assignmentGoalsService.assignZone(selectedZone, selectedAssigneeId, selectedAssigneeType);
-        alert('Zone assignée avec succès!');
-      } catch (error) {
-        console.error("Erreur lors de l'assignation de la zone:", error);
-        alert("Erreur lors de l'assignation de la zone.");
-      }
-    } else {
-      alert('Veuillez sélectionner une zone, un type d\'assignation et un assigné.');
+  // --- HANDLERS ---
+  const handleAssignZone = async (zoneId: string, assigneeId: string, assigneeType: AssignmentType) => {
+    try {
+      await assignmentGoalsService.assignZone(zoneId, assigneeId, assigneeType);
+      toast.success('Zone assignée avec succès!', {
+        description: `La zone a été assignée à l'${assigneeType}.`,
+      });
+    } catch (error) {
+      console.error("Erreur lors de l'assignation de la zone:", error);
+      toast.error("Erreur lors de l'assignation de la zone.");
     }
   };
 
-  const handleSetGoal = async () => {
-    if (monthlyGoalCommercialId && monthlyGoal > 0) {
-      try {
-        await assignmentGoalsService.setMonthlyGoal(monthlyGoalCommercialId, monthlyGoal, new Date().getMonth() + 1, new Date().getFullYear());
-        alert('Objectif mensuel défini avec succès!');
-      } catch (error) {
-        console.error("Erreur lors de la définition de l'objectif:", error);
-        alert("Erreur lors de la définition de l'objectif.");
-      }
-    } else {
-      alert('Veuillez sélectionner un commercial et définir un objectif valide.');
+  const handleSetGoal = async (commercialId: string, goal: number) => {
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    try {
+      await assignmentGoalsService.setMonthlyGoal(commercialId, goal, currentMonth, currentYear);
+      toast.success('Objectif mensuel défini avec succès!', {
+        description: `L'objectif de ${goal} contrats a été fixé.`,
+      });
+    } catch (error) {
+      console.error("Erreur lors de la définition de l'objectif:", error);
+      toast.error("Erreur lors de la définition de l'objectif.");
     }
   };
+  
+  const handleSelectZone = (zoneId: string) => {
+    const zone = data.zones.find(z => z.id === zoneId) || null;
+    setSelectedZone(zone);
+  }
 
-  const assigneeOptions = selectedAssigneeType === AssignmentType.COMMERCIAL
-    ? commercials.map(c => ({ id: c.id, nom: `${c.prenom} ${c.nom}` }))
-    : managers.map(m => ({ id: m.id, nom: `${m.prenom} ${m.nom}` }));
+  // --- RENDER LOGIC ---
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-16 w-16 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-red-500">
+        <AlertCircle className="h-16 w-16 mb-4" />
+        <h2 className="text-2xl font-semibold">Une erreur est survenue</h2>
+        <p>{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 flex flex-col">
-      <h1 className="text-4xl font-extrabold text-gray-800 mb-8 border-b-2 pb-4 border-gray-200">Assignations et Objectifs</h1>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 flex-grow">
-        <div className="space-y-10">
-          <Card className="shadow-lg border-l-4 border-blue-500">
-            <CardHeader>
-              <CardTitle className="flex items-center text-blue-700">
-                <MapPin className="mr-2 h-6 w-6" /> Assignation de Zone
-              </CardTitle>
-              <CardDescription>Assignez des zones géographiques aux commerciaux ou aux managers pour la prospection.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 p-6">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <MapPin className="h-5 w-5 text-gray-500" />
-                  <Select onValueChange={setSelectedZone} value={selectedZone}>
-                    <SelectTrigger id="zone-select" className="w-full"><SelectValue placeholder="Sélectionner une zone" /></SelectTrigger>
-                    <SelectContent>
-                      {zones.map(z => (
-                        <SelectItem key={z.id} value={z.id}>{z.nom}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="assignee-type-select">Type d'assignation</Label>
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-5 w-5 text-gray-500" />
-                    <Select onValueChange={(value: AssignmentType) => {
-                      setSelectedAssigneeType(value);
-                      setSelectedAssigneeId('');
-                    }} value={selectedAssigneeType}>
-                      <SelectTrigger id="assignee-type-select" className="w-full"><SelectValue placeholder="Sélectionner un type" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={AssignmentType.COMMERCIAL}>Commercial</SelectItem>
-                        <SelectItem value={AssignmentType.MANAGER}>Manager</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="assignee-select">Assigner à</Label>
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-5 w-5 text-gray-500" />
-                    <Select onValueChange={setSelectedAssigneeId} value={selectedAssigneeId}>
-                      <SelectTrigger id="assignee-select" className="w-full"><SelectValue placeholder="Sélectionner un assigné" /></SelectTrigger>
-                      <SelectContent>
-                        {assigneeOptions.map(assignee => (
-                          <SelectItem key={assignee.id} value={assignee.id}>{assignee.nom}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <Button onClick={handleAssignZone} className="bg-blue-600 text-white hover:bg-blue-700">Assigner la Zone</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-lg border-l-4 border-green-500">
-            <CardHeader>
-              <CardTitle className="flex items-center text-green-700">
-                <Target className="mr-2 h-6 w-6" /> Définir un Objectif Mensuel
-              </CardTitle>
-              <CardDescription>Définissez des objectifs de contrats mensuels pour les commerciaux.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 p-6">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Users className="h-5 w-5 text-gray-500" />
-                  <Select onValueChange={setMonthlyGoalCommercialId} value={monthlyGoalCommercialId}>
-                    <SelectTrigger id="commercial-select-goal" className="w-full"><SelectValue placeholder="Sélectionner un commercial" /></SelectTrigger>
-                    <SelectContent>
-                      {commercials.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.prenom} {c.nom}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 mb-4">
-                  <Label htmlFor="monthly-goal">Objectif (Contrats)</Label>
-                  <div className="flex items-center space-x-2">
-                    <Target className="h-5 w-5 text-gray-500" />
-                    <Input id="monthly-goal" type="number" value={monthlyGoal} onChange={e => setMonthlyGoal(parseInt(e.target.value))} min="0" className="w-full" />
-                  </div>
-                </div>
-                <Button onClick={handleSetGoal} className="bg-green-600 text-white hover:bg-green-700">Définir l'Objectif</Button>
-              </div>
-            </CardContent>
-          </Card>
+    <div className="min-h-screen bg-gray-50/50 p-4 sm:p-6 lg:p-8">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+          Assignations et Objectifs
+        </h1>
+        <p className="mt-2 text-lg text-gray-600">
+          Gérez les zones de prospection et fixez les objectifs de vos équipes.
+        </p>
+      </header>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Colonne de gauche avec les formulaires */}
+        <div className="lg:col-span-1 flex flex-col gap-8">
+          <ZoneAssignmentCard
+            zones={data.zones}
+            commercials={data.commercials}
+            managers={data.managers}
+            onAssign={handleAssignZone}
+            onZoneSelect={handleSelectZone}
+          />
+          <GoalSettingCard
+            commercials={data.commercials}
+            onSetGoal={handleSetGoal}
+          />
         </div>
-
-        <div className="flex flex-col space-y-10">
-          <Card className="shadow-lg border-l-4 border-purple-500 h-full flex flex-col">
-            <CardHeader>
-              <CardTitle className="flex items-center text-purple-700">
-                <MapPin className="mr-2 h-6 w-6" /> Vue de la Zone
-              </CardTitle>
-              <CardDescription>Visualisez la zone sélectionnée sur la carte.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 flex-grow flex items-center justify-center">
-              {selectedZoneDetails ? (
-                <MapComponent
-                  latitude={selectedZoneDetails.latitude}
-                  longitude={selectedZoneDetails.longitude}
-                  zoom={14} 
-                  radius={selectedZoneDetails.rayonMetres}
-                />
-              ) : (
-                <p className="text-gray-500">Sélectionnez une zone pour la visualiser sur la carte.</p>
-              )}
-            </CardContent>
-          </Card>
+        
+        {/* Colonne de droite avec la carte */}
+        <div className="lg:col-span-2">
+           <ZoneMapViewer zone={selectedZone} />
         </div>
       </div>
     </div>

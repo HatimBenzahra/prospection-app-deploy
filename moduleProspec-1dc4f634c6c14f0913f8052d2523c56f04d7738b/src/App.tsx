@@ -42,6 +42,8 @@ import DashboardManager from './pages/manager/DashboardManager';
 import DashboardDirecteur from './pages/directeur/DashboardDirecteur';
 import DashboardBackoffice from './pages/backoffice/DashboardBackoffice';
 
+import { Toaster } from "@/components/ui-admin/sonner"; // Assurez-vous d'importer le bon composant
+
 function App() {
   return (
     <BrowserRouter>
@@ -98,6 +100,7 @@ function App() {
 
         <Route path="*" element={<div>Page non trouvée</div>} />
       </Routes>
+      <Toaster richColors position="top-right" />
     </BrowserRouter>
   );
 }
