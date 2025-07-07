@@ -163,8 +163,11 @@ const ManagersPage = () => {
         onConfirmDelete={handleConfirmDelete}
       />
 
-      <Modal isOpen={managersToDelete.length > 0} onClose={() => setManagersToDelete([])}>
-        <h2 className="text-lg font-semibold">Confirmer la suppression</h2>
+      <Modal
+        isOpen={managersToDelete.length > 0}
+        onClose={() => setManagersToDelete([])}
+        title="Confirmer la suppression"
+      >
         <p className="text-sm text-muted-foreground mt-2">Êtes-vous sûr de vouloir supprimer les {managersToDelete.length} manager(s) suivant(s) ?</p>
         <ul className="my-4 list-disc list-inside max-h-40 overflow-y-auto bg-slate-50 p-3 rounded-md">
           {managersToDelete.map(m => <li key={m.id}>{m.prenom} {m.nom}</li>)}
@@ -175,8 +178,11 @@ const ManagersPage = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}>
-        <h2 className="text-lg font-semibold mb-4">Ajouter un nouveau manager</h2>
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Ajouter un nouveau manager"
+      >
         <div className="grid gap-4">
           <div className="space-y-1"><Label htmlFor="nom">Nom</Label><Input id="nom" placeholder="Dupont" value={newManagerData.nom} onChange={handleAddInputChange} /></div>
           <div className="space-y-1"><Label htmlFor="prenom">Prénom</Label><Input id="prenom" placeholder="Jean" value={newManagerData.prenom} onChange={handleAddInputChange} /></div>
@@ -189,8 +195,11 @@ const ManagersPage = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
-        <h2 className="text-lg font-semibold mb-4">Modifier le manager</h2>
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Modifier le manager"
+      >
         {editingManager && (
             <div className="grid gap-4">
                 <div className="space-y-1"><Label htmlFor="nom">Nom</Label><Input id="nom" value={editingManager.nom} onChange={handleEditInputChange} /></div>

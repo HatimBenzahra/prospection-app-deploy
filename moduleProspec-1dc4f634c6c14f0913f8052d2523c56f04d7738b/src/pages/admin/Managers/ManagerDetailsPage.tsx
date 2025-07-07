@@ -12,6 +12,7 @@ import { managerService } from '@/services/manager.service';
 import type { Commercial } from '../commerciaux/commerciaux-table/columns';
 import { createColumns as createCommerciauxColumns } from "../commerciaux/commerciaux-table/columns";
 import { createEquipesColumns, type EquipeDuManager } from './managers-table/equipes-columns';
+import { Modal } from '@/components/ui-admin/Modal';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
 
@@ -48,6 +49,7 @@ const ManagerDetailsPage = () => {
     const [loading, setLoading] = useState(true);
     
     const [selectedTeam, setSelectedTeam] = useState<EquipeDuManager | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [teamRowSelection, setTeamRowSelection] = React.useState<RowSelectionState>({});
 
     const equipesColumns = useMemo(() => createEquipesColumns(), []);
@@ -89,14 +91,60 @@ const ManagerDetailsPage = () => {
         }
     }, [managerId]);
 
-    const handleTeamRowClick = (equipe: EquipeDuManager) => {
-        if (selectedTeam?.id === equipe.id) {
-            setSelectedTeam(null);
-            setTeamRowSelection({});
-        } else {
-            setSelectedTeam(equipe);
-            setTeamRowSelection({ [equipe.id]: true });
+    const explanations = [
+        {
+            title: "À Propos de la Performance Globale",
+            content: (
+                <div className="text-sm text-gray-600 space-y-4">
+                    <div>
+                        <h4 className="font-semibold text-gray-800">Qu'est-ce que c'est ?</h4>
+                        <p>Cet indicateur illustre l'évolution mensuelle du taux de conversion des RDV en contrats pour l'ensemble des équipes.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-800">Comment est-ce calculé ?</h4>
+                        <p>(Contrats Signés du mois / RDV Pris du mois) * 100.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-800">À quoi ça sert ?</h4>
+                        <p>Il permet de visualiser les tendances de performance et d'identifier les mois les plus productifs.</p>
+                    </div>
+                </div>
+            )
+        },
+        {
+            title: "À Propos du Taux de Conclusion",
+            content: (
+                <div className="text-sm text-gray-600 space-y-4">
+                    <div>
+                        <h4 className="font-semibold text-gray-800">Qu'est-ce que c'est ?</h4>
+                        <p>C'est le pourcentage global de RDV qui ont abouti à un contrat signé sur toute la période.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-800">Comment est-ce calculé ?</h4>
+                        <p>(Total Contrats Signés / Total RDV Pris) * 100.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-800">À quoi ça sert ?</h4>
+                        <p>Il donne une mesure de l'efficacité de la conversion finale, un indicateur clé de la performance commerciale.</p>
+                    </div>
+                </div>
+            )
         }
+    ];
+
+    const [activeExplanationIndex, setActiveExplanationIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setActiveExplanationIndex(prevIndex => (prevIndex + 1) % explanations.length);
+        }, 7000); // Change slide every 7 seconds
+
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleTeamRowClick = (equipe: EquipeDuManager) => {
+        setSelectedTeam(equipe);
+        setIsModalOpen(true);
     };
     
     if (loading) {
@@ -154,32 +202,70 @@ const ManagerDetailsPage = () => {
                 <StatCard title="Nb. Équipes" value={manager.equipes.length} Icon={Users} color="text-yellow-500"/>
             </div>
 
-            <GenericLineChart 
-                title="Évolution de la Performance Globale"
-                data={perfHistory} 
-                xAxisDataKey="name" 
-                lines={[{ dataKey: 'performance', stroke: '#3b82f6', name: 'Performance (%)' }]} 
-            />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                <div className="lg:col-span-2">
+                    <GenericLineChart 
+                        title="Évolution de la Performance Globale"
+                        data={perfHistory} 
+                        xAxisDataKey="name" 
+                        lines={[{ dataKey: 'performance', stroke: '#3b82f6', name: 'Performance (%)' }]} 
+                    />
+                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-md">{explanations[activeExplanationIndex].title}</CardTitle>
+                    </CardHeader>
+                    <CardContent key={activeExplanationIndex} className="animate-in fade-in duration-500">
+                        {explanations[activeExplanationIndex].content}
+                    </CardContent>
+                    <div className="flex justify-center p-4">
+                        {explanations.map((_, index) => (
+                            <span
+                                key={index}
+                                className={`h-2 w-2 rounded-full mx-1 cursor-pointer ${index === activeExplanationIndex ? 'bg-blue-500' : 'bg-gray-300'}`}
+                                onClick={() => setActiveExplanationIndex(index)}
+                            />
+                        ))}
+                    </div>
+                </Card>
+            </div>
             
             <div className="space-y-4">
                 <DataTable
-                    columns={equipesColumns} data={manager.equipes} title="Équipes Managées"
-                    filterColumnId="nom" filterPlaceholder="Filtrer par équipe..."
-                    onRowClick={handleTeamRowClick} rowSelection={teamRowSelection} setRowSelection={setTeamRowSelection}
-                    isDeleteMode={false} onToggleDeleteMode={() => {}} onConfirmDelete={() => {}}
+                    columns={equipesColumns}
+                    data={manager.equipes}
+                    title="Équipes Managées"
+                    filterColumnId="nom"
+                    filterPlaceholder="Filtrer par équipe..."
+                    onRowClick={handleTeamRowClick}
+                    isDeleteMode={false}
+                    onToggleDeleteMode={() => {}}
+                    onConfirmDelete={() => {}}
+                    rowSelection={teamRowSelection}
+                    setRowSelection={setTeamRowSelection}
                 />
-                
-                {selectedTeam && (
-                    <div className="animate-in fade-in-0 duration-500">
+            </div>
+
+            {selectedTeam && (
+                <Modal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    title={`Commerciaux de l'équipe : ${selectedTeam.nom}`}
+                >
+                    {commerciauxDeLequipeSelectionnee.length > 0 ? (
                         <DataTable
                             columns={commerciauxColumns} data={commerciauxDeLequipeSelectionnee}
-                            title={`Commerciaux de l'équipe : ${selectedTeam.nom}`}
+                            title=""
                             filterColumnId="nom" filterPlaceholder="Filtrer par commercial..."
                             isDeleteMode={false} onToggleDeleteMode={() => {}} rowSelection={{}} setRowSelection={() => {}} onConfirmDelete={() => {}}
                         />
-                    </div>
-                )}
-            </div>
+                    ) : (
+                        <div className="text-center text-gray-500 py-8">
+                            <p>Cette équipe n'a aucun commercial pour le moment.</p>
+                        </div>
+                    )}
+                </Modal>
+            )}
         </div>
     );
 };

@@ -1,30 +1,37 @@
 // src/components/ui/Modal.tsx
+import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
+  title: string;
   children: ReactNode;
 }
 
-export const Modal = ({ isOpen, onClose, children }: ModalProps) => {
+export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
   if (!isOpen) {
     return null;
   }
 
   return (
-    // Le conteneur principal qui couvre toute la page
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 animate-in fade-in-0"
-      onClick={onClose} // Ferme la modale si on clique sur le fond
+      onClick={onClose}
     >
-      {/* La boîte de dialogue elle-même */}
       <div
-        className="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-md animate-in zoom-in-95"
-        onClick={(e) => e.stopPropagation()} // Empêche la fermeture si on clique à l'intérieur
+        className="relative bg-white rounded-lg shadow-xl w-full max-w-6xl animate-in zoom-in-95"
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Le contenu que l'on passera à la modale */}
-        {children}
+        <div className="flex items-center justify-between p-4">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-6">
+          {children}
+        </div>
       </div>
     </div>
   );
