@@ -175,11 +175,9 @@ export class StatisticsService {
         : 0;
 
     return {
-      kpis: {
-        contratsSignes: stats.totalContratsSignes,
-        rdvPris: stats.totalRdvPris,
-        tauxConclusion: parseFloat(tauxConclusion.toFixed(2)),
-      },
+      contratsSignes: stats.totalContratsSignes,
+      rdvPris: stats.totalRdvPris,
+      tauxConclusion: parseFloat(tauxConclusion.toFixed(2)),
     };
   }
 
@@ -213,7 +211,7 @@ export class StatisticsService {
       .sort(([monthA], [monthB]) => monthA.localeCompare(monthB))
       .map(([month, data]) => ({
         name: month,
-        perf: data.rdv > 0 ? (data.contrats / data.rdv) * 100 : 0,
+        performance: data.rdv > 0 ? (data.contrats / data.rdv) * 100 : 0,
       }));
 
     return perfHistory;

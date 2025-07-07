@@ -28,15 +28,19 @@ const StatCard = ({ title, value, Icon, prefix, suffix, color, change }: StatCar
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">
-          <CountUp
-            start={0}
-            end={value}
-            duration={1.5}
-            separator=" "
-            prefix={prefix}
-            suffix={suffix}
-            decimals={value % 1 !== 0 ? 1 : 0} 
-          />
+          {typeof value === 'number' && !isNaN(value) ? (
+            <CountUp
+              start={0}
+              end={value}
+              duration={1.5}
+              separator=" "
+              prefix={prefix}
+              suffix={suffix}
+              decimals={value % 1 !== 0 ? 1 : 0}
+            />
+          ) : (
+            <span className="text-muted-foreground">N/A</span>
+          )}
         </div>
         {/* --- 4. LOGIQUE POUR AFFICHER L'ÉVOLUTION --- */}
         {change !== undefined && (

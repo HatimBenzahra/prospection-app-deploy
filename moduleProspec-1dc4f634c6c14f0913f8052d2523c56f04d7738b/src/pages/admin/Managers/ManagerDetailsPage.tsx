@@ -115,7 +115,11 @@ const ManagerDetailsPage = () => {
     
     if (!manager) return <div>Manager non trouvé.</div>;
 
-    const currentStats = stats || { rdvPris: 0, contratsSignes: 0, tauxConclusion: 0 };
+    const currentStats = {
+      rdvPris: stats?.rdvPris ?? 0,
+      contratsSignes: stats?.contratsSignes ?? 0,
+      tauxConclusion: stats?.tauxConclusion ?? 0,
+    };
     const commerciauxDeLequipeSelectionnee = manager.equipes.find((e) => e.id === selectedTeam?.id)?.commerciaux || [];
 
     return (
