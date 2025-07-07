@@ -112,6 +112,9 @@ export class StatisticsService {
         tauxDeConversion: parseFloat(
           Math.min(tauxDeConversion, 100).toFixed(2),
         ),
+        // --- MODIFICATION ICI ---
+        // On ajoute l'objectif mensuel aux KPIs retournés
+        objectifMensuel: commercial.currentMonthlyGoal || 0,
       },
       repartitionStatuts,
     };
