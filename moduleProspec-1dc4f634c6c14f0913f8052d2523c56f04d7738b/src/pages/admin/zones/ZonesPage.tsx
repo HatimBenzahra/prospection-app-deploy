@@ -13,8 +13,6 @@ import { AssignmentType } from '@/types/enums';
 import L from 'leaflet';
 import { ViewToggleContainer } from '@/components/ui-admin/ViewToggleContainer';
 
-
-
 const ZonesPage = () => {
   const [view, setView] = useState<'table' | 'map'>('table');
   const [existingZones, setExistingZones] = useState<ZoneTableType[]>([]);
@@ -109,10 +107,21 @@ const ZonesPage = () => {
     }
   };
 
+  // MODIFICATION : C'est la fonction qui gère le clic sur une ligne
   const handleRowClick = (zone: ZoneTableType) => {
-    setZoneToFocusId(zone.id);
-    setView('map');
+    setZoneToFocusId(zone.id); // On définit la zone à cibler
+    setView('map'); // Et on bascule sur la carte
   };
+
+  // MODIFICATION : C'est la fonction qui gère le changement de vue via les boutons
+  const handleViewChange = (newView: 'table' | 'map') => {
+    if (newView === 'map') {
+      // Si on bascule sur la carte, on s'assure qu'aucune zone n'est ciblée
+      setZoneToFocusId(null); 
+    }
+    setView(newView);
+  };
+
   const handleClearFocus = () => setZoneToFocusId(null);
   const toggleDeleteMode = () => {
     setIsDeleteMode(prev => !prev);
@@ -140,7 +149,7 @@ const ZonesPage = () => {
         rowSelection={rowSelection}
         setRowSelection={setRowSelection}
         onConfirmDelete={handleConfirmDelete}
-        onRowClick={handleRowClick}
+        onRowClick={handleRowClick} // Ce prop est bien utilisé pour cibler une zone
       />
   );
   
@@ -166,8 +175,11 @@ const ZonesPage = () => {
           zoneToEdit={editingZone}
         />
       )}
-      <Modal isOpen={itemsToDelete.length > 0} onClose={() => setItemsToDelete([])}>
-        <h2 className="text-lg font-semibold">Confirmer la suppression</h2>
+      <Modal
+        isOpen={itemsToDelete.length > 0}
+        onClose={() => setItemsToDelete([])}
+        title="Confirmer la suppression"
+      >
         <p className="text-sm text-muted-foreground mt-2">
           Êtes-vous sûr de vouloir supprimer les {itemsToDelete.length} zone(s) sélectionnée(s)
           ?
@@ -185,7 +197,7 @@ const ZonesPage = () => {
         title="Gestion des Zones"
         description="Basculez entre la vue tableau et la vue carte interactive pour créer, modifier et visualiser les zones."
         view={view}
-        onViewChange={setView}
+        onViewChange={handleViewChange} // MODIFICATION: Utilisation de la nouvelle fonction de gestion
         tableComponent={tableComponent}
         mapComponent={mapComponent}
       />

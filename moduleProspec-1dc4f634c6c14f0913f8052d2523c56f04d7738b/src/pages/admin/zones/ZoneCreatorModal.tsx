@@ -1,3 +1,5 @@
+// frontend-shadcn/src/pages/admin/zones/ZoneCreatorModal.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Circle, Marker, useMapEvents, Popup, useMap, FeatureGroup } from 'react-leaflet';
 import type { FeatureGroup as FeatureGroupType, LatLng } from 'leaflet';
@@ -41,7 +43,7 @@ const MapEventsHandler = ({ onMapClick, onMouseMove, step }: any) => {
     });
     return null;
 };
-        const SearchControl = () => {
+const SearchControl = () => {
     const map = useMap();
     useEffect(() => {
         const provider = new OpenStreetMapProvider({ params: { countrycodes: 'fr', 'accept-language': 'fr' } });
@@ -55,18 +57,27 @@ const MapEventsHandler = ({ onMapClick, onMouseMove, step }: any) => {
     return null;
 };
 
-const MapBoundsFitter = ({ featureGroupRef, zones }: { featureGroupRef: React.RefObject<FeatureGroupType | null>; zones: ZoneTableType[] }) => {
+// MODIFICATION : Logique de centrage de la carte améliorée
+const MapBoundsFitter = ({ featureGroupRef, zones, zoneToEdit }: { featureGroupRef: React.RefObject<FeatureGroupType | null>; zones: ZoneTableType[]; zoneToEdit: ZoneTableType | null; }) => {
     const map = useMap();
     useEffect(() => {
+        // En mode édition, la carte est déjà centrée via le state `center` du composant parent.
+        if (zoneToEdit) return;
+
+        // En mode ajout, on centre sur les zones existantes.
         if (!featureGroupRef.current || zones.length === 0) {
-            map.setView([48.8566, 2.3522], 12);
+            map.setView([48.8566, 2.3522], 12); // Fallback sur Paris si aucune zone
             return;
         }
+
         const bounds = featureGroupRef.current.getBounds();
         if (bounds.isValid()) {
             map.fitBounds(bounds, { padding: [50, 50] });
+        } else if (zones.length > 0) {
+            // Fallback si les limites ne sont pas valides (ex: 1 seule zone), on centre dessus.
+            map.setView(zones[0].latlng, 13);
         }
-    }, [zones, featureGroupRef, map]); 
+    }, [zones, featureGroupRef, map, zoneToEdit]); 
     return null;
 };
 
@@ -81,21 +92,35 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
 
     const [center, setCenter] = useState<L.LatLng | null>(isEditMode ? L.latLng(zoneToEdit.latlng[0], zoneToEdit.latlng[1]) : null);
     const [radius, setRadius] = useState(isEditMode ? zoneToEdit.radius : 0);
-    const [step, setStep] = useState(isEditMode ? 3 : 1);
+    const [step, setStep] = useState(isEditMode ? 2 : 1);
     const [zoneName, setZoneName] = useState(isEditMode ? zoneToEdit.name : '');
-    const [zoneColor, setZoneColor] = useState(isEditMode ? zoneToEdit.color : '#3388ff'); // Default blue
+    const [zoneColor, setZoneColor] = useState(isEditMode ? zoneToEdit.color : '#3388ff');
     
     const featureGroupRef = useRef<FeatureGroupType>(null);
 
     const handleMapClick = (latlng: L.LatLng, nextStep: number) => {
-        if (step === 1) setCenter(latlng);
+        if (step === 1) {
+            setCenter(latlng);
+        }
         setStep(nextStep);
     };
-    const handleMouseMove = (latlng: L.LatLng) => { if (center) setRadius(center.distanceTo(latlng)); };
-    const handleReset = () => { setCenter(null); setRadius(0); setStep(1); setZoneName(''); setZoneColor('#3388ff'); };
+
+    const handleMouseMove = (latlng: L.LatLng) => { 
+        if (center) {
+            setRadius(center.distanceTo(latlng)); 
+        }
+    };
+    
+    const handleReset = () => { 
+        setCenter(null); 
+        setRadius(0); 
+        setStep(1); 
+        setZoneName(''); 
+        setZoneColor('#3388ff'); 
+    };
 
     const handleValidate = () => {
-        if (center && zoneName) {
+        if (center && zoneName && radius > 0) {
             onValidate({
                 id: zoneToEdit?.id, center, radius, name: zoneName, color: zoneColor
             });
@@ -109,8 +134,10 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© OpenStreetMap' />
                     <SearchControl />
                     <MapEventsHandler onMapClick={handleMapClick} onMouseMove={handleMouseMove} step={step} />
-                    <MapBoundsFitter featureGroupRef={featureGroupRef} zones={existingZones} />
+                    {/* MODIFICATION : On passe zoneToEdit pour une logique de centrage plus intelligente */}
+                    <MapBoundsFitter featureGroupRef={featureGroupRef} zones={existingZones} zoneToEdit={zoneToEdit ?? null} />
                     <FeatureGroup ref={featureGroupRef}>
+                        {/* Cette logique affiche bien les zones existantes, en excluant celle en cours d'édition */}
                         {existingZones.filter(z => z.id !== zoneToEdit?.id).map(zone => (
                             <React.Fragment key={`existing-${zone.id}`}>
                                 <Circle center={zone.latlng} radius={zone.radius} pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.2, weight: 2, dashArray: '5, 5' }} >
@@ -121,7 +148,7 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
                         ))}
                     </FeatureGroup>
                     {center && <Marker position={center} />}
-                    {center && radius > 0 && <Circle center={center} radius={radius} pathOptions={{ color: 'blue' }} />}
+                    {center && radius > 0 && <Circle center={center} radius={radius} pathOptions={{ color: zoneColor, fillColor: zoneColor, fillOpacity: 0.35 }} />}
                 </MapContainer>
                 
                 <div className="absolute top-4 left-4 z-[1000] bg-white p-4 rounded-lg shadow-xl w-full max-w-sm">
@@ -131,11 +158,13 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
                         </h3>
                         <Button variant="ghost" size="icon" onClick={handleReset} title="Recommencer le tracé"><RotateCcw className="h-4 w-4" /></Button>
                     </div>
-                    {step < 3 && !isEditMode && <p className="text-sm text-muted-foreground flex items-center gap-2"><MousePointerClick className="h-4 w-4"/>
-                        {step === 1 ? 'Cliquez pour placer le centre.' : 'Déplacez, puis cliquez pour fixer le rayon.'}
-                    </p>}
-                    {step === 3 && (
-                        <div className="space-y-3 animate-in fade-in-0">
+                    {step < 3 && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-2"><MousePointerClick className="h-4 w-4"/>
+                            {step === 1 ? 'Cliquez pour placer le centre.' : 'Déplacez pour ajuster, puis cliquez pour fixer le rayon.'}
+                        </p>
+                    )}
+                    {step >= 2 && (
+                        <div className="space-y-3 animate-in fade-in-0 pt-2">
                             <div className="space-y-1"><Label htmlFor="zone-name">Nom de la zone</Label><Input id="zone-name" value={zoneName} onChange={e => setZoneName(e.target.value)} placeholder="Ex: Zone Commerciale Nord"/></div>
                             <div className="space-y-1">
                                 <Label htmlFor="zone-color">Couleur de la zone</Label>
@@ -146,7 +175,7 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
                 </div>
 
                 <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
-                    <Button onClick={handleValidate} className="bg-green-600 text-white hover:bg-green-700" disabled={step !== 3 || !zoneName}>
+                    <Button onClick={handleValidate} className="bg-green-600 text-white hover:bg-green-700" disabled={!center || radius <= 0 || !zoneName}>
                         <Check className="mr-2 h-4 w-4" />{isEditMode ? "Enregistrer" : "Valider"}
                     </Button>
                     <Button onClick={onClose} variant="secondary" className="bg-white hover:bg-zinc-100">
