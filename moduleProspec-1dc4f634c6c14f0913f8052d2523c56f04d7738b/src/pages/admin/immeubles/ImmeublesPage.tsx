@@ -50,18 +50,18 @@ const ImmeublesPage = () => {
                     ville: imm.ville,
                     codePostal: imm.codePostal,
                     status: statusText,
-                    nbPortes: 0, // This will be set by the backend or re-calculated if needed
-                    nbPortesProspectees: 0, 
+                    nbPortes: imm.portes.length,
+                    nbPortesProspectees: imm.historiques.reduce((acc, h) => acc + h.nbPortesVisitees, 0),
                     prospectingMode: prospecteurs.length > 1 ? "Duo" : "Solo",
                     prospectors: prospecteurs.map((p: { id: string; prenom: string; nom: string; }) => ({
                         id: p.id,
                         nom: `${p.prenom || ''} ${p.nom || ''}`.trim(),
                         avatarFallback: `${p.prenom?.[0] || ''}${p.nom?.[0] || ''}`.toUpperCase()
                     })),
-                    dateVisite: new Date().toISOString(), // This will be set by the backend or re-calculated if needed
+                    dateVisite: imm.historiques.length > 0 ? imm.historiques[0].dateProspection : null,
                     zone: imm.zone?.nom || 'N/A',
-                    zoneId: '', // This will be set by the backend or re-calculated if needed
-                    latlng: [0, 0], // This will be set by the backend or re-calculated if needed
+                    zoneId: imm.zone?.id || '',
+                    latlng: [imm.latitude, imm.longitude],
                 };
             });
             
@@ -103,8 +103,13 @@ const ImmeublesPage = () => {
         setRowSelection({});
     };
 
-    const handleConfirmDelete = (selectedItems: Immeuble[]) => {
-        alert(`La suppression de ${selectedItems.length} immeuble(s) n'est pas encore implémentée.`);
+    const handleConfirmDelete = async (selectedItems: Immeuble[]) => {
+        try {
+            await Promise.all(selectedItems.map(imm => immeubleService.deleteImmeuble(imm.id)));
+            fetchData();
+        } catch (error) {
+            console.error("Erreur lors de la suppression:", error);
+        }
         setIsDeleteMode(false);
         setRowSelection({});
     };
