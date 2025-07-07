@@ -1,10 +1,10 @@
-// src/components/ui/StatCard.tsx
+// src/components/ui-admin/StatCard.tsx
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui-admin/card';
 import type { LucideIcon } from 'lucide-react';
 import CountUp from 'react-countup';
 import { cn } from '@/lib/utils';
-import { ArrowUp, ArrowDown } from 'lucide-react'; // <-- 1. Importer les icônes
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
 interface StatCardProps {
   title: string;
@@ -13,21 +13,20 @@ interface StatCardProps {
   prefix?: string;
   suffix?: string;
   color?: string;
-  change?: number; // <-- 2. Ajouter la nouvelle prop 'change'
+  change?: number;
 }
 
 const StatCard = ({ title, value, Icon, prefix, suffix, color, change }: StatCardProps) => {
-  // 3. Déterminer si le changement est positif ou non
   const isPositive = change !== undefined && change >= 0;
 
   return (
-    <Card className="transition-transform duration-300 hover:scale-[1.03] hover:shadow-lg">
+    <Card className="transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border border-gray-200 rounded-xl overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className={cn("h-4 w-4 text-muted-foreground", color)} />
+        <CardTitle className="text-sm font-medium text-gray-600">{title}</CardTitle>
+        <Icon className={cn("h-5 w-5 text-gray-500", color)} />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">
+        <div className="text-3xl font-bold text-gray-900">
           {typeof value === 'number' && !isNaN(value) ? (
             <CountUp
               start={0}
@@ -42,10 +41,9 @@ const StatCard = ({ title, value, Icon, prefix, suffix, color, change }: StatCar
             <span className="text-muted-foreground">N/A</span>
           )}
         </div>
-        {/* --- 4. LOGIQUE POUR AFFICHER L'ÉVOLUTION --- */}
         {change !== undefined && (
           <p className={cn(
-             "text-xs text-muted-foreground flex items-center gap-1 mt-1",
+             "text-xs flex items-center gap-1 mt-1",
              isPositive ? "text-emerald-600" : "text-red-600"
           )}>
             {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}

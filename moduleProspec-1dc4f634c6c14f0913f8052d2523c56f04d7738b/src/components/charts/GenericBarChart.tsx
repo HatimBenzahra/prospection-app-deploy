@@ -21,7 +21,7 @@ const chartColors = [
     'hsl(var(--chart-5))',
 ];
 
-export const GenericBarChart = ({ title, data, xAxisDataKey, barDataKey }: GenericBarChartProps) => {
+export const GenericBarChart = ({ title, data, xAxisDataKey, barDataKey, fillColor }: GenericBarChartProps) => {
   return (
     <Card className="h-full">
       <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
@@ -52,11 +52,13 @@ export const GenericBarChart = ({ title, data, xAxisDataKey, barDataKey }: Gener
               cursor={{ fill: 'hsl(var(--muted))' }} 
               contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))' }} 
             />
-            <Bar dataKey={barDataKey} radius={[4, 4, 0, 0]}>
+            <Bar dataKey={barDataKey} radius={[4, 4, 0, 0]} fill={typeof fillColor === 'string' ? fillColor : undefined}>
+              {typeof fillColor === 'function'
+                ? data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={fillColor(entry, index)} />
+                  ))
+                : null}
               <LabelList dataKey={barDataKey} position="top" style={{ fill: 'hsl(var(--foreground))', fontSize: '12px' }} />
-              {data.map((_, index) => (
-                <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
-              ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>

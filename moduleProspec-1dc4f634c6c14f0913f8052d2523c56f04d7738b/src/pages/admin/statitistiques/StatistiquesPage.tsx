@@ -2,6 +2,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { statisticsService } from '@/services/statistics.service';
 import type { PeriodType, StatEntityType } from '@/services/statistics.service';
+import { motion } from 'framer-motion';
 
 // --- Imports des Composants ---
 import StatCard from '@/components/ui-admin/StatCard';
@@ -11,11 +12,12 @@ import { LeaderboardTable } from './LeaderboardTable';
 import { Button } from '@/components/ui-admin/button';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-admin/select";
-
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import { StatistiquesSkeleton } from './StatistiquesSkeleton';
 
 // --- Imports des Icônes ---
 import { 
-    BarChart3, Briefcase, FileSignature, Target
+    BarChart3, Briefcase, FileSignature, Target, X
 } from 'lucide-react';
 import { managerService } from '@/services/manager.service';
 import { equipeService } from '@/services/equipe.service';
@@ -126,89 +128,147 @@ const StatistiquesPage = () => {
         return { kpis, leaderboards, charts };
     }, [statsData]);
 
-    if (loading) return <div>Chargement des statistiques...</div>;
+    if (loading) return <StatistiquesSkeleton />;
     if (error) return <div className="text-red-500">{error}</div>;
     if (!currentData) return <div>Aucune donnée disponible.</div>;
 
     return (
-        <div className="space-y-8">
-            <div className="flex flex-wrap gap-4 justify-between items-center border-b pb-4">
-                <h1 className="text-3xl font-bold tracking-tight">Statistiques Générales</h1>
-                <div className="flex items-center gap-2">
-                    <Select onValueChange={handleEntityTypeChange} defaultValue="ALL">
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Filtrer par type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">Général</SelectItem>
-                            <SelectItem value="MANAGER">Manager</SelectItem>
-                            <SelectItem value="EQUIPE">Équipe</SelectItem>
-                            <SelectItem value="COMMERCIAL">Commercial</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    {entityType !== 'ALL' && (
-                        <Select onValueChange={handleEntityIdChange} value={entityId || 'ALL'} disabled={loadingEntities}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder={`Sélectionner ${entityType.toLowerCase()}`} />
+        <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="space-y-8 p-8 bg-white min-h-screen font-sans"
+        >
+            <div className="flex flex-wrap gap-6 justify-between items-center pb-6 border-b border-gray-200">
+                <h1 className="text-4xl font-extrabold tracking-tight text-gray-900">Tableau de Bord des Statistiques</h1>
+                <div className="flex items-center gap-3">
+                    {entityType === 'ALL' ? (
+                        <Select onValueChange={handleEntityTypeChange} value={entityType}>
+                            <SelectTrigger className="w-[200px] h-11 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200">
+                                <SelectValue placeholder="Filtrer par type d'entité" />
                             </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Tous</SelectItem>
-                                {entities.map(e => <SelectItem key={e.id} value={e.id}>{e.nom}</SelectItem>)}
+                            <SelectContent className="rounded-lg shadow-lg">
+                                <SelectItem value="ALL">Toutes les Entités</SelectItem>
+                                <SelectItem value="MANAGER">Manager</SelectItem>
+                                <SelectItem value="EQUIPE">Équipe</SelectItem>
+                                <SelectItem value="COMMERCIAL">Commercial</SelectItem>
                             </SelectContent>
                         </Select>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <Select onValueChange={handleEntityIdChange} value={entityId || 'ALL'} disabled={loadingEntities}>
+                                <SelectTrigger className="w-[200px] h-11 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200">
+                                    <SelectValue placeholder="Choisir lequel" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-lg shadow-lg">
+                                    <SelectItem value="ALL">Tous</SelectItem>
+                                    {entities.map(e => <SelectItem key={e.id} value={e.id}>{e.nom}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                    setEntityType('ALL');
+                                    setEntityId(undefined);
+                                }}
+                                className="h-9 w-9 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 flex items-center justify-center p-0"
+                            >
+                                <X className="h-5 w-5" />
+                            </Button>
+                        </div>
                     )}
                 </div>
-                <div className="flex items-center gap-1 rounded-lg border p-1 bg-white">
-                    <Button variant='ghost' onClick={() => setTimeFilter('WEEK')} className={cn("transition-all", timeFilter === 'WEEK' ? 'bg-blue-100 text-blue-800' : '')}>Cette semaine</Button>
-                    <Button variant='ghost' onClick={() => setTimeFilter('MONTH')} className={cn("transition-all", timeFilter === 'MONTH' ? 'bg-blue-100 text-blue-800' : '')}>Ce mois</Button>
-                    <Button variant='ghost' onClick={() => setTimeFilter('YEAR')} className={cn("transition-all", timeFilter === 'YEAR' ? 'bg-blue-100 text-blue-800' : '')}>Cette année</Button>
+                <div className="flex items-center gap-2 p-1 bg-white rounded-xl shadow-sm border border-gray-200">
+                    <Button 
+                        variant='ghost' 
+                        onClick={() => setTimeFilter('WEEK')} 
+                        className={cn(
+                            "px-5 py-2 rounded-lg text-base font-medium transition-all duration-300", 
+                            timeFilter === 'WEEK' 
+                                ? 'bg-[hsl(var(--winvest-blue-moyen))] text-white shadow-md hover:bg-[hsl(var(--winvest-blue-moyen))] hover:text-white' 
+                                : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                        )}
+                    >Cette semaine</Button>
+                    <Button 
+                        variant='ghost' 
+                        onClick={() => setTimeFilter('MONTH')} 
+                        className={cn(
+                            "px-5 py-2 rounded-lg text-base font-medium transition-all duration-300", 
+                            timeFilter === 'MONTH' 
+                                ? 'bg-[hsl(var(--winvest-blue-moyen))] text-white shadow-md hover:bg-[hsl(var(--winvest-blue-moyen))] hover:text-white' 
+                                : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                        )}
+                    >Ce mois</Button>
+                    <Button 
+                        variant='ghost' 
+                        onClick={() => setTimeFilter('YEAR')} 
+                        className={cn(
+                            "px-5 py-2 rounded-lg text-base font-medium transition-all duration-300", 
+                            timeFilter === 'YEAR' 
+                                ? 'bg-[hsl(var(--winvest-blue-moyen))] text-white shadow-md hover:bg-[hsl(var(--winvest-blue-moyen))] hover:text-white' 
+                                : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                        )}
+                    >Cette année</Button>
                 </div>
             </div>
 
-            <section>
-                <h2 className="text-xl font-semibold mb-4 text-zinc-800">Indicateurs de Performance Clés (KPIs)</h2>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <StatCard title="Contrats Signés" value={currentData.kpis.contratsSignes} Icon={FileSignature} color="text-emerald-500" />
-                    <StatCard title="RDV Pris" value={currentData.kpis.rdvPris} Icon={Briefcase} color="text-sky-500" />
-                    <StatCard title="Portes Visitées" value={currentData.kpis.portesVisitees} Icon={BarChart3} color="text-orange-500" />
-                    <StatCard title="Taux de Conclusion Global" value={currentData.kpis.tauxConclusionGlobal} Icon={Target} suffix="%" color="text-violet-500" />
+            <section className="mt-8">
+                <h2 className="text-2xl font-bold mb-6 text-gray-800">Indicateurs Clés de Performance (KPIs)</h2>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                    <StatCard title="Contrats Signés" value={currentData.kpis.contratsSignes} Icon={FileSignature} color="text-emerald-600" />
+                    <StatCard title="RDV Pris" value={currentData.kpis.rdvPris} Icon={Briefcase} color="text-sky-600" />
+                    <StatCard title="Portes Visitées" value={currentData.kpis.portesVisitees} Icon={BarChart3} color="text-orange-600" />
+                    <StatCard title="Taux de Conclusion Global" value={currentData.kpis.tauxConclusionGlobal} Icon={Target} suffix="%" color="text-violet-600" />
                 </div>
             </section>
 
-            <section>
-                <h2 className="text-xl font-semibold mb-4 text-zinc-800">Classements</h2>
+            <div className="grid grid-cols-1 gap-6 mt-8">
+                {/* Main Content Column (Charts) */}
+                <div className="space-y-6">
+                    <Card className="shadow-lg border border-gray-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-xl">
+                        <CardHeader className="bg-gray-50 border-b border-gray-200 py-4 px-6">
+                            <CardTitle className="text-lg font-semibold text-gray-800">Contrats par Équipe</CardTitle>
+                            <CardDescription className="text-sm text-gray-600">Répartition des contrats signés par équipe.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <GenericBarChart
+                                title="Contrats par Équipe"
+                                data={currentData.charts.contratsParEquipe}
+                                xAxisDataKey="name"
+                                barDataKey="value"
+                                fillColor="hsl(var(--winvest-blue-moyen))"
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <Card className="shadow-lg border border-gray-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-xl">
+                        <CardHeader className="bg-gray-50 border-b border-gray-200 py-4 px-6">
+                            <CardTitle className="text-lg font-semibold text-gray-800">Répartition des Contrats par Manager</CardTitle>
+                            <CardDescription className="text-sm text-gray-600">Pourcentage des contrats attribués à chaque manager.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <GenericPieChart
+                                title="Répartition des Contrats par Manager"
+                                data={currentData.charts.repartitionParManager}
+                                dataKey="value"
+                                nameKey="name"
+                                colors={['hsl(var(--winvest-blue-moyen))', 'hsl(var(--winvest-blue-clair))', 'hsl(var(--winvest-blue-nuit))', 'hsl(var(--winvest-blue-profond))']}
+                            />
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            <section className="mt-8">
+                <h2 className="text-2xl font-bold mb-6 text-gray-800">Classements</h2>
                 <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
-                    <LeaderboardTable title="Top Managers" description="Basé sur le nombre de contrats signés." data={currentData.leaderboards.managers} unit="Contrats" />
-                    <LeaderboardTable title="Top Équipes" description="Basé sur le nombre de contrats signés." data={currentData.leaderboards.equipes} unit="Contrats" />
-                    <LeaderboardTable title="Top Commerciaux" description="Basé sur le nombre de contrats signés." data={currentData.leaderboards.commerciaux} unit="Contrats" />
+                    <LeaderboardTable title="Top Managers" description="Basé sur le nombre de contrats signés par leurs équipes." data={currentData.leaderboards.managers} unit="Contrats" />
+                    <LeaderboardTable title="Top Équipes" description="Basé sur le nombre total de contrats signés." data={currentData.leaderboards.equipes} unit="Contrats" />
+                    <LeaderboardTable title="Top Commerciaux" description="Basé sur leurs contrats signés individuels." data={currentData.leaderboards.commerciaux} unit="Contrats" />
                 </div>
             </section>
-
-            <section>
-                <h2 className="text-xl font-semibold mb-4 text-zinc-800">Visualisations Détaillées</h2>
-                <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-7">
-                    <div className="lg:col-span-4">
-                        <GenericBarChart
-                            title="Contrats par Équipe"
-                            data={currentData.charts.contratsParEquipe}
-                            xAxisDataKey="name"
-                            barDataKey="value"
-                            fillColor="hsl(var(--primary))"
-                        />
-                    </div>
-                    <div className="lg:col-span-3">
-                        <GenericPieChart
-                            title="Répartition des Contrats par Manager"
-                            data={currentData.charts.repartitionParManager}
-                            dataKey="value"
-                            nameKey="name"
-                            colors={['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-4))']}
-                        />
-                    </div>
-                </div>
-            </section>
-        </div>
+        </motion.div>
     );
 };
 
