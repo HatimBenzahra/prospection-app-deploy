@@ -10,7 +10,7 @@ import { Modal } from "@/components/ui-admin/Modal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-admin/select";
 import { equipeService } from "@/services/equipe.service";
 import { managerService } from "@/services/manager.service";
-import type { Manager } from '../Managers/managers-table/columns';
+import type { Manager } from '@/types/types';
 
 const EquipesPage = () => {
   const [data, setData] = useState<Equipe[]>([]);
@@ -174,7 +174,7 @@ const EquipesPage = () => {
         rowSelection={rowSelection} setRowSelection={setRowSelection} onConfirmDelete={handleConfirmDelete}
       />
 
-      <Modal isOpen={itemsToDelete.length > 0} onClose={() => setItemsToDelete([])}>
+      <Modal isOpen={itemsToDelete.length > 0} onClose={() => setItemsToDelete([])} title="Confirmer la suppression">
         <h2 className="text-lg font-semibold">Confirmer la suppression</h2>
         <p className="text-sm text-muted-foreground mt-2">Êtes-vous sûr de vouloir supprimer les {itemsToDelete.length} équipe(s) suivante(s) ?</p>
         <ul className="my-4 list-disc list-inside max-h-40 overflow-y-auto bg-slate-50 p-3 rounded-md">
@@ -186,7 +186,7 @@ const EquipesPage = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}>
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Ajouter une nouvelle équipe">
         <h2 className="text-lg font-semibold mb-4">Ajouter une nouvelle équipe</h2>
         <div className="grid gap-4">
           <div className="space-y-1"><Label htmlFor="nom-equipe">Nom de l'équipe</Label><Input id="nom-equipe" placeholder="Ex: Oméga" value={newEquipeData.nom} onChange={handleAddInputChange} /></div>
@@ -208,7 +208,7 @@ const EquipesPage = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Modifier l'équipe">
         <h2 className="text-lg font-semibold mb-4">Modifier l'équipe</h2>
         {editingEquipe && (
           <div className="grid gap-4">

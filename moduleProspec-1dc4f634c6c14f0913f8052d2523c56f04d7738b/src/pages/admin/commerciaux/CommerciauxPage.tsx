@@ -13,14 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { commercialService } from "@/services/commercial.service";
 import { equipeService } from "@/services/equipe.service";
 import { managerService } from "@/services/manager.service";
-import type { Manager as ManagerFromAPI } from "../Managers/managers-table/columns";
+import type { Manager } from "@/types/types";
 
 
 
 const CommerciauxPage = () => {
   const [data, setData] = useState<Commercial[]>([]);
-  const [managers, setManagers] = useState<ManagerFromAPI[]>([]);
-  const [equipes, setEquipes] = useState<{ id: string; nom: string }[]>([]);
+  const [managers, setManagers] = useState<Manager[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -45,7 +44,6 @@ const CommerciauxPage = () => {
       ]);
 
       setManagers(managersFromApi);
-      setEquipes(equipesFromApi);
 
       const equipesMap = new Map(equipesFromApi.map((e) => [e.id, e.nom] as const));
       const managersMap = new Map(managersFromApi.map((m) => [m.id, `${m.prenom} ${m.nom}`] as const));
@@ -180,7 +178,7 @@ const CommerciauxPage = () => {
         onConfirmDelete={handleConfirmDelete}
       />
 
-      <Modal isOpen={itemsToDelete.length > 0} onClose={() => setItemsToDelete([])}>
+      <Modal isOpen={itemsToDelete.length > 0} onClose={() => setItemsToDelete([])} title="Confirmer la suppression">
         <h2 className="text-lg font-semibold">Confirmer la suppression</h2>
         <p className="text-sm text-muted-foreground mt-2">Êtes-vous sûr de vouloir supprimer les {itemsToDelete.length} commercial(ux) suivant(s) ?</p>
         <ul className="my-4 list-disc list-inside max-h-40 overflow-y-auto bg-slate-50 p-3 rounded-md">
@@ -192,7 +190,7 @@ const CommerciauxPage = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)}>
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Ajouter un nouveau commercial">
         <h2 className="text-lg font-semibold mb-4">Ajouter un nouveau commercial</h2>
         <div className="grid gap-4">
           <div className="space-y-1"><Label htmlFor="nom">Nom</Label><Input id="nom" placeholder="Nom de famille" value={newCommercialData.nom} onChange={handleAddInputChange} /></div>
@@ -217,7 +215,7 @@ const CommerciauxPage = () => {
         </div>
       </Modal>
       
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)}>
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Modifier le commercial">
         <h2 className="text-lg font-semibold mb-4">Modifier le commercial</h2>
         {editingCommercial && (
             <div className="grid gap-4">

@@ -7,9 +7,13 @@ export interface ImmeubleFromApi {
   adresse: string;
   ville: string;
   codePostal: string;
-  zone: { nom: string };
+  zone: { id: string; nom: string }; // Added id to zone
   prospectors: { id: string; prenom: string; nom: string }[];
   status: string;
+  portes: any[];
+  historiques: any[];
+  latitude: number; // Added latitude
+  longitude: number; // Added longitude
 }
 
 export interface ImmeubleDetailsFromApi extends ImmeubleFromApi {

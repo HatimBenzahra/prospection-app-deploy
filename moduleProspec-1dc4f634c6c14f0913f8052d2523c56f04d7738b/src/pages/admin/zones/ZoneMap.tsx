@@ -53,9 +53,7 @@ interface Immeuble {
 interface ZoneMapProps {
   existingZones: Zone[];
   immeubles?: Immeuble[];
-  onAddZoneClick: () => void;
   zoneToFocus: string | null;
-  onFocusClear: () => void; // On garde la prop pour la compatibilité, mais on ne l'utilisera plus dans le zoom
 }
 
 const SearchControl = () => {
@@ -127,7 +125,7 @@ const ZoneDisplay = ({ zone }: { zone: Zone }) => {
     );
 };
 
-export const ZoneMap = ({ existingZones, immeubles = [], onAddZoneClick, zoneToFocus, onFocusClear }: ZoneMapProps) => {
+export const ZoneMap = ({ existingZones, immeubles = [], zoneToFocus }: ZoneMapProps) => {
     const featureGroupRef = useRef<FeatureGroupType>(null);
     const [isModalFullscreen, setIsModalFullscreen] = useState(false);
 

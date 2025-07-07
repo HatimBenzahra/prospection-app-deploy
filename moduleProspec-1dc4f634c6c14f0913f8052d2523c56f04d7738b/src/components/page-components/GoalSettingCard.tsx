@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui-admin/select';
 import { Button } from '@/components/ui-admin/button';
 import { Input } from '@/components/ui-admin/input';
-import { Target, Users, Loader2 } from 'lucide-react';
-import { Commercial } from '@/types/types';
+import { Target, Loader2 } from 'lucide-react';
+import type { Commercial } from '@/types/types';
 
 interface GoalSettingCardProps {
   commercials: Commercial[];

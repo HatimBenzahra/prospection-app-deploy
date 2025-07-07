@@ -15,7 +15,22 @@ export interface Manager {
   nom: string;
   prenom: string;
   email: string;
-  telephone?: string;
+  telephone: string | null;
+  nbEquipes?: number; // Rendu optionnel car peut être calculé
+  classement?: number; // Rendu optionnel car peut être calculé
+  equipes?: {
+    id: string;
+    nom: string;
+    commerciaux?: {
+      id: string;
+      nom: string;
+      prenom: string;
+      telephone?: string;
+      historiques?: {
+        nbContratsSignes: number;
+      }[];
+    }[];
+  }[];
 }
 
 export interface Zone {

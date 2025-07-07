@@ -121,8 +121,6 @@ const ZonesPage = () => {
     }
     setView(newView);
   };
-
-  const handleClearFocus = () => setZoneToFocusId(null);
   const toggleDeleteMode = () => {
     setIsDeleteMode(prev => !prev);
     setRowSelection({});
@@ -156,12 +154,7 @@ const ZonesPage = () => {
   const mapComponent = (
      <ZoneMap
         existingZones={existingZones}
-        onAddZoneClick={() => {
-          setEditingZone(null);
-          setIsCreatorOpen(true);
-        }}
         zoneToFocus={zoneToFocusId}
-        onFocusClear={handleClearFocus}
       />
   );
 

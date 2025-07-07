@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
 import MapComponent from '@/components/MapComponent';
-import { Zone } from '@/types/types';
 import { Map, Pin } from 'lucide-react';
+import type { Zone } from '@/types/types';
 
 interface ZoneMapViewerProps {
   zone: Zone | null;

@@ -42,7 +42,7 @@ import DashboardManager from './pages/manager/DashboardManager';
 import DashboardDirecteur from './pages/directeur/DashboardDirecteur';
 import DashboardBackoffice from './pages/backoffice/DashboardBackoffice';
 
-import { Toaster } from "@/components/ui-admin/sonner"; // Assurez-vous d'importer le bon composant
+import { Toaster } from "sonner";
 
 function App() {
   return (

@@ -53,7 +53,7 @@ const ImmeublesPage = () => {
                     codePostal: imm.codePostal,
                     status: statusText,
                     nbPortes: portes.length,
-                    nbPortesProspectees: historiques.reduce((acc, h) => acc + h.nbPortesVisitees, 0),
+                    nbPortesProspectees: historiques.reduce((acc: number, h: { nbPortesVisitees: number }) => acc + h.nbPortesVisitees, 0),
                     prospectingMode: prospecteurs.length > 1 ? "Duo" : "Solo",
                     prospectors: prospecteurs.map((p: { id: string; prenom: string; nom: string; }) => ({
                         id: p.id,

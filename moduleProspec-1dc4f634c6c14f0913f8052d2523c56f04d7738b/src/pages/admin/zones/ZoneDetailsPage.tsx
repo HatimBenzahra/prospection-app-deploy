@@ -88,8 +88,6 @@ const ZoneDetailsPage = () => {
               latlng: [imm.latitude, imm.longitude],
             }))}
             zoneToFocus={zoneDetails.id}
-            onFocusClear={() => {}}
-            onAddZoneClick={() => {}}
           />
         </div>
       </div>

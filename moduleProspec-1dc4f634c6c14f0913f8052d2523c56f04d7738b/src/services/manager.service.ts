@@ -1,6 +1,6 @@
 // frontend-shadcn/src/services/manager.service.ts
 import axios from 'axios';
-import type { Manager } from '../pages/admin/Managers/managers-table/columns'; // On réutilise le type existant
+import type { Manager } from '@/types/types'; // On réutilise le type existant
 
 const API_URL = 'http://localhost:3000/managers'; // L'URL de notre back-end
 

@@ -17,6 +17,7 @@ export type Equipe = {
   };
   nbCommerciaux: number;
   classementGeneral: number;
+  totalContratsSignes: number;
 }
 
 const Header = ({ title }: { title: string }) => (

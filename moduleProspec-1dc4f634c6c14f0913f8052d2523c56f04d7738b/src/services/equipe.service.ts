@@ -3,10 +3,13 @@ import axios from 'axios';
 
 const API_URL = 'http://localhost:3000/equipes';
 
+import type { Commercial } from '@/types/types';
+
 export interface EquipeFromApi {
   id: string;
   nom: string;
   managerId: string;
+  commerciaux: Commercial[]; // Ajouté pour inclure les commerciaux
 }
 
 export interface EquipeDetailsFromApi {

@@ -11,19 +11,21 @@ import { type RowSelectionState } from "@tanstack/react-table";
 import { Modal } from "@/components/ui-admin/Modal";
 import { managerService } from "@/services/manager.service";
 
+type ManagerWithEquipes = Manager & { equipes: any[] };
+
 const ManagersPage = () => {
-  const [data, setData] = useState<Manager[]>([]);
+  const [data, setData] = useState<ManagerWithEquipes[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [managersToDelete, setManagersToDelete] = useState<Manager[]>([]);
+  const [managersToDelete, setManagersToDelete] = useState<ManagerWithEquipes[]>([]);
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const initialFormState = { nom: '', prenom: '', email: '', telephone: '' };
   const [newManagerData, setNewManagerData] = useState(initialFormState);
-  const [editingManager, setEditingManager] = useState<Manager | null>(null);
+  const [editingManager, setEditingManager] = useState<ManagerWithEquipes | null>(null);
 
   useEffect(() => {
     fetchManagers();
@@ -32,7 +34,7 @@ const ManagersPage = () => {
   const fetchManagers = async () => {
     setLoading(true);
     try {
-      const managers = await managerService.getManagers();
+      const managers = await managerService.getManagers() as ManagerWithEquipes[];
       const formattedManagers = managers.map((m) => {
         const nbEquipes = m.equipes.length;
         const totalContratsSignes = m.equipes.reduce((accEquipe: number, equipe: any) => {
@@ -54,6 +56,7 @@ const ManagersPage = () => {
           telephone: m.telephone || '',
           nbEquipes: nbEquipes,
           totalContratsSignes: totalContratsSignes,
+          equipes: m.equipes,
         };
       });
 
@@ -74,7 +77,7 @@ const ManagersPage = () => {
   };
 
   // --- LOGIQUE D'ÉDITION ---
-  const handleEditOpen = (manager: Manager) => {
+  const handleEditOpen = (manager: ManagerWithEquipes) => {
     setEditingManager(manager);
     setIsEditModalOpen(true);
   };
@@ -136,7 +139,7 @@ const ManagersPage = () => {
     setRowSelection({});
   };
 
-  const handleConfirmDelete = (selectedManagers: Manager[]) => {
+  const handleConfirmDelete = (selectedManagers: ManagerWithEquipes[]) => {
     setManagersToDelete(selectedManagers);
   };
   

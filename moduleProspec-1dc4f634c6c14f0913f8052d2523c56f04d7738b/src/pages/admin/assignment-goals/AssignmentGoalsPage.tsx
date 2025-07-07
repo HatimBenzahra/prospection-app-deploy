@@ -10,7 +10,7 @@ import { assignmentGoalsService } from '@/services/assignment-goals.service';
 
 // Types (supposons qu'ils sont dans un fichier types.ts)
 import { AssignmentType } from '@/types/enums';
-import { Commercial, Manager, Zone } from '@/types/types';
+import type { Commercial, Manager, Zone } from '@/types/types';
 
 // Composants enfants (à créer dans les fichiers suivants)
 import { ZoneAssignmentCard } from '@/components/page-components/ZoneAssignmentCard';

@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui-admin/select';
 import { Button } from '@/components/ui-admin/button';
-import { MapPin, Users, Loader2 } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
 import { AssignmentType } from '@/types/enums';
-import { Commercial, Manager, Zone } from '@/types/types';
+import type { Commercial, Manager, Zone } from '@/types/types';
 
 interface ZoneAssignmentCardProps {
   zones: Zone[];
