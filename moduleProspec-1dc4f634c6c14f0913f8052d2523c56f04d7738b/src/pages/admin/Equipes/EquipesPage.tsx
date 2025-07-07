@@ -42,8 +42,13 @@ const EquipesPage = () => {
       setManagersList(managersFromApi);
 
       const managersMap = new Map(managersFromApi.map(m => [m.id, m]));
+
       const enrichedEquipes: Equipe[] = equipesFromApi.map((equipe) => {
         const manager = managersMap.get(equipe.managerId);
+        const totalContratsSignes = equipe.commerciaux.reduce((acc: number, commercial: any) => {
+          return acc + commercial.historiques.reduce((accHist: number, hist: any) => accHist + hist.nbContratsSignes, 0);
+        }, 0);
+
         return {
           id: equipe.id,
           nom: equipe.nom,
@@ -52,12 +57,22 @@ const EquipesPage = () => {
             nom: manager ? `${manager.prenom} ${manager.nom}` : "N/A",
             avatarFallback: manager ? `${manager.prenom[0]}${manager.nom[0]}` : "?",
           },
-          nbCommerciaux: 0, // This will be set by the backend or re-calculated if needed
-          classementGeneral: 0, // This will be set by the backend or re-calculated if needed
+          nbCommerciaux: equipe.commerciaux.length,
+          totalContratsSignes: totalContratsSignes,
+          classementGeneral: 0, // Placeholder, will be calculated next
         };
       });
+
+      // Sort by totalContratsSignes to determine ranking
+      enrichedEquipes.sort((a, b) => b.totalContratsSignes - a.totalContratsSignes);
+
+      // Assign classementGeneral based on sorted order
+      const rankedEquipes = enrichedEquipes.map((equipe, index) => ({
+        ...equipe,
+        classementGeneral: index + 1,
+      }));
       
-      setData(enrichedEquipes);
+      setData(rankedEquipes);
     } catch (error) {
       console.error("Erreur:", error);
     } finally {

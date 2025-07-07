@@ -15,8 +15,10 @@ export class EquipeService {
     return this.prisma.equipe.findMany({
       include: {
         manager: true,
-        _count: {
-          select: { commerciaux: true },
+        commerciaux: {
+          include: {
+            historiques: true,
+          },
         },
       },
     });
