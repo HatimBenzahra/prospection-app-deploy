@@ -25,6 +25,7 @@ export const ZoneMapViewer = ({ zone }: ZoneMapViewerProps) => {
             longitude={zone.longitude}
             zoom={13} 
             radius={zone.rayonMetres}
+            color={zone.couleur} // Pass the zone color
             key={zone.id} // Important: force le re-rendu de la map quand la zone change
           />
         ) : (

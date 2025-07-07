@@ -7,9 +7,10 @@ interface MapComponentProps {
   longitude: number;
   zoom: number;
   radius?: number; // Optional radius for drawing a circle
+  color?: string; // New: Optional color for the circle
 }
 
-const MapComponent: React.FC<MapComponentProps> = ({ latitude, longitude, zoom, radius }) => {
+const MapComponent: React.FC<MapComponentProps> = ({ latitude, longitude, zoom, radius, color = 'blue' }) => {
   const mapRef = useRef<L.Map | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -47,7 +48,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ latitude, longitude, zoom, 
     // Add new circle and fit bounds if radius is provided
     if (radius) {
       const center = L.latLng(latitude, longitude);
-      const circle = L.circle(center, { radius: radius, color: 'blue', fillColor: '#30f', fillOpacity: 0.2 });
+      const circle = L.circle(center, { radius: radius, color: color, fillColor: color, fillOpacity: 0.2 });
       circle.addTo(map);
       map.fitBounds(circle.getBounds());
       circleRef.current = circle;
