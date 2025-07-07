@@ -1,3 +1,5 @@
+// src/contexts/AuthContext.tsx
+
 import { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 
@@ -14,7 +16,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (role: Role) => void;
+  login: (user: User) => void; // MODIFIÉ: Accepte un objet User
   logout: () => void;
 }
 
@@ -23,13 +25,8 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
 
-  // Simule une connexion. Dans une vraie app, ça appellerait une API.
-  const login = (role: Role) => {
-    const userData: User = { 
-        id: '31590edb-714a-4442-a907-5661e04f83ae', // Alice Martin's ID from seed
-        name: `${role.charAt(0).toUpperCase() + role.slice(1)} User`, 
-        role 
-    };
+  // MODIFIÉ: La fonction de login met à jour avec l'objet utilisateur complet
+  const login = (userData: User) => {
     setUser(userData);
   };
 

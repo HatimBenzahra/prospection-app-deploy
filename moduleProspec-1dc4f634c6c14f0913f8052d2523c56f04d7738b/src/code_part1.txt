@@ -260,6 +260,282 @@ const DashboardAdmin = () => {
 export default DashboardAdmin;
 
 
+# --- pages/admin/Managers/ManagerDetailsPage.tsx ---
+import React, { useEffect, useState, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import type { RowSelectionState } from "@tanstack/react-table";
+import { ArrowLeft, Briefcase, CheckCircle, Target, Users, User, Mail, Phone } from 'lucide-react';
+
+import { Button } from '@/components/ui-admin/button';
+import { Skeleton } from '@/components/ui-admin/skeleton';
+import StatCard from '@/components/ui-admin/StatCard';
+import { DataTable } from "@/components/data-table/DataTable";
+import { GenericLineChart } from '@/components/charts/GenericLineChart';
+import { managerService } from '@/services/manager.service';
+import type { Commercial } from '../commerciaux/commerciaux-table/columns';
+import { createColumns as createCommerciauxColumns } from "../commerciaux/commerciaux-table/columns";
+import { createEquipesColumns, type EquipeDuManager } from './managers-table/equipes-columns';
+import { Modal } from '@/components/ui-admin/Modal';
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
+
+import { statisticsService } from '@/services/statistics.service';
+
+interface ManagerDetails {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone?: string;
+  equipes: EquipeDuManager[];
+}
+
+interface ManagerStats {
+  contratsSignes: number;
+  rdvPris: number;
+  tauxConclusion: number;
+}
+
+interface PerformanceHistoryItem {
+  name: string;
+  performance: number;
+  [key: string]: string | number;
+}
+
+const ManagerDetailsPage = () => {
+    const { managerId } = useParams<{ managerId: string }>();
+    const navigate = useNavigate();
+    
+    const [manager, setManager] = useState<ManagerDetails | null>(null);
+    const [stats, setStats] = useState<ManagerStats | null>(null);
+    const [perfHistory, setPerfHistory] = useState<PerformanceHistoryItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    
+    const [selectedTeam, setSelectedTeam] = useState<EquipeDuManager | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [teamRowSelection, setTeamRowSelection] = React.useState<RowSelectionState>({});
+
+    const equipesColumns = useMemo(() => createEquipesColumns(), []);
+    const commerciauxColumns = useMemo(() => {
+        const allCols = createCommerciauxColumns(false, () => {}, managerId);
+        return allCols.filter(col => col.id !== 'manager' && col.id !== 'equipe');
+    }, [managerId]);
+
+    useEffect(() => {
+        if (managerId) {
+            setLoading(true);
+            Promise.all([
+                managerService.getManagerDetails(managerId),
+                statisticsService.getStatsForManager(managerId),
+                statisticsService.getManagerPerformanceHistory(managerId)
+            ]).then(([managerData, statsData, historyData]) => {
+                const formattedEquipes = managerData.equipes.map((e: any) => ({
+                    id: e.id,
+                    nom: e.nom,
+                    nbCommerciaux: e.commerciaux.length,
+                    commerciaux: e.commerciaux.map((c: Commercial, index: number) => ({
+                        ...c,
+                        manager: `${managerData.prenom} ${managerData.nom}`,
+                        managerId: managerData.id,
+                        equipe: e.nom,
+                        equipeId: e.id,
+                        classement: index + 1,
+                        telephone: c.telephone || '',
+                    }))
+                }));
+                setManager({ ...managerData, equipes: formattedEquipes });
+                setStats(statsData);
+                setPerfHistory(historyData);
+                setLoading(false);
+            }).catch(err => {
+                console.error("Erreur de chargement des détails du manager:", err);
+                setLoading(false);
+            });
+        }
+    }, [managerId]);
+
+    const explanations = [
+        {
+            title: "À Propos de la Performance Globale",
+            content: (
+                <div className="text-sm text-gray-600 space-y-4">
+                    <div>
+                        <h4 className="font-semibold text-gray-800">Qu'est-ce que c'est ?</h4>
+                        <p>Cet indicateur illustre l'évolution mensuelle du taux de conversion des RDV en contrats pour l'ensemble des équipes.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-800">Comment est-ce calculé ?</h4>
+                        <p>(Contrats Signés du mois / RDV Pris du mois) * 100.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-800">À quoi ça sert ?</h4>
+                        <p>Il permet de visualiser les tendances de performance et d'identifier les mois les plus productifs.</p>
+                    </div>
+                </div>
+            )
+        },
+        {
+            title: "À Propos du Taux de Conclusion",
+            content: (
+                <div className="text-sm text-gray-600 space-y-4">
+                    <div>
+                        <h4 className="font-semibold text-gray-800">Qu'est-ce que c'est ?</h4>
+                        <p>C'est le pourcentage global de RDV qui ont abouti à un contrat signé sur toute la période.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-800">Comment est-ce calculé ?</h4>
+                        <p>(Total Contrats Signés / Total RDV Pris) * 100.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-800">À quoi ça sert ?</h4>
+                        <p>Il donne une mesure de l'efficacité de la conversion finale, un indicateur clé de la performance commerciale.</p>
+                    </div>
+                </div>
+            )
+        }
+    ];
+
+    const [activeExplanationIndex, setActiveExplanationIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setActiveExplanationIndex(prevIndex => (prevIndex + 1) % explanations.length);
+        }, 7000); // Change slide every 7 seconds
+
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleTeamRowClick = (equipe: EquipeDuManager) => {
+        setSelectedTeam(equipe);
+        setIsModalOpen(true);
+    };
+    
+    if (loading) {
+        return (
+            <div className="space-y-6 animate-pulse">
+                <Skeleton className="h-10 w-48" />
+                <Skeleton className="h-24 w-full" />
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Skeleton className="h-28 rounded-lg" /><Skeleton className="h-28 rounded-lg" />
+                    <Skeleton className="h-28 rounded-lg" /><Skeleton className="h-28 rounded-lg" />
+                </div>
+                <Skeleton className="h-96 w-full" />
+            </div>
+        );
+    }
+    
+    if (!manager) return <div>Manager non trouvé.</div>;
+
+    const currentStats = {
+      rdvPris: stats?.rdvPris ?? 0,
+      contratsSignes: stats?.contratsSignes ?? 0,
+      tauxConclusion: stats?.tauxConclusion ?? 0,
+    };
+    const commerciauxDeLequipeSelectionnee = manager.equipes.find((e) => e.id === selectedTeam?.id)?.commerciaux || [];
+
+    return (
+        <div className="space-y-8">
+            <Button variant="outline" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" /> Retour</Button>
+            
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Informations Personnelles</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="flex items-center space-x-2">
+                        <User className="h-5 w-5 text-gray-500" />
+                        <span>{manager.prenom} {manager.nom}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Mail className="h-5 w-5 text-gray-500" />
+                        <span>{manager.email}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Phone className="h-5 w-5 text-gray-500" />
+                        <span>{manager.telephone || 'N/A'}</span>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <StatCard title="Contrats (Total)" value={currentStats.contratsSignes} Icon={CheckCircle} color="text-emerald-500" />
+                <StatCard title="RDV (Total)" value={currentStats.rdvPris} Icon={Briefcase} color="text-sky-500"/>
+                <StatCard title="Taux Conclusion" value={currentStats.tauxConclusion} Icon={Target} suffix="%" color="text-amber-500"/>
+                <StatCard title="Nb. Équipes" value={manager.equipes.length} Icon={Users} color="text-yellow-500"/>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                <div className="lg:col-span-2">
+                    <GenericLineChart 
+                        title="Évolution de la Performance Globale"
+                        data={perfHistory} 
+                        xAxisDataKey="name" 
+                        lines={[{ dataKey: 'performance', stroke: '#3b82f6', name: 'Performance (%)' }]} 
+                    />
+                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-md">{explanations[activeExplanationIndex].title}</CardTitle>
+                    </CardHeader>
+                    <CardContent key={activeExplanationIndex} className="animate-in fade-in duration-500">
+                        {explanations[activeExplanationIndex].content}
+                    </CardContent>
+                    <div className="flex justify-center p-4">
+                        {explanations.map((_, index) => (
+                            <span
+                                key={index}
+                                className={`h-2 w-2 rounded-full mx-1 cursor-pointer ${index === activeExplanationIndex ? 'bg-blue-500' : 'bg-gray-300'}`}
+                                onClick={() => setActiveExplanationIndex(index)}
+                            />
+                        ))}
+                    </div>
+                </Card>
+            </div>
+            
+            <div className="space-y-4">
+                <DataTable
+                    columns={equipesColumns}
+                    data={manager.equipes}
+                    title="Équipes Managées"
+                    filterColumnId="nom"
+                    filterPlaceholder="Filtrer par équipe..."
+                    onRowClick={handleTeamRowClick}
+                    isDeleteMode={false}
+                    onToggleDeleteMode={() => {}}
+                    onConfirmDelete={() => {}}
+                    rowSelection={teamRowSelection}
+                    setRowSelection={setTeamRowSelection}
+                />
+            </div>
+
+            {selectedTeam && (
+                <Modal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    title={`Commerciaux de l'équipe : ${selectedTeam.nom}`}
+                >
+                    {commerciauxDeLequipeSelectionnee.length > 0 ? (
+                        <DataTable
+                            columns={commerciauxColumns} data={commerciauxDeLequipeSelectionnee}
+                            title=""
+                            filterColumnId="nom" filterPlaceholder="Filtrer par commercial..."
+                            isDeleteMode={false} onToggleDeleteMode={() => {}} rowSelection={{}} setRowSelection={() => {}} onConfirmDelete={() => {}}
+                        />
+                    ) : (
+                        <div className="text-center text-gray-500 py-8">
+                            <p>Cette équipe n'a aucun commercial pour le moment.</p>
+                        </div>
+                    )}
+                </Modal>
+            )}
+        </div>
+    );
+};
+
+export default ManagerDetailsPage;
+
+
 # --- pages/commercial/ProspectingDoorsPage.tsx ---
 // src/pages/commercial/ProspectingDoorsPage.tsx
 import { useState, useMemo, useEffect } from 'react';
@@ -697,201 +973,6 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
 };
 
 
-# --- components/data-table/DataTable.tsx ---
-import * as React from "react"
-import { useNavigate } from "react-router-dom"
-import {
-  type ColumnDef, type ColumnFiltersState, type SortingState, type RowSelectionState, type Row,
-  flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
-  getSortedRowModel, useReactTable,
-} from "@tanstack/react-table"
-import { PlusCircle, Search, Trash2, XCircle } from "lucide-react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui-admin/table"
-import { Button } from "@/components/ui-admin/button"
-import { Input } from "@/components/ui-admin/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-admin/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-admin/select"
-import { cn } from "@/lib/utils"
-
-interface DataTableProps<TData extends { id: string }, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  filterColumnId: string
-  filterPlaceholder: string
-  title: string
-  rowLinkBasePath?: string
-  onRowClick?: (row: TData) => void
-  addEntityButtonText?: string
-  onAddEntity?: () => void
-  isDeleteMode: boolean
-  onToggleDeleteMode: () => void
-  onConfirmDelete: (selectedRows: TData[]) => void
-  rowSelection: RowSelectionState
-  setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>
-  customHeaderContent?: React.ReactNode
-  noCardWrapper?: boolean;
-}
-
-export function DataTable<TData extends { id: string }, TValue>({
-  columns, data, filterColumnId, filterPlaceholder, title, rowLinkBasePath, onRowClick,
-  addEntityButtonText, onAddEntity,
-  isDeleteMode, onToggleDeleteMode, onConfirmDelete,
-  rowSelection, setRowSelection,
-  customHeaderContent,
-  noCardWrapper = false,
-}: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [searchFocused, setSearchFocused] = React.useState(false)
-  const navigate = useNavigate()
-
-  const table = useReactTable({
-    data, columns, onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters, onRowSelectionChange: setRowSelection,
-    getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(),
-    state: { sorting, columnFilters, rowSelection },
-  })
-
-  const selectedRowsData = table.getFilteredSelectedRowModel().rows.map(row => row.original)
-  const areRowsClickable = (onRowClick || rowLinkBasePath) && !isDeleteMode
-
-  const handleRowClick = (row: Row<TData>) => {
-    if (isDeleteMode) {
-      row.toggleSelected()
-    } else if (onRowClick) {
-      onRowClick(row.original)
-    } else if (rowLinkBasePath) {
-      navigate(`${rowLinkBasePath}/${row.original.id}`)
-    }
-  }
-
-  const tableContent = (
-    <>
-      {title && (
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-      )}
-      
-      <CardContent className={!title ? "pt-6" : ""}>
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-          <div className={cn(
-            "relative w-full md:w-auto transition-all",
-            searchFocused ? "ring-2 ring-primary/30 rounded-md" : "",
-          )}>
-            <Search className={cn(
-              "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-all",
-              searchFocused ? "text-primary" : "text-muted-foreground"
-            )} />
-            <Input
-              placeholder={filterPlaceholder}
-              value={(table.getColumn(filterColumnId)?.getFilterValue() as string) ?? ""}
-              onChange={e=>table.getColumn(filterColumnId)?.setFilterValue(e.target.value)}
-              className="pl-10 w-full min-w-[280px] md:min-w-[320px]"
-              onFocus={()=>setSearchFocused(true)}
-              onBlur={()=>setSearchFocused(false)}
-              aria-label="Rechercher"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {customHeaderContent}
-            {!isDeleteMode ? (
-              <>
-                {addEntityButtonText && (
-                  <Button onClick={onAddEntity} className="bg-black text-white hover:bg-zinc-800 focus:ring-2 focus:ring-black/40 focus:outline-none">
-                    <PlusCircle className="mr-2 h-4 w-4" />{addEntityButtonText}
-                  </Button>
-                )}
-                <Button variant="outline" onClick={onToggleDeleteMode} className="focus:ring-2 focus:ring-destructive/30 focus:outline-none">
-                  <Trash2 className="mr-2 h-4 w-4" />Supprimer
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="destructive" disabled={selectedRowsData.length===0} onClick={()=>onConfirmDelete(selectedRowsData)} className="bg-red-600 text-white hover:bg-red-700 border border-red-600 focus:ring-2 focus:ring-red-400 focus:outline-none">
-                  <Trash2 className="mr-2 h-4 w-4" />Supprimer ({selectedRowsData.length})
-                </Button>
-                <Button variant="outline" onClick={onToggleDeleteMode} className="focus:ring-2 focus:ring-muted/30 focus:outline-none">
-                  <XCircle className="mr-2 h-4 w-4" />Annuler
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-        
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map(headerGroup=>(
-              <TableRow key={headerGroup.id} className="border-b-[#EFEDED] hover:bg-transparent">
-                {headerGroup.headers.map(header=>(
-                  <TableHead key={header.id} className={cn("h-12 px-4 text-base font-semibold text-gray-600 bg-muted/50", (header.column.columnDef.meta as { className?: string })?.className)}>
-                    {header.isPlaceholder?null:flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length?table.getRowModel().rows.map((row,index)=>(
-              <TableRow key={row.id} data-state={row.getIsSelected()&&"selected"} onClick={()=>handleRowClick(row)} className={cn(
-                "group border-b-[#EFEDED] animate-in fade-in-0 slide-in-from-bottom-2 transition",
-                areRowsClickable?"cursor-pointer":"select-none",
-                row.getIsSelected()&&isDeleteMode?"bg-red-50":row.getIsSelected()?"bg-blue-50":""
-              )} style={{animationDelay:`${index*30}ms`}}>
-                {row.getVisibleCells().map(cell=>(
-                  <TableCell key={cell.id} className={cn("group-hover:bg-zinc-100 transition-colors duration-150 py-4 px-4", (cell.column.columnDef.meta as { className?: string })?.className)}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            )):(
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-gray-400">
-                  <span className="flex flex-col items-center justify-center gap-2">
-                    <Search className="mx-auto h-8 w-8 opacity-30" />
-                    <span>Aucun résultat trouvé.</span>
-                  </span>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-        
-        <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-4 pt-4">
-          <div className="text-sm text-muted-foreground">
-            {isDeleteMode?`${table.getFilteredSelectedRowModel().rows.length} sélectionné(s) sur ${table.getFilteredRowModel().rows.length} visible(s)`:
-            `${table.getFilteredRowModel().rows.length} ligne(s) affichée(s)`}
-          </div>
-          <div className="flex items-center justify-center sm:justify-end flex-wrap gap-4">
-            <Select value={`${table.getState().pagination.pageSize}`} onValueChange={v=>table.setPageSize(Number(v))}>
-              <SelectTrigger className="w-[140px] md:w-[160px] min-w-[140px]"><SelectValue placeholder={`${table.getState().pagination.pageSize} par page`}/></SelectTrigger>
-              <SelectContent>{[10,20,30,40,50].map(ps=><SelectItem key={ps} value={`${ps}`}>{ps} par page</SelectItem>)}</SelectContent>
-            </Select>
-            <div className="flex items-center space-x-2 rounded-lg border px-3 py-1 bg-gray-50 min-w-[180px]">
-              <div className="text-sm font-medium">Page {table.getState().pagination.pageIndex+1} sur {table.getPageCount()}</div>
-              <Button variant="outline" size="sm" onClick={()=>table.previousPage()} disabled={!table.getCanPreviousPage()}>Précédent</Button>
-              <Button variant="outline" size="sm" onClick={()=>table.nextPage()} disabled={!table.getCanNextPage()}>Suivant</Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </>
-  );
-
-  if (noCardWrapper) {
-    return tableContent;
-  }
-  
-  return (
-    <Card>
-      {tableContent}
-    </Card>
-  )
-}
-
-
 # --- pages/admin/immeubles/portes/ImmeubleDetailsPage.tsx ---
 // frontend-shadcn/src/pages/admin/immeubles/portes/ImmeubleDetailsPage.tsx
 
@@ -1118,6 +1199,196 @@ const ImmeubleDetailsPage = () => {
 };
 
 export default ImmeubleDetailsPage;
+
+
+# --- pages/admin/immeubles/columns.tsx ---
+// frontend-shadcn/src/pages/admin/immeubles/columns.tsx
+
+"use client"
+
+import type { ColumnDef } from "@tanstack/react-table"
+import { Link } from "react-router-dom";
+import { ArrowUpDown, Eye, User, MapPin, Percent, Users } from "lucide-react"
+import { Button } from "@/components/ui-admin/button"
+import { Badge } from "@/components/ui-admin/badge"
+import { Checkbox } from "@/components/ui-admin/checkbox"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui-admin/tooltip"
+import { Avatar, AvatarFallback } from "@/components/ui-admin/avatar";
+
+export type Immeuble = {
+  id: string;
+  adresse: string;
+  ville: string;
+  codePostal: string;
+  status: "À visiter" | "Visité" | "RDV Pris" | "Inaccessible";
+  nbPortes: number;
+  nbPortesProspectees: number;
+  prospectingMode: "Solo" | "Duo";
+  prospectors: {
+    id: string;
+    nom: string;
+    avatarFallback: string;
+  }[];
+  dateVisite: string | null;
+  zone: string;
+  zoneId: string;
+  latlng: [number, number];
+}
+
+const Header = ({ title }: { title: string }) => (
+  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
+)
+
+const SortableHeader = ({ title, column }: { title: string, column: any }) => (
+  <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="p-0 h-8 hover:bg-transparent">
+    <Header title={title} />
+    <ArrowUpDown className="ml-2 h-3 w-3" />
+  </Button>
+)
+
+const statusConfig = {
+    "À visiter": "bg-blue-100 text-blue-800 border-blue-300",
+    "Visité": "bg-gray-100 text-gray-800 border-gray-300",
+    "RDV Pris": "bg-green-100 text-green-800 border-green-300",
+    "Inaccessible": "bg-red-100 text-red-800 border-red-300",
+};
+
+export const createColumns = (
+    isDeleteMode: boolean, 
+    onFocusOnImmeuble: (immeuble: Immeuble) => void = () => {},
+    onFocusOnZone: (zoneId: string) => void = () => {}
+): ColumnDef<Immeuble>[] => [
+    ...(isDeleteMode ? [{ 
+        id: "select", 
+        header: ({ table }: any) => (<Checkbox checked={table.getIsAllPageRowsSelected()} onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all" />), 
+        cell: ({ row }: any) => (<Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} aria-label="Select row" onClick={(e) => e.stopPropagation()} />), 
+        enableSorting: false, enableHiding: false, 
+    }] : []),
+
+    {
+      accessorKey: "adresse",
+      header: ({ column }) => <SortableHeader title="Adresse" column={column} />,
+      cell: ({ row }) => {
+        const immeuble = row.original;
+        return (
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); onFocusOnImmeuble(immeuble); }}>
+                  {immeuble.adresse}
+                  <div className="text-xs text-muted-foreground">{`${immeuble.codePostal} ${immeuble.ville}`}</div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent><p>Cliquer pour voir sur la carte</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      },
+    },
+    {
+      accessorKey: "status",
+      header: ({ column }) => <SortableHeader title="Statut" column={column} />,
+      cell: ({ row }) => <Badge variant="outline" className={statusConfig[row.original.status]}>{row.original.status}</Badge>
+    },
+    {
+        id: "couverture",
+        header: ({ column }) => <SortableHeader title="Couverture" column={column} />,
+        cell: ({ row }) => {
+            const { nbPortes, nbPortesProspectees } = row.original;
+            if (nbPortes === 0) return <span className="text-muted-foreground">N/A</span>;
+            const percentage = (nbPortesProspectees / nbPortes) * 100;
+            return (
+                <div className="flex items-center gap-2">
+                    <Percent className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{percentage.toFixed(0)}%</span>
+                    <span className="text-xs text-muted-foreground">({nbPortesProspectees}/{nbPortes})</span>
+                </div>
+            )
+        },
+        sortingFn: (rowA, rowB) => {
+            const percA = rowA.original.nbPortes > 0 ? (rowA.original.nbPortesProspectees / rowA.original.nbPortes) : -1;
+            const percB = rowB.original.nbPortes > 0 ? (rowB.original.nbPortesProspectees / rowB.original.nbPortes) : -1;
+            return percA - percB;
+        }
+    },
+    {
+        accessorKey: "zone",
+        header: ({ column }) => <SortableHeader title="Zone" column={column} />,
+        cell: ({ row }) => (
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); onFocusOnZone(row.original.zoneId); }} >
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>{row.original.zone}</span>
+                  </div>
+              </TooltipTrigger>
+              <TooltipContent><p>Cliquer pour voir la zone sur la carte</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+    },
+    {
+        accessorKey: "prospectingMode",
+        header: ({ column }) => <SortableHeader title="Mode" column={column} />,
+        cell: ({ row }) => {
+            const { prospectingMode, prospectors } = row.original;
+            if (prospectors.length === 0) {
+                return <span className="text-muted-foreground">-</span>;
+            }
+            const Icon = prospectingMode === 'Duo' ? Users : User;
+            return (
+                <Badge variant="secondary" className="font-medium">
+                    <Icon className="h-3 w-3 mr-1.5" />
+                    {prospectingMode}
+                </Badge>
+            );
+        }
+    },
+    {
+        accessorKey: "prospectors",
+        header: ({ column }) => <SortableHeader title="Prospecteurs" column={column} />,
+        cell: ({ row }) => {
+            const { prospectors } = row.original;
+            if (!prospectors || prospectors.length === 0) {
+                return <span className="text-muted-foreground">N/A</span>;
+            }
+            return (
+                <div className="flex items-center">
+                    <div className="flex -space-x-2">
+                        {prospectors.map(p => (
+                            <TooltipProvider key={p.id} delayDuration={100}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Link to={`/admin/commerciaux/${p.id}`} onClick={(e) => e.stopPropagation()} className="hover:z-10">
+                                            <Avatar className="h-8 w-8 border-2 border-white">
+                                                <AvatarFallback>{p.avatarFallback}</AvatarFallback>
+                                            </Avatar>
+                                        </Link>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>{p.nom}</p></TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        ))}
+                    </div>
+                </div>
+            );
+        },
+        sortingFn: (rowA, rowB) => {
+            const nameA = rowA.original.prospectors[0]?.nom || '';
+            const nameB = rowB.original.prospectors[0]?.nom || '';
+            return nameA.localeCompare(nameB);
+        }
+    },
+    {
+        id: "actions",
+        header: () => <div className="text-right"><Header title="Actions" /></div>,
+        cell: ({ row }) => {
+            const immeuble = row.original;
+            return ( <div className="text-right"><Button asChild variant="ghost" className="h-8 w-8 p-0 cursor-pointer"><Link to={`/admin/immeubles/${immeuble.id}`} onClick={(e) => e.stopPropagation()}><Eye className="h-4 w-4" /><span className="sr-only">Voir les détails de l'immeuble</span></Link></Button></div> )
+        },
+    },
+]
 
 
 # --- pages/admin/commerciaux/CommercialDetailsPage.tsx ---
@@ -1356,220 +1627,6 @@ const CommercialDetailsPage = () => {
 };
 
 export default CommercialDetailsPage;
-
-
-
-# --- components/ui-admin/calendar.tsx ---
-"use client"
-
-import * as React from "react"
-import {
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "lucide-react"
-import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
-
-import { cn } from "@/lib/utils"
-import { Button, buttonVariants } from "@/components/ui-admin/button"
-
-function Calendar({
-  className,
-  classNames,
-  showOutsideDays = true,
-  captionLayout = "label",
-  buttonVariant = "ghost",
-  formatters,
-  components,
-  ...props
-}: React.ComponentProps<typeof DayPicker> & {
-  buttonVariant?: React.ComponentProps<typeof Button>["variant"]
-}) {
-  const defaultClassNames = getDefaultClassNames()
-
-  return (
-    <DayPicker
-      showOutsideDays={showOutsideDays}
-      className={cn(
-        "bg-background group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
-        String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
-        String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
-        className
-      )}
-      captionLayout={captionLayout}
-      formatters={{
-        formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
-        ...formatters,
-      }}
-      classNames={{
-        root: cn("w-fit", defaultClassNames.root),
-        months: cn(
-          "flex gap-4 flex-col md:flex-row relative",
-          defaultClassNames.months
-        ),
-        month: cn("flex flex-col w-full gap-4", defaultClassNames.month),
-        nav: cn(
-          "flex items-center gap-1 w-full absolute top-0 inset-x-0 justify-between",
-          defaultClassNames.nav
-        ),
-        button_previous: cn(
-          buttonVariants({ variant: buttonVariant }),
-          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none",
-          defaultClassNames.button_previous
-        ),
-        button_next: cn(
-          buttonVariants({ variant: buttonVariant }),
-          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none",
-          defaultClassNames.button_next
-        ),
-        month_caption: cn(
-          "flex items-center justify-center h-(--cell-size) w-full px-(--cell-size)",
-          defaultClassNames.month_caption
-        ),
-        dropdowns: cn(
-          "w-full flex items-center text-sm font-medium justify-center h-(--cell-size) gap-1.5",
-          defaultClassNames.dropdowns
-        ),
-        dropdown_root: cn(
-          "relative has-focus:border-ring border border-input shadow-xs has-focus:ring-ring/50 has-focus:ring-[3px] rounded-md",
-          defaultClassNames.dropdown_root
-        ),
-        dropdown: cn("absolute inset-0 opacity-0", defaultClassNames.dropdown),
-        caption_label: cn(
-          "select-none font-medium",
-          captionLayout === "label"
-            ? "text-sm"
-            : "rounded-md pl-2 pr-1 flex items-center gap-1 text-sm h-8 [&>svg]:text-muted-foreground [&>svg]:size-3.5",
-          defaultClassNames.caption_label
-        ),
-        table: "w-full border-collapse",
-        weekdays: cn("flex", defaultClassNames.weekdays),
-        weekday: cn(
-          "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] select-none",
-          defaultClassNames.weekday
-        ),
-        week: cn("flex w-full mt-2", defaultClassNames.week),
-        week_number_header: cn(
-          "select-none w-(--cell-size)",
-          defaultClassNames.week_number_header
-        ),
-        week_number: cn(
-          "text-[0.8rem] select-none text-muted-foreground",
-          defaultClassNames.week_number
-        ),
-        day: cn(
-          "relative w-full h-full p-0 text-center [&:first-child[data-selected=true]_button]:rounded-l-md [&:last-child[data-selected=true]_button]:rounded-r-md group/day aspect-square select-none",
-          defaultClassNames.day
-        ),
-        range_start: cn(
-          "rounded-l-md bg-accent",
-          defaultClassNames.range_start
-        ),
-        range_middle: cn("rounded-none", defaultClassNames.range_middle),
-        range_end: cn("rounded-r-md bg-accent", defaultClassNames.range_end),
-        today: cn(
-          "bg-accent text-accent-foreground rounded-md data-[selected=true]:rounded-none",
-          defaultClassNames.today
-        ),
-        outside: cn(
-          "text-muted-foreground aria-selected:text-muted-foreground",
-          defaultClassNames.outside
-        ),
-        disabled: cn(
-          "text-muted-foreground opacity-50",
-          defaultClassNames.disabled
-        ),
-        hidden: cn("invisible", defaultClassNames.hidden),
-        ...classNames,
-      }}
-      components={{
-        Root: ({ className, rootRef, ...props }) => {
-          return (
-            <div
-              data-slot="calendar"
-              ref={rootRef}
-              className={cn(className)}
-              {...props}
-            />
-          )
-        },
-        Chevron: ({ className, orientation, ...props }) => {
-          if (orientation === "left") {
-            return (
-              <ChevronLeftIcon className={cn("size-4", className)} {...props} />
-            )
-          }
-
-          if (orientation === "right") {
-            return (
-              <ChevronRightIcon
-                className={cn("size-4", className)}
-                {...props}
-              />
-            )
-          }
-
-          return (
-            <ChevronDownIcon className={cn("size-4", className)} {...props} />
-          )
-        },
-        DayButton: CalendarDayButton,
-        WeekNumber: ({ children, ...props }) => {
-          return (
-            <td {...props}>
-              <div className="flex size-(--cell-size) items-center justify-center text-center">
-                {children}
-              </div>
-            </td>
-          )
-        },
-        ...components,
-      }}
-      {...props}
-    />
-  )
-}
-
-function CalendarDayButton({
-  className,
-  day,
-  modifiers,
-  ...props
-}: React.ComponentProps<typeof DayButton>) {
-  const defaultClassNames = getDefaultClassNames()
-
-  const ref = React.useRef<HTMLButtonElement>(null)
-  React.useEffect(() => {
-    if (modifiers.focused) ref.current?.focus()
-  }, [modifiers.focused])
-
-  return (
-    <Button
-      ref={ref}
-      variant="ghost"
-      size="icon"
-      data-day={day.date.toLocaleDateString()}
-      data-selected-single={
-        modifiers.selected &&
-        !modifiers.range_start &&
-        !modifiers.range_end &&
-        !modifiers.range_middle
-      }
-      data-range-start={modifiers.range_start}
-      data-range-end={modifiers.range_end}
-      data-range-middle={modifiers.range_middle}
-      className={cn(
-        "data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50 dark:hover:text-accent-foreground flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px] data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md [&>span]:text-xs [&>span]:opacity-70",
-        defaultClassNames.day,
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-export { Calendar, CalendarDayButton }
 
 
 
@@ -1947,169 +2004,191 @@ const ZonesPage = () => {
 export default ZonesPage;
 
 
-# --- pages/admin/commerciaux/commerciaux-table/columns.tsx ---
-// frontend-shadcn/src/pages/admin/commerciaux/commerciaux-table/columns.tsx
-"use client"
+# --- components/ui-admin/select.tsx ---
+import * as React from "react"
+import * as SelectPrimitive from "@radix-ui/react-select"
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
-import type { ColumnDef } from "@tanstack/react-table"
-import { Link } from "react-router-dom"
-import { ArrowUpDown, Mail, Eye, Edit } from "lucide-react"
-import { Button } from "@/components/ui-admin/button"
-import { Badge } from "@/components/ui-admin/badge"
-import { Checkbox } from "@/components/ui-admin/checkbox"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui-admin/tooltip"
+import { cn } from "@/lib/utils"
 
-export type Commercial = {
-  id: string;
-  nom: string;
-  prenom: string;
-  email: string;
-  telephone: string | null;
-  manager: string;
-  managerId: string;
-  equipe: string;
-  equipeId?: string;
-  classement: number;
+function Select({
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  return <SelectPrimitive.Root data-slot="select" {...props} />
 }
 
-const Header = ({ title }: { title: string }) => (
-  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
-)
-
-const SortableHeader = ({ title, column }: { title: string, column: any }) => (
-  <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="p-0 h-8 hover:bg-transparent">
-    <Header title={title} />
-    <ArrowUpDown className="ml-2 h-3 w-3" />
-  </Button>
-)
-
-export const createColumns = (isDeleteMode: boolean, onEdit: (commercial: Commercial) => void, managerIdForBack?: string): ColumnDef<Commercial>[] => {
-  const columns: ColumnDef<Commercial>[] = [
-    // --- Colonne de sélection ---
-    ...(isDeleteMode ? [{
-      id: "select",
-      header: ({ table }: { table: any }) => (
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-          onClick={(e) => e.stopPropagation()}
-        />
-      ),
-      cell: ({ row }: { row: any }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-          onClick={(e) => e.stopPropagation()}
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    }] : []),
-
-    // --- Colonnes de données ---
-    {
-      accessorKey: "nom",
-      header: ({ column }) => <SortableHeader title="Nom" column={column} />,
-      cell: ({ row }) => <div className="font-medium text-foreground">{row.getValue("nom")}</div>,
-    },
-    {
-      accessorKey: "prenom",
-      header: () => <Header title="Prénom" />,
-    },
-    {
-      accessorKey: "email",
-      header: () => <Header title="Email" />,
-      cell: ({ row }) => (
-        <a href={`mailto:${row.getValue("email")}`} className="flex items-center gap-2 hover:underline">
-          <Mail className="h-4 w-4 text-muted-foreground" />
-          {row.getValue("email")}
-        </a>
-      )
-    },
-    {
-      accessorKey: "manager",
-      header: () => <Header title="Manager" />,
-      cell: ({ row }) => {
-        const managerName = row.original.manager;
-        const managerId = row.original.managerId;
-        return (
-            <Link 
-                to={`/admin/managers/${managerId}`} 
-                className="hover:underline hover:text-primary transition-colors"
-                onClick={(e) => e.stopPropagation()}
-            >
-                {managerName}
-            </Link>
-        )
-      },
-    },
-    {
-      accessorKey: "equipe",
-      header: () => <Header title="Équipe" />,
-    },
-    {
-      accessorKey: "classement",
-      header: ({ column }) => <div className="flex justify-center"><SortableHeader title="Classement" column={column} /></div>,
-      meta: { className: "text-center" },
-      cell: ({ row }) => {
-        const classement = row.getValue("classement") as number;
-        // CORRECTION: Rétablissement des couleurs des badges
-        let badgeClass = "";
-        if (classement === 1) badgeClass = "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200/80";
-        else if (classement === 2) badgeClass = "bg-slate-200 text-slate-800 border-slate-300 hover:bg-slate-300/80";
-        else if (classement === 3) badgeClass = "bg-orange-200 text-orange-800 border-orange-300 hover:bg-orange-300/80";
-        else badgeClass = "bg-gray-100 text-gray-800 border-gray-300";
-        
-        return (
-          <div className="flex justify-center">
-            <Badge variant="outline" className={badgeClass}>{classement}</Badge>
-          </div>
-        );
-      },
-    },
-
-    // --- Colonne d'Actions (améliorée) ---
-    {
-        id: "actions",
-        header: () => <div className="text-right"><Header title="Actions" /></div>,
-        cell: ({ row }) => {
-            const commercial = row.original;
-            return (
-                // CORRECTION: Utilisation d'un TooltipProvider et ajout d'espace
-                <TooltipProvider delayDuration={100}>
-                    <div className="text-right space-x-2">
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button asChild variant="ghost" className="h-8 w-8 p-0">
-                                    <Link to={`/admin/commerciaux/${commercial.id}`} state={{ fromManager: managerIdForBack }} onClick={(e) => { e.stopPropagation(); }}>
-                                        <Eye className="h-4 w-4" />
-                                        <span className="sr-only">Voir les détails</span>
-                                    </Link>
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Voir les détails</p></TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => { e.stopPropagation(); onEdit(commercial); }}>
-                                    <Edit className="h-4 w-4" />
-                                    <span className="sr-only">Modifier</span>
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Modifier</p></TooltipContent>
-                        </Tooltip>
-                    </div>
-                </TooltipProvider>
-            )
-        },
-    },
-  ]
-  
-  return columns;
+function SelectGroup({
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Group>) {
+  return <SelectPrimitive.Group data-slot="select-group" {...props} />
 }
+
+function SelectValue({
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Value>) {
+  return <SelectPrimitive.Value data-slot="select-value" {...props} />
+}
+
+function SelectTrigger({
+  className,
+  size = "default",
+  children,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
+  size?: "sm" | "default"
+}) {
+  return (
+    <SelectPrimitive.Trigger
+      data-slot="select-trigger"
+      data-size={size}
+      className={cn(
+        "border-input data-[placeholder]:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <SelectPrimitive.Icon asChild>
+        <ChevronDownIcon className="size-4 opacity-50" />
+      </SelectPrimitive.Icon>
+    </SelectPrimitive.Trigger>
+  )
+}
+
+function SelectContent({
+  className,
+  children,
+  position = "popper",
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+  return (
+    <SelectPrimitive.Portal>
+      <SelectPrimitive.Content
+        data-slot="select-content"
+        className={cn(
+          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:translate-x-1 data-[side=top]:slide-in-from-bottom-2 relative z-[51] max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border shadow-md",
+          position === "popper" &&
+            "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+          className
+        )}
+        position={position}
+        {...props}
+      >
+        <SelectScrollUpButton />
+        <SelectPrimitive.Viewport
+          className={cn(
+            "p-1",
+            position === "popper" &&
+              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
+          )}
+        >
+          {children}
+        </SelectPrimitive.Viewport>
+        <SelectScrollDownButton />
+      </SelectPrimitive.Content>
+    </SelectPrimitive.Portal>
+  )
+}
+
+function SelectLabel({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Label>) {
+  return (
+    <SelectPrimitive.Label
+      data-slot="select-label"
+      className={cn("text-muted-foreground px-2 py-1.5 text-xs", className)}
+      {...props}
+    />
+  )
+}
+
+function SelectItem({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+  return (
+    <SelectPrimitive.Item
+      data-slot="select-item"
+      className={cn(
+        "focus:bg-accent focus:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        className
+      )}
+      {...props}
+    >
+      <span className="absolute right-2 flex size-3.5 items-center justify-center">
+        <SelectPrimitive.ItemIndicator>
+          <CheckIcon className="size-4" />
+        </SelectPrimitive.ItemIndicator>
+      </span>
+      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    </SelectPrimitive.Item>
+  )
+}
+
+function SelectSeparator({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Separator>) {
+  return (
+    <SelectPrimitive.Separator
+      data-slot="select-separator"
+      className={cn("bg-border pointer-events-none -mx-1 my-1 h-px", className)}
+      {...props}
+    />
+  )
+}
+
+function SelectScrollUpButton({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.ScrollUpButton>) {
+  return (
+    <SelectPrimitive.ScrollUpButton
+      data-slot="select-scroll-up-button"
+      className={cn(
+        "flex cursor-default items-center justify-center py-1",
+        className
+      )}
+      {...props}
+    >
+      <ChevronUpIcon className="size-4" />
+    </SelectPrimitive.ScrollUpButton>
+  )
+}
+
+function SelectScrollDownButton({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.ScrollDownButton>) {
+  return (
+    <SelectPrimitive.ScrollDownButton
+      data-slot="select-scroll-down-button"
+      className={cn(
+        "flex cursor-default items-center justify-center py-1",
+        className
+      )}
+      {...props}
+    >
+      <ChevronDownIcon className="size-4" />
+    </SelectPrimitive.ScrollDownButton>
+  )
+}
+
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectScrollDownButton,
+  SelectScrollUpButton,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+}
+
 
 
 # --- pages/admin/Managers/managers-table/columns.tsx ---
@@ -2544,505 +2623,609 @@ const SuiviPage = () => {
 export default SuiviPage;
 
 
-# --- pages/commercial/ProspectingSetupPage.tsx ---
-// src/pages/commercial/ProspectingSetupPage.tsx
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui-admin/card';
-import { Button } from '@/components/ui-admin/button';
-import { Input } from '@/components/ui-admin/input';
-import { Label } from '@/components/ui-admin/label';
-import { User, Users, ArrowRight, Send } from 'lucide-react';
-import { cn } from '@/lib/utils';
+# --- pages/admin/suivi/AudioPlayer.tsx ---
+// src/pages/admin/suivi/AudioPlayer.tsx
+import { useEffect, useRef, useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import { Avatar, AvatarFallback } from '@/components/ui-admin/avatar';
+import { Slider } from '@/components/ui-admin/slider';
+import { Volume2, BarChart, MicOff } from 'lucide-react';
+import { type Commercial } from './types';
+import { Badge } from '@/components/ui-admin/badge';
 
-type ProspectingMode = 'solo' | 'duo';
-
-const ProspectingSetupPage = () => {
-    const { buildingId } = useParams<{ buildingId: string }>();
-    const navigate = useNavigate();
-    const [mode, setMode] = useState<ProspectingMode | null>(null);
-    const [duoEmail, setDuoEmail] = useState('');
-
-    console.log(`ProspectingSetupPage loaded with buildingId: ${buildingId}`);
-
-    const handleStartSolo = () => {
-        console.log(`Navigating from ProspectingSetupPage with ID: ${buildingId}`);
-        console.log(`Démarrage en SOLO pour l'immeuble ${buildingId}`);
-        navigate(`/commercial/prospecting/doors/${buildingId}`);
-    };
-
-    const handleInviteDuo = () => {
-        if (duoEmail) {
-            console.log(`Invitation envoyée à ${duoEmail} pour l'immeuble ${buildingId}`);
-            alert(`Invitation envoyée à ${duoEmail} !`);
-        }
-    };
-
-    return (
-        <div className="container mx-auto py-8">
-            <Card className="max-w-2xl mx-auto">
-                <CardHeader>
-                    <CardTitle className="text-2xl flex items-center gap-3">
-                        <Users className="h-6 w-6 text-primary"/>
-                        Étape 2 : Mode de Prospection
-                    </CardTitle>
-                    <CardDescription>
-                        Allez-vous prospecter seul ou en équipe aujourd'hui ?
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Card 
-                            onClick={() => setMode('solo')}
-                            className={cn(
-                                "p-6 text-center cursor-pointer transition-all border-2",
-                                mode === 'solo' ? 'border-primary shadow-lg scale-105' : 'hover:border-primary/50'
-                            )}
-                        >
-                            <User className="mx-auto h-12 w-12 text-primary" />
-                            <h3 className="mt-4 text-lg font-bold">Mode Solo</h3>
-                            <p className="text-sm text-muted-foreground">Prospectez seul à votre rythme.</p>
-                        </Card>
-                        <Card 
-                            onClick={() => setMode('duo')}
-                            className={cn(
-                                "p-6 text-center cursor-pointer transition-all border-2",
-                                mode === 'duo' ? 'border-primary shadow-lg scale-105' : 'hover:border-primary/50'
-                            )}
-                        >
-                            <Users className="mx-auto h-12 w-12 text-primary" />
-                            <h3 className="mt-4 text-lg font-bold">Mode Duo</h3>
-                            <p className="text-sm text-muted-foreground">Collaborez avec un coéquipier.</p>
-                        </Card>
-                    </div>
-
-                    {mode === 'duo' && (
-                        <div className="space-y-2 animate-in fade-in-0">
-                            <Label htmlFor="duo-email">Email du coéquipier</Label>
-                            <div className="flex gap-2">
-                                <Input 
-                                    id="duo-email" 
-                                    type="email"
-                                    placeholder="nom.prenom@winvest.capital"
-                                    value={duoEmail}
-                                    onChange={(e) => setDuoEmail(e.target.value)}
-                                />
-                                <Button 
-                                    onClick={handleInviteDuo}
-                                    disabled={!duoEmail}
-                                    className="bg-green-600 text-white hover:bg-green-700"
-                                >
-                                    <Send className="mr-2 h-4 w-4" />
-                                    Inviter
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-
-                {mode === 'solo' && (
-                    <CardFooter className="flex justify-end">
-                        <Button 
-                            onClick={handleStartSolo}
-                            className="bg-green-600 text-white hover:bg-green-700"
-                        >
-                            Commencer la prospection <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                    </CardFooter>
-                )}
-            </Card>
-        </div>
-    );
-};
-
-export default ProspectingSetupPage;
-
-
-# --- pages/commercial/SelectBuildingPage.tsx ---
-// src/pages/commercial/SelectBuildingPage.tsx
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { DataTable } from '@/components/data-table/DataTable';
-import type { ColumnDef, RowSelectionState } from '@tanstack/react-table';
-import { Button } from '@/components/ui-admin/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-admin/card';
-import { ArrowRight, Building} from 'lucide-react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-
-// Type pour les données de la table
-export type BuildingData = {
-  id: string;
-  adresse: string;
-  ville: string;
-  codePostal: string;
-  nbPortes: number;
-  dateAjout: Date;
-};
-
-// Données simulées pour les immeubles
-const MOCK_BUILDINGS: BuildingData[] = [
-  { id: 'imm-1', adresse: '10 Rue de la Paix', ville: 'Paris', codePostal: '75002', nbPortes: 25, dateAjout: new Date('2025-06-30') },
-  { id: 'imm-2', adresse: '25 Bd des Capucines', ville: 'Paris', codePostal: '75009', nbPortes: 40, dateAjout: new Date('2025-06-28') },
-  { id: 'imm-3', adresse: '15 Av. des Champs-Élysées', ville: 'Paris', codePostal: '75008', nbPortes: 60, dateAjout: new Date('2025-06-25') },
-];
-
-// Création des colonnes pour la DataTable
-const createBuildingColumns = (setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>): ColumnDef<BuildingData>[] => [
-  {
-    id: 'select',
-    header: () => null,
-    cell: ({ row }) => (
-      <input
-        type="radio"
-        name="select-building"
-        checked={row.getIsSelected()}
-        onChange={() => setRowSelection({ [row.id]: true })}
-        className="h-4 w-4 accent-primary"
-      />
-    ),
-  },
-  {
-    accessorKey: 'adresse',
-    header: 'Adresse',
-    cell: ({ row }) => (
-      <div>
-        <div className="font-bold">{row.original.adresse}</div>
-        <div className="text-sm text-muted-foreground">{`${row.original.codePostal} ${row.original.ville}`}</div>
-      </div>
-    ),
-  },
-  {
-    accessorKey: 'nbPortes',
-    header: () => <div className="text-center">Portes</div>,
-    cell: ({ row }) => <div className="text-center">{row.original.nbPortes}</div>,
-  },
-  {
-    accessorKey: 'dateAjout',
-    header: () => <div className="text-right">Ajouté le</div>,
-    cell: ({ row }) => (
-      <div className="text-right text-muted-foreground">
-        {format(row.original.dateAjout, "d MMM yyyy", { locale: fr })}
-      </div>
-    ),
-  },
-];
-
-const SelectBuildingPage = () => {
-    const navigate = useNavigate();
-    const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-    
-    const sortedBuildings = useMemo(() => 
-        [...MOCK_BUILDINGS].sort((a, b) => b.dateAjout.getTime() - a.dateAjout.getTime()), 
-        []
-    );
-
-    const columns = useMemo(() => createBuildingColumns(setRowSelection), []);
-
-    const selectedBuildingId = Object.keys(rowSelection).length > 0 ? sortedBuildings[parseInt(Object.keys(rowSelection)[0])].id : undefined;
-
-    const handleNext = () => {
-        if (selectedBuildingId) {
-            console.log(`Navigating from SelectBuildingPage with ID: ${selectedBuildingId}`);
-            navigate(`/commercial/prospecting/setup/${selectedBuildingId}`);
-        }
-    };
-
-    return (
-        <div className="container mx-auto py-8">
-            <Card className="max-w-4xl mx-auto">
-                <CardHeader>
-                    <CardTitle className="text-2xl flex items-center gap-3">
-                        <Building className="h-6 w-6 text-primary"/>
-                        Étape 1 : Sélection de l'immeuble
-                    </CardTitle>
-                    <CardDescription>
-                        Choisissez l'immeuble que vous souhaitez prospecter. Les plus récents apparaissent en premier.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <DataTable
-                        title="Immeubles"
-                        columns={columns}
-                        data={sortedBuildings}
-                        filterColumnId="adresse"
-                        filterPlaceholder="Rechercher une adresse..."
-                        rowSelection={rowSelection}
-                        setRowSelection={setRowSelection}
-                        isDeleteMode={false}
-                        onAddEntity={() => {}}
-                        onConfirmDelete={() => {}}
-                        onToggleDeleteMode={() => {}}
-                    />
-                    <div className="flex justify-end mt-6">
-                        <Button onClick={handleNext} disabled={!selectedBuildingId} className="bg-green-600 hover:bg-green-700 text-white">
-                            Suivant <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    );
-};
-
-export default SelectBuildingPage;
-
-
-# --- pages/admin/suivi/SuiviMap.tsx ---
-// src/pages/admin/suivi/SuiviMap.tsx
-import { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Circle, Popup, FeatureGroup, Marker } from 'react-leaflet';
-import type { Map as LeafletMap, FeatureGroup as FeatureGroupType } from 'leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { type Zone, type Commercial } from './types';
-
-// --- Configuration des icônes ---
-
-// Patch pour l'icône par défaut de Leaflet
-// @ts-ignore
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-});
-
-// NOUVEAU : Icône personnalisée pour un commercial non sélectionné
-const defaultIcon = new L.Icon({
-    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(222.2 47.4% 11.2%)" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>'),
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32],
-});
-
-// NOUVEAU : Icône personnalisée pour le commercial sélectionné (plus grosse et colorée)
-const selectedIcon = new L.Icon({
-    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(142.1 76.2% 44.1%)" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>'),
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
-    popupAnchor: [0, -40],
-});
-
-
-// --- MODIFICATION des Props ---
-interface SuiviMapProps {
-  zones: Zone[];
-  commercials: Commercial[];
-  onMarkerClick: (commercial: Commercial) => void; // Callback pour informer le parent
-  selectedCommercialId?: string; // ID du commercial sélectionné pour le style
+interface AudioPlayerProps {
+  activeCommercial: Commercial | null;
+  liveText: string;
+  isProspecting: boolean;
+  audioChunks: Blob[];
 }
 
-export const SuiviMap = ({ zones, commercials, onMarkerClick, selectedCommercialId }: SuiviMapProps) => {
-  const mapRef = useRef<LeafletMap | null>(null);
-  const featureGroupRef = useRef<FeatureGroupType>(null);
+export const AudioPlayer = ({ activeCommercial, liveText, isProspecting, audioChunks }: AudioPlayerProps) => {
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioQueueRef = useRef<Blob[]>([]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolume] = useState(50);
+  const gainNodeRef = useRef<GainNode | null>(null);
 
+  // Initialise l'AudioContext
   useEffect(() => {
-    // Centre la carte sur tous les éléments au chargement
-    if (mapRef.current && featureGroupRef.current) {
-        const bounds = featureGroupRef.current.getBounds();
-        if (bounds.isValid()) {
-            mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-        }
+    if (!audioContextRef.current) {
+      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = context;
+      const gainNode = context.createGain();
+      gainNode.connect(context.destination);
+      gainNodeRef.current = gainNode;
     }
-  }, [zones, commercials]);
+  }, []);
+  
+  // Met à jour le volume
+  useEffect(() => {
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.value = volume / 100;
+    }
+  }, [volume]);
+
+
+  const playNextInQueue = async () => {
+    if (audioQueueRef.current.length === 0) {
+      setIsPlaying(false);
+      return;
+    }
+    
+    setIsPlaying(true);
+    const blob = audioQueueRef.current.shift();
+    if (!blob || !audioContextRef.current || !gainNodeRef.current) return;
+
+    try {
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
+      
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(gainNodeRef.current);
+      source.onended = playNextInQueue; // Joue le prochain morceau quand celui-ci est fini
+      source.start();
+    } catch (error) {
+      console.error("Erreur de décodage audio, passage au suivant.", error);
+      playNextInQueue(); // Tente de jouer le prochain
+    }
+  };
+
+  // Ajoute les nouveaux chunks à la file d'attente et démarre la lecture si nécessaire
+  useEffect(() => {
+    if (audioChunks.length > 0) {
+      audioQueueRef.current.push(...audioChunks);
+      if (!isPlaying) {
+        playNextInQueue();
+      }
+    }
+  }, [audioChunks, isPlaying]);
+
+  // Réinitialise la file d'attente si le commercial change
+  useEffect(() => {
+    audioQueueRef.current = [];
+    setIsPlaying(false);
+  }, [activeCommercial]);
+
+
+  if (!activeCommercial) {
+    return (
+      <Card className="bg-white shadow-md">
+        <CardHeader>
+          <CardTitle>Lecteur Audio</CardTitle>
+          <CardDescription>Aucun commercial sélectionné.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-48 text-muted-foreground">
+          <MicOff className="h-12 w-12" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="h-full w-full rounded-lg overflow-hidden shadow-md">
-      <MapContainer 
-        ref={mapRef} 
-        center={[48.8566, 2.3522]} 
-        zoom={12} 
-        style={{ height: '100%', width: '100%' }}
-      >
-        <TileLayer 
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
-          attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' 
-        />
-        <FeatureGroup ref={featureGroupRef}>
-          {/* Affichage des zones */}
-          {zones.map(zone => (
-            <Circle 
-              key={zone.id} 
-              center={zone.latlng} 
-              radius={zone.radius}
-              pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.2 }}
-            >
-              <Popup><b>Zone:</b> {zone.name}</Popup>
-            </Circle>
-          ))}
-          {/* NOUVEAU : Affichage des commerciaux */}
-          {commercials.map(commercial => (
-            <Marker
-              key={commercial.id}
-              position={commercial.position}
-              icon={selectedCommercialId === commercial.id ? selectedIcon : defaultIcon}
-              eventHandlers={{
-                click: () => {
-                  onMarkerClick(commercial); // Appel du callback au clic
-                },
-              }}
-              zIndexOffset={selectedCommercialId === commercial.id ? 1000 : 0} // Met le marqueur sélectionné au-dessus
-            >
-              <Popup><b>{commercial.name}</b><br/>Équipe {commercial.equipe}</Popup>
-            </Marker>
-          ))}
-        </FeatureGroup>
-      </MapContainer>
-    </div>
+    <Card className="bg-white shadow-md">
+      <CardHeader>
+        <div className="flex items-center gap-4">
+          <Avatar className="h-12 w-12">
+            <AvatarFallback className="text-lg bg-zinc-200 text-zinc-700">{activeCommercial.avatarFallback}</AvatarFallback>
+          </Avatar>
+          <div>
+            <CardTitle>{activeCommercial.name}</CardTitle>
+            <CardDescription>Équipe {activeCommercial.equipe} - {isProspecting ? 'En ligne' : 'Hors ligne'}</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="bg-zinc-100 border border-zinc-200 p-3 rounded-lg min-h-[100px] max-h-[200px] overflow-y-auto text-sm text-zinc-700 transition-colors">
+          {isProspecting ? (
+            liveText || <span className="italic text-zinc-500">En attente de transcription...</span>
+          ) : (
+            <span className="italic text-zinc-500">Le commercial n'est pas en prospection.</span>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex-1 flex items-center gap-2">
+             <Badge variant="outline" className={isProspecting ? "bg-green-100 text-green-800 border-green-300" : "bg-gray-100 text-gray-800 border-gray-300"}>
+                {isProspecting ? <BarChart className="h-4 w-4 mr-2 animate-pulse" /> : <MicOff className="h-4 w-4 mr-2" />}
+                {isProspecting ? 'EN DIRECT' : 'HORS LIGNE'}
+             </Badge>
+          </div>
+          <div className="flex items-center gap-2 w-[120px]">
+            <Volume2 className="h-5 w-5 text-muted-foreground" />
+            <Slider defaultValue={[volume]} max={100} step={1} onValueChange={(value) => setVolume(value[0])} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
 
-# --- pages/admin/Equipes/EquipeDetailsPage.tsx ---
-// frontend-shadcn/src/pages/admin/Equipes/EquipeDetailsPage.tsx
+# --- pages/admin/assignment-goals/AssignmentGoalsPage.tsx ---
+import { useState, useEffect } from 'react';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { useEffect, useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { createColumns as createCommerciauxColumns } from "../commerciaux/commerciaux-table/columns";
-import { DataTable } from "@/components/data-table/DataTable";
-import { Button } from "@/components/ui-admin/button";
-import { ArrowLeft, Users, CheckCircle, Briefcase, Target, Trophy } from "lucide-react";
-import { Skeleton } from "@/components/ui-admin/skeleton";
-import StatCard from "@/components/ui-admin/StatCard";
-import { GenericLineChart } from "@/components/charts/GenericLineChart";
-import { equipeService, type EquipeDetailsFromApi } from "@/services/equipe.service";
+// Services
+import { commercialService } from '@/services/commercial.service';
+import { zoneService } from '@/services/zone.service';
+import { managerService } from '@/services/manager.service';
+import { assignmentGoalsService } from '@/services/assignment-goals.service';
 
-const EquipeDetailsPage = () => {
-  const { equipeId } = useParams<{ equipeId: string }>();
-  const navigate = useNavigate();
-  const [equipeDetails, setEquipeDetails] = useState<EquipeDetailsFromApi | null>(null);
+// Types (supposons qu'ils sont dans un fichier types.ts)
+import { AssignmentType } from '@/types/enums';
+import type { Commercial, Manager, Zone } from '@/types/types';
+
+// Composants enfants (à créer dans les fichiers suivants)
+import { ZoneAssignmentCard } from '@/components/page-components/ZoneAssignmentCard';
+import { GoalSettingCard } from '@/components/page-components/GoalSettingCard';
+import { ZoneMapViewer } from '@/components/page-components/ZoneMapViewer';
+
+
+const AssignmentGoalsPage = () => {
+  // --- STATE MANAGEMENT ---
+  const [data, setData] = useState<{
+    commercials: Commercial[];
+    managers: Manager[];
+    zones: Zone[];
+  }>({ commercials: [], managers: [], zones: [] });
+  
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
 
+  // --- DATA FETCHING ---
   useEffect(() => {
-    if (equipeId) {
-      setLoading(true);
-      equipeService.getEquipeDetails(equipeId)
-        .then(data => {
-          setEquipeDetails(data);
-        })
-        .catch(error => {
-          console.error("Erreur lors de la récupération des détails de l'équipe:", error);
-          setEquipeDetails(null); // Reset in case of error
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }
-  }, [equipeId]);
-
-  const commerciauxColumns = useMemo(() => {
-    const allCols = createCommerciauxColumns(false, () => {}); // Pas de mode suppression
-    // On exclut les colonnes 'manager' et 'equipe' car redondantes ici
-    return allCols.filter(col => col.id !== 'manager' && col.id !== 'equipe');
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [commercialsData, zonesData, managersData] = await Promise.all([
+          commercialService.getCommerciaux(),
+          zoneService.getZones(),
+          managerService.getManagers(),
+        ]);
+        setData({ commercials: commercialsData, zones: zonesData, managers: managersData });
+      } catch (err) {
+        console.error("Failed to fetch initial data:", err);
+        setError("Impossible de charger les données. Veuillez rafraîchir la page.");
+        toast.error("Erreur de chargement des données.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
-  if (loading) {
-    return (
-        <div className="space-y-6 animate-pulse">
-            <Skeleton className="h-10 w-48" />
-            <Skeleton className="h-24 w-full" />
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-lg" />)}
-            </div>
-            <Skeleton className="h-96 w-full" />
-            <Skeleton className="h-96 w-full" />
-        </div>
-    )
+  // --- HANDLERS ---
+  const handleAssignZone = async (zoneId: string, assigneeId: string, assigneeType: AssignmentType) => {
+    try {
+      await assignmentGoalsService.assignZone(zoneId, assigneeId, assigneeType);
+      toast.success('Zone assignée avec succès!', {
+        description: `La zone a été assignée à l'${assigneeType}.`,
+      });
+    } catch (error) {
+      console.error("Erreur lors de l'assignation de la zone:", error);
+      toast.error("Erreur lors de l'assignation de la zone.");
+    }
+  };
+
+  const handleSetGoal = async (commercialId: string, goal: number) => {
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    try {
+      await assignmentGoalsService.setMonthlyGoal(commercialId, goal, currentMonth, currentYear);
+      toast.success('Objectif mensuel défini avec succès!', {
+        description: `L'objectif de ${goal} contrats a été fixé.`,
+      });
+    } catch (error) {
+      console.error("Erreur lors de la définition de l'objectif:", error);
+      toast.error("Erreur lors de la définition de l'objectif.");
+    }
+  };
+  
+  const handleSelectZone = (zoneId: string) => {
+    const zone = data.zones.find(z => z.id === zoneId) || null;
+    setSelectedZone(zone);
   }
 
-  if (!equipeDetails) {
-    return <div>Équipe non trouvée ou erreur de chargement.</div>;
+  // --- RENDER LOGIC ---
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-16 w-16 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-red-500">
+        <AlertCircle className="h-16 w-16 mb-4" />
+        <h2 className="text-2xl font-semibold">Une erreur est survenue</h2>
+        <p>{error}</p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-8">
-      <Button variant="outline" onClick={() => navigate(-1)}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Retour à la liste des équipes
-      </Button>
-
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Users className="h-8 w-8 text-primary" />
-            Équipe {equipeDetails.nom}
+    <div className="min-h-screen bg-gray-50/50 p-4 sm:p-6 lg:p-8">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+          Assignations et Objectifs
         </h1>
-        <p className="text-muted-foreground">Manager : {equipeDetails.manager}</p>
-      </div>
+        <p className="mt-2 text-lg text-gray-600">
+          Gérez les zones de prospection et fixez les objectifs de vos équipes.
+        </p>
+      </header>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Contrats Signés" value={equipeDetails.stats.contratsSignes} Icon={CheckCircle} color="text-emerald-500" />
-        <StatCard title="RDV Pris" value={equipeDetails.stats.rdvPris} Icon={Briefcase} color="text-sky-500"/>
-        <StatCard title="Performance Moyenne" value={equipeDetails.stats.perfMoyenne} Icon={Target} suffix="%" color="text-amber-500"/>
-        <StatCard title="Classement Général" value={Number(equipeDetails.stats.classementGeneral)} Icon={Trophy} prefix="#" color="text-yellow-500"/>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Colonne de gauche avec les formulaires */}
+        <div className="lg:col-span-1 flex flex-col gap-8">
+          <ZoneAssignmentCard
+            zones={data.zones}
+            commercials={data.commercials}
+            managers={data.managers}
+            onAssign={handleAssignZone}
+            onZoneSelect={handleSelectZone}
+          />
+          <GoalSettingCard
+            commercials={data.commercials}
+            onSetGoal={handleSetGoal}
+          />
+        </div>
+        
+        {/* Colonne de droite avec la carte */}
+        <div className="lg:col-span-2">
+           <ZoneMapViewer zone={selectedZone} />
+        </div>
       </div>
+    </div>
+  );
+};
 
-      <GenericLineChart
-        title="Évolution de la Performance de l'Équipe"
-        data={equipeDetails.perfHistory}
-        xAxisDataKey="name"
-        lines={[{ dataKey: 'perf', stroke: 'hsl(var(--chart-2))', name: 'Performance (%)' }]}
-      />
+export default AssignmentGoalsPage;
 
-      <DataTable 
-        columns={commerciauxColumns as any} 
-        data={equipeDetails.commerciaux} 
-        title={`Membres de l'équipe (${equipeDetails.commerciaux.length})`}
-        filterColumnId="nom"
-        filterPlaceholder="Filtrer par nom de commercial..."
-        isDeleteMode={false}
-        onToggleDeleteMode={() => {}}
-        rowSelection={{}}
-        setRowSelection={() => {}}
-        onConfirmDelete={() => {}}
+
+# --- components/ui-admin/command.tsx ---
+import * as React from "react"
+import { Command as CommandPrimitive } from "cmdk"
+import { SearchIcon } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui-admin/dialog"
+
+function Command({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive>) {
+  return (
+    <CommandPrimitive
+      data-slot="command"
+      className={cn(
+        "bg-popover text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CommandDialog({
+  title = "Command Palette",
+  description = "Search for a command to run...",
+  children,
+  className,
+  showCloseButton = true,
+  ...props
+}: React.ComponentProps<typeof Dialog> & {
+  title?: string
+  description?: string
+  className?: string
+  showCloseButton?: boolean
+}) {
+  return (
+    <Dialog {...props}>
+      <DialogHeader className="sr-only">
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
+      </DialogHeader>
+      <DialogContent
+        className={cn("overflow-hidden p-0", className)}
+        showCloseButton={showCloseButton}
+      >
+        <Command className="[&_[cmdk-group-heading]]:text-muted-foreground **:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
+          {children}
+        </Command>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function CommandInput({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Input>) {
+  return (
+    <div
+      data-slot="command-input-wrapper"
+      className="flex h-9 items-center gap-2 border-b px-3"
+    >
+      <SearchIcon className="size-4 shrink-0 opacity-50" />
+      <CommandPrimitive.Input
+        data-slot="command-input"
+        className={cn(
+          "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        {...props}
       />
     </div>
   )
 }
 
-export default EquipeDetailsPage;
+function CommandList({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.List>) {
+  return (
+    <CommandPrimitive.List
+      data-slot="command-list"
+      className={cn(
+        "max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CommandEmpty({
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Empty>) {
+  return (
+    <CommandPrimitive.Empty
+      data-slot="command-empty"
+      className="py-6 text-center text-sm"
+      {...props}
+    />
+  )
+}
+
+function CommandGroup({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Group>) {
+  return (
+    <CommandPrimitive.Group
+      data-slot="command-group"
+      className={cn(
+        "text-foreground [&_[cmdk-group-heading]]:text-muted-foreground overflow-hidden p-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CommandSeparator({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Separator>) {
+  return (
+    <CommandPrimitive.Separator
+      data-slot="command-separator"
+      className={cn("bg-border -mx-1 h-px", className)}
+      {...props}
+    />
+  )
+}
+
+function CommandItem({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Item>) {
+  return (
+    <CommandPrimitive.Item
+      data-slot="command-item"
+      className={cn(
+        "data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CommandShortcut({
+  className,
+  ...props
+}: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="command-shortcut"
+      className={cn(
+        "text-muted-foreground ml-auto text-xs tracking-widest",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  Command,
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandShortcut,
+  CommandSeparator,
+}
 
 
-# --- components/ui-admin/dialog.tsx ---
-"use client"
 
+# --- components/page-components/ZoneAssignmentCard.tsx ---
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui-admin/select';
+import { Button } from '@/components/ui-admin/button';
+import { MapPin, Loader2 } from 'lucide-react';
+import { AssignmentType } from '@/types/enums';
+import type { Commercial, Manager, Zone } from '@/types/types';
+
+interface ZoneAssignmentCardProps {
+  zones: Zone[];
+  commercials: Commercial[];
+  managers: Manager[];
+  onAssign: (zoneId: string, assigneeId: string, assigneeType: AssignmentType) => Promise<void>;
+  onZoneSelect: (zoneId: string) => void;
+}
+
+export const ZoneAssignmentCard = ({ zones, commercials, managers, onAssign, onZoneSelect }: ZoneAssignmentCardProps) => {
+  const [selectedZone, setSelectedZone] = useState('');
+  const [assigneeType, setAssigneeType] = useState<AssignmentType>(AssignmentType.COMMERCIAL);
+  const [assigneeId, setAssigneeId] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const assigneeOptions = assigneeType === AssignmentType.COMMERCIAL ? commercials : managers;
+  const isFormValid = selectedZone && assigneeId && assigneeType;
+
+  const handleSubmit = async () => {
+    if (!isFormValid) return;
+    setIsSubmitting(true);
+    await onAssign(selectedZone, assigneeId, assigneeType);
+    setIsSubmitting(false);
+  };
+  
+  const handleZoneChange = (zoneId: string) => {
+    setSelectedZone(zoneId);
+    onZoneSelect(zoneId);
+  }
+  
+  const handleTypeChange = (type: AssignmentType) => {
+    setAssigneeType(type);
+    setAssigneeId(''); // Reset assignee when type changes
+  }
+
+  return (
+    <Card className="shadow-md hover:shadow-lg transition-shadow">
+      <CardHeader>
+        <CardTitle className="flex items-center text-blue-600">
+          <MapPin className="mr-3 h-6 w-6" /> Assignation de Zone
+        </CardTitle>
+        <CardDescription>Assignez une zone à un commercial ou manager.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Sélecteur de Zone */}
+        <div className="space-y-2">
+            <label className="text-sm font-medium">Zone à assigner</label>
+            <Select onValueChange={handleZoneChange} value={selectedZone}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner une zone" /></SelectTrigger>
+                <SelectContent>
+                    {zones.map(z => <SelectItem key={z.id} value={z.id}>{z.nom}</SelectItem>)}
+                </SelectContent>
+            </Select>
+        </div>
+
+        {/* Sélecteur de Type (Commercial/Manager) */}
+        <div className="space-y-2">
+            <label className="text-sm font-medium">Assigner à un</label>
+            <Select onValueChange={handleTypeChange} value={assigneeType}>
+                <SelectTrigger><SelectValue placeholder="Type d'assigné" /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value={AssignmentType.COMMERCIAL}>Commercial</SelectItem>
+                    <SelectItem value={AssignmentType.MANAGER}>Manager</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+
+        {/* Sélecteur de Personne */}
+        <div className="space-y-2">
+            <label className="text-sm font-medium">{assigneeType === AssignmentType.COMMERCIAL ? 'Commercial' : 'Manager'}</label>
+            <Select onValueChange={setAssigneeId} value={assigneeId} disabled={!assigneeType}>
+                <SelectTrigger><SelectValue placeholder={`Sélectionner un ${assigneeType.toLowerCase()}`} /></SelectTrigger>
+                <SelectContent>
+                    {assigneeOptions.map(p => <SelectItem key={p.id} value={p.id}>{p.prenom} {p.nom}</SelectItem>)}
+                </SelectContent>
+            </Select>
+        </div>
+
+        <Button onClick={handleSubmit} disabled={!isFormValid || isSubmitting} className="w-full bg-blue-600 hover:bg-blue-700">
+          {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
+          Assigner la Zone
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
+
+# --- components/ui-admin/sheet.tsx ---
 import * as React from "react"
-import * as DialogPrimitive from "@radix-ui/react-dialog"
+import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-function Dialog({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
+  return <SheetPrimitive.Root data-slot="sheet" {...props} />
 }
 
-function DialogTrigger({
+function SheetTrigger({
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+}: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
+  return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />
 }
 
-function DialogPortal({
+function SheetClose({
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+}: React.ComponentProps<typeof SheetPrimitive.Close>) {
+  return <SheetPrimitive.Close data-slot="sheet-close" {...props} />
 }
 
-function DialogClose({
+function SheetPortal({
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Close>) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+}: React.ComponentProps<typeof SheetPrimitive.Portal>) {
+  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
 }
 
-function DialogOverlay({
+function SheetOverlay({
   className,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+}: React.ComponentProps<typeof SheetPrimitive.Overlay>) {
   return (
-    <DialogPrimitive.Overlay
-      data-slot="dialog-overlay"
+    <SheetPrimitive.Overlay
+      data-slot="sheet-overlay"
       className={cn(
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
         className
@@ -3052,89 +3235,83 @@ function DialogOverlay({
   )
 }
 
-function DialogContent({
+function SheetContent({
   className,
   children,
-  showCloseButton = true,
+  side = "right",
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & {
-  showCloseButton?: boolean
+}: React.ComponentProps<typeof SheetPrimitive.Content> & {
+  side?: "top" | "right" | "bottom" | "left"
 }) {
   return (
-    <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
-      <DialogPrimitive.Content
-        data-slot="dialog-content"
-        onPointerDownOutside={(e) => {
-          const target = e.target as HTMLElement;
-          if (target.closest('[data-radix-select-content]')) {
-            e.preventDefault();
-          }
-        }}
+    <SheetPortal>
+      <SheetOverlay />
+      <SheetPrimitive.Content
+        data-slot="sheet-content"
         className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
+          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+          side === "right" &&
+            "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
+          side === "left" &&
+            "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",
+          side === "top" &&
+            "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b",
+          side === "bottom" &&
+            "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t",
           className
         )}
         {...props}
       >
         {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-          >
-            <XIcon />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
-        )}
-      </DialogPrimitive.Content>
-    </DialogPortal>
+        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+          <XIcon className="size-4" />
+          <span className="sr-only">Close</span>
+        </SheetPrimitive.Close>
+      </SheetPrimitive.Content>
+    </SheetPortal>
   )
 }
 
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+      data-slot="sheet-header"
+      className={cn("flex flex-col gap-1.5 p-4", className)}
       {...props}
     />
   )
 }
 
-function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
+function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      data-slot="dialog-footer"
-      className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
-        className
-      )}
+      data-slot="sheet-footer"
+      className={cn("mt-auto flex flex-col gap-2 p-4", className)}
       {...props}
     />
   )
 }
 
-function DialogTitle({
+function SheetTitle({
   className,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+}: React.ComponentProps<typeof SheetPrimitive.Title>) {
   return (
-    <DialogPrimitive.Title
-      data-slot="dialog-title"
-      className={cn("text-lg leading-none font-semibold", className)}
+    <SheetPrimitive.Title
+      data-slot="sheet-title"
+      className={cn("text-foreground font-semibold", className)}
       {...props}
     />
   )
 }
 
-function DialogDescription({
+function SheetDescription({
   className,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+}: React.ComponentProps<typeof SheetPrimitive.Description>) {
   return (
-    <DialogPrimitive.Description
-      data-slot="dialog-description"
+    <SheetPrimitive.Description
+      data-slot="sheet-description"
       className={cn("text-muted-foreground text-sm", className)}
       {...props}
     />
@@ -3142,279 +3319,202 @@ function DialogDescription({
 }
 
 export {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-  DialogTrigger,
+  Sheet,
+  SheetTrigger,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetFooter,
+  SheetTitle,
+  SheetDescription,
 }
 
 
 
-# --- components/ui-admin/alert-dialog.tsx ---
-import * as React from "react"
-import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
+# --- pages/admin/zones/columns.tsx ---
+// frontend-shadcn/src/pages/admin/zones/columns.tsx
+"use client"
 
-import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui-admin/button"
+import type { ColumnDef } from "@tanstack/react-table"
+import { format } from "date-fns"
+import { fr } from "date-fns/locale"
+import { Button } from "@/components/ui-admin/button"
+import { Badge } from "@/components/ui-admin/badge"
+import { Checkbox } from "@/components/ui-admin/checkbox"
+import { ArrowUpDown, Edit, Calendar, Eye } from "lucide-react"
+import { Link } from "react-router-dom";
 
-function AlertDialog({
-  ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
-  return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+export interface Zone {
+  id: string;
+  name: string;
+  assignedTo: string;
+  color: string;
+  latlng: [number, number];
+  radius: number;
+  dateCreation: string;
 }
 
-function AlertDialogTrigger({
-  ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Trigger>) {
-  return (
-    <AlertDialogPrimitive.Trigger data-slot="alert-dialog-trigger" {...props} />
-  )
+const Header = ({ title }: { title: string }) => (
+  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
+)
+
+const SortableHeader = ({ title, column }: { title: string, column: any }) => (
+  <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="p-0 h-8 hover:bg-transparent">
+    <Header title={title} />
+    <ArrowUpDown className="ml-2 h-3 w-3" />
+  </Button>
+)
+
+export const createZoneColumns = (isDeleteMode: boolean, onEdit: (zone: Zone) => void): ColumnDef<Zone>[] => [
+    // Colonne de sélection conditionnelle
+    ...(isDeleteMode ? [{
+      id: "select",
+      header: ({ table }: any) => (<Checkbox checked={table.getIsAllPageRowsSelected()} onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all" />),
+      cell: ({ row }: any) => (<Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} aria-label="Select row" onClick={(e) => e.stopPropagation()} />),
+      enableSorting: false, enableHiding: false,
+    }] : []),
+    {
+        accessorKey: "name",
+        header: ({ column }) => <SortableHeader title="Nom de la zone" column={column} />,
+        cell: ({ row }) => <div className="font-medium text-foreground">{row.original.name}</div>,
+    },
+    {
+        accessorKey: "assignedTo",
+        header: ({ column }) => <SortableHeader title="Assignée à" column={column} />,
+        cell: ({ row }) => {
+            const { color, assignedTo } = row.original;
+            const badgeStyle = color ? { backgroundColor: color, color: 'white', borderColor: 'transparent' } : {};
+            return ( <Badge style={badgeStyle} className="border-transparent">{assignedTo}</Badge> )
+        }
+    },
+    {
+        accessorKey: "dateCreation",
+        header: ({ column }) => <SortableHeader title="Date d'ajout" column={column} />,
+        cell: ({ row }) => (
+            <div className="flex items-center gap-2 text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span>{format(new Date(row.original.dateCreation), "d LLL yyyy", { locale: fr })}</span>
+            </div>
+        )
+    },
+    {
+        id: "actions",
+        header: () => <div className="text-right"><Header title="Actions" /></div>,
+        cell: ({ row }) => (
+            <div className="text-right space-x-2">
+                <Button asChild variant="ghost" size="icon">
+                    <Link to={`/admin/zones/${row.original.id}`} onClick={(e) => e.stopPropagation()}>
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">Voir les détails</span>
+                    </Link>
+                </Button>
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(row.original); }}>
+                    <Edit className="h-4 w-4" />
+                    <span className="sr-only">Modifier la zone</span>
+                </Button>
+            </div>
+        ),
+    },
+];
+
+
+# --- pages/admin/immeubles/portes/portes-columns.tsx ---
+// frontend-shadcn/src/pages/admin/immeubles/portes/portes-columns.tsx
+
+"use client"
+
+import type { ColumnDef } from "@tanstack/react-table"
+import { Badge } from "@/components/ui-admin/badge"
+import { ArrowUpDown, Hash, MessageSquare, Repeat } from "lucide-react"
+import { Button } from "@/components/ui-admin/button"
+
+// --- 1. MISE À JOUR DU TYPE Porte avec les nouveaux statuts ---
+export type Porte = {
+  id: string
+  numeroPorte: string
+  statut: "Non visité" | "Visité" | "Absent" | "Refus" | "Curieux" | "Contrat signé"
+  passage: number
+  commentaire: string
 }
 
-function AlertDialogPortal({
-  ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Portal>) {
-  return (
-    <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" {...props} />
-  )
-}
+const Header = ({ title }: { title: string }) => (
+  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
+)
 
-function AlertDialogOverlay({
-  className,
-  ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Overlay>) {
-  return (
-    <AlertDialogPrimitive.Overlay
-      data-slot="alert-dialog-overlay"
-      className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
-        className
-      )}
-      {...props}
-    />
-  )
-}
+const SortableHeader = ({ title, column }: { title: string, column: any }) => (
+  <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="p-0 h-8 hover:bg-transparent">
+    <Header title={title} />
+    <ArrowUpDown className="ml-2 h-3 w-3" />
+  </Button>
+)
 
-function AlertDialogContent({
-  className,
-  ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Content>) {
-  return (
-    <AlertDialogPortal>
-      <AlertDialogOverlay />
-      <AlertDialogPrimitive.Content
-        data-slot="alert-dialog-content"
-        className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
-          className
-        )}
-        {...props}
-      />
-    </AlertDialogPortal>
-  )
-}
-
-function AlertDialogHeader({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="alert-dialog-header"
-      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
-      {...props}
-    />
-  )
-}
-
-function AlertDialogFooter({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="alert-dialog-footer"
-      className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-function AlertDialogTitle({
-  className,
-  ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Title>) {
-  return (
-    <AlertDialogPrimitive.Title
-      data-slot="alert-dialog-title"
-      className={cn("text-lg font-semibold", className)}
-      {...props}
-    />
-  )
-}
-
-function AlertDialogDescription({
-  className,
-  ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Description>) {
-  return (
-    <AlertDialogPrimitive.Description
-      data-slot="alert-dialog-description"
-      className={cn("text-muted-foreground text-sm", className)}
-      {...props}
-    />
-  )
-}
-
-function AlertDialogAction({
-  className,
-  ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Action>) {
-  return (
-    <AlertDialogPrimitive.Action
-      className={cn(buttonVariants(), className)}
-      {...props}
-    />
-  )
-}
-
-function AlertDialogCancel({
-  className,
-  ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Cancel>) {
-  return (
-    <AlertDialogPrimitive.Cancel
-      className={cn(buttonVariants({ variant: "outline" }), className)}
-      {...props}
-    />
-  )
-}
-
-export {
-  AlertDialog,
-  AlertDialogPortal,
-  AlertDialogOverlay,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-  AlertDialogCancel,
-}
-
-
-
-# --- pages/admin/zones/ZoneDetailsPage.tsx ---
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { zoneService, type ZoneDetailsFromApi } from '@/services/zone.service';
-import { Button } from '@/components/ui-admin/button';
-import { ArrowLeft, MapPin, Building, CheckCircle, Briefcase } from 'lucide-react';
-import { Skeleton } from '@/components/ui-admin/skeleton';
-import StatCard from '@/components/ui-admin/StatCard';
-import { ZoneMap } from './ZoneMap'; // Assurez-vous que ce composant peut être réutilisé ou adapté
-import type { Zone as ZoneTableType } from './columns';
-
-const ZoneDetailsPage = () => {
-  const { zoneId } = useParams<{ zoneId: string }>();
-  const navigate = useNavigate();
-  const [zoneDetails, setZoneDetails] = useState<ZoneDetailsFromApi | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (zoneId) {
-      setLoading(true);
-      zoneService.getZoneDetails(zoneId)
-        .then(data => {
-          setZoneDetails(data);
-        })
-        .catch(error => {
-          console.error('Erreur lors de la récupération des détails de la zone:', error);
-          setZoneDetails(null);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }
-  }, [zoneId]);
-
-  if (loading) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-24 w-full" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-28 rounded-lg" />)}
-        </div>
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
-  }
-
-  if (!zoneDetails) {
-    return <div>Zone non trouvée ou erreur de chargement.</div>;
-  }
-
-  return (
-    <div className="h-full flex flex-col space-y-8">
-      <Button variant="outline" onClick={() => navigate(-1)}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Retour à la liste des zones
-      </Button>
-
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-          <MapPin className="h-8 w-8 text-primary" />
-          Zone: {zoneDetails.nom}
-        </h1>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard title="Nombre d'immeubles" value={zoneDetails.stats.nbImmeubles} Icon={Building} color="text-blue-500" />
-        <StatCard title="Contrats Signés" value={zoneDetails.stats.totalContratsSignes} Icon={CheckCircle} color="text-emerald-500" />
-        <StatCard title="RDV Pris" value={zoneDetails.stats.totalRdvPris} Icon={Briefcase} color="text-sky-500" />
-      </div>
-
-      <div className="flex-grow flex flex-col">
-        <h2 className="text-2xl font-bold mb-4">Carte de la Zone</h2>
-        <div className="flex-grow w-full">
-          <ZoneMap
-            existingZones={[{
-              id: zoneDetails.id,
-              name: zoneDetails.nom,
-              assignedTo: '', // L'assignation n'est pas nécessaire ici
-              color: zoneDetails.couleur,
-              latlng: [zoneDetails.latitude, zoneDetails.longitude],
-              radius: zoneDetails.rayonMetres,
-              dateCreation: zoneDetails.createdAt,
-            } as ZoneTableType]}
-            immeubles={zoneDetails.immeubles.map(imm => ({
-              id: imm.id,
-              adresse: imm.adresse,
-              status: imm.status, // Le statut est déjà une chaîne de caractères
-              latlng: [imm.latitude, imm.longitude],
-            }))}
-            zoneToFocus={zoneDetails.id}
-          />
-        </div>
-      </div>
-    </div>
-  );
+// --- 2. MISE À JOUR de la configuration des couleurs des badges ---
+const statusConfig = {
+    "Non visité": "bg-gray-100 text-gray-800 border-gray-300",
+    "Visité": "bg-blue-100 text-blue-800 border-blue-300",
+    "Absent": "bg-yellow-100 text-yellow-800 border-yellow-300",
+    "Refus": "bg-red-100 text-red-800 border-red-300",
+    "Curieux": "bg-purple-100 text-purple-800 border-purple-300",
+    "Contrat signé": "bg-green-100 text-green-800 border-green-300",
 };
 
-export default ZoneDetailsPage;
+export const createPortesColumns = (): ColumnDef<Porte>[] => [
+    {
+      accessorKey: "numeroPorte",
+      header: ({ column }) => <SortableHeader title="Porte" column={column} />,
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 font-medium">
+            <Hash className="h-4 w-4 text-muted-foreground" />
+            <span>{row.original.numeroPorte}</span>
+        </div>
+      ),
+      meta: { className: "w-[120px]" },
+    },
+    {
+      accessorKey: "statut",
+      header: ({ column }) => <SortableHeader title="Statut" column={column} />,
+      cell: ({ row }) => {
+        const statut = row.original.statut;
+        return <Badge variant="outline" className={statusConfig[statut]}>{statut}</Badge>
+      }
+    },
+    {
+      accessorKey: "passage",
+      header: ({ column }) => <SortableHeader title="Passage" column={column} />,
+      cell: ({ row }) => {
+        const { statut, passage } = row.original;
+        
+        // --- 3. MISE À JOUR de la logique de repassage ---
+        // Le repassage est applicable pour "Absent" et "Curieux".
+        const isRepassageApplicable = statut === 'Absent' || statut === 'Curieux';
 
+        if (!isRepassageApplicable || passage === 0) {
+            return <span className="text-muted-foreground">-</span>;
+        }
+
+        return (
+            <div className="flex items-center gap-2">
+                <Repeat className="h-4 w-4 text-muted-foreground" />
+                <span>{`Passage n°${passage}`}</span>
+            </div>
+        );
+      }
+    },
+    {
+      accessorKey: "commentaire",
+      header: () => <Header title="Commentaire" />,
+      cell: ({ row }) => {
+        const commentaire = row.original.commentaire;
+        if (!commentaire) return <span className="text-muted-foreground italic">Aucun</span>;
+        return (
+            <div className="flex items-start gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+                <span className="max-w-xs truncate">{commentaire}</span>
+            </div>
+        )
+      },
+    },
+]
 
 
 # --- pages/commercial/doors-columns.tsx ---
@@ -3614,6 +3714,78 @@ export const useSpeechRecognition = () => {
   };
 
   return { text, isListening, startListening, stopListening, hasSupport: !!SpeechRecognitionAPI };
+};
+
+
+# --- pages/admin/statitistiques/LeaderboardTable.tsx ---
+// src/pages/admin/statitistiques/LeaderboardTable.tsx
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui-admin/table';
+import { Badge } from '@/components/ui-admin/badge';
+import { Avatar, AvatarFallback } from '@/components/ui-admin/avatar';
+import { cn } from '@/lib/utils';
+
+interface Performer {
+  rank: number;
+  name: string;
+  avatar: string;
+  value: number;
+  change: number;
+}
+
+interface LeaderboardTableProps {
+  title: string;
+  description: string;
+  data: Performer[];
+  unit: string;
+}
+
+const rankColor = (rank: number) => {
+    if (rank === 1) return "bg-yellow-400/20 text-yellow-700 border-yellow-400/50";
+    if (rank === 2) return "bg-slate-400/20 text-slate-700 border-slate-400/50";
+    if (rank === 3) return "bg-orange-400/20 text-orange-700 border-orange-400/50";
+    return "bg-gray-100 text-gray-600 border-transparent";
+}
+
+export const LeaderboardTable = ({ title, description, data, unit }: LeaderboardTableProps) => {
+  return (
+    <Card className="h-full shadow-lg border border-gray-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-xl">
+      <CardHeader className="bg-gray-50 border-b border-gray-200 py-4 px-6">
+        <CardTitle className="text-lg font-semibold text-gray-800">{title}</CardTitle>
+        <CardDescription className="text-sm text-gray-600">{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gray-50">
+              <TableHead className="w-[50px] text-gray-600">Rank</TableHead>
+              <TableHead className="text-gray-600">Nom</TableHead>
+              <TableHead className="text-right text-gray-600">{unit}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((item) => (
+              <TableRow key={item.rank} className="hover:bg-gray-50 transition-colors duration-200">
+                <TableCell>
+                    <Badge variant="outline" className={cn("font-bold text-sm", rankColor(item.rank))}>
+                        {item.rank}
+                    </Badge>
+                </TableCell>
+                <TableCell className="font-medium flex items-center gap-3 text-gray-800">
+                    <Avatar className="h-8 w-8 border border-gray-200">
+                        <AvatarFallback className="bg-gray-200 text-gray-700 text-sm font-semibold">{item.avatar}</AvatarFallback>
+                    </Avatar>
+                    {item.name}
+                </TableCell>
+                <TableCell className="text-right font-bold text-lg text-gray-900">{item.value}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
 };
 
 
@@ -3905,71 +4077,71 @@ export function DatePickerWithPresets({
 }
 
 
-# --- pages/admin/statitistiques/LeaderboardTable.tsx ---
-// src/pages/admin/statitistiques/LeaderboardTable.tsx
+# --- components/charts/GenericBarChart.tsx ---
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, Cell } from 'recharts';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui-admin/table';
-import { Badge } from '@/components/ui-admin/badge';
-import { Avatar, AvatarFallback } from '@/components/ui-admin/avatar';
-
-interface Performer {
-  rank: number;
-  name: string;
-  avatar: string;
-  value: number;
-  change: number;
+interface ChartDataItem {
+  [key: string]: string | number;
 }
 
-interface LeaderboardTableProps {
+interface GenericBarChartProps {
   title: string;
-  description: string;
-  data: Performer[];
-  unit: string;
+  data: ChartDataItem[];
+  xAxisDataKey: string;
+  barDataKey: string;
+  fillColor: string | ((entry: ChartDataItem, index: number) => string);
 }
 
-const rankColor = (rank: number) => {
-    if (rank === 1) return "bg-yellow-400/20 text-yellow-700 border-yellow-400/50";
-    if (rank === 2) return "bg-slate-400/20 text-slate-700 border-slate-400/50";
-    if (rank === 3) return "bg-orange-400/20 text-orange-700 border-orange-400/50";
-    return "bg-muted text-muted-foreground border-transparent";
-}
+const chartColors = [
+    'hsl(var(--chart-1))',
+    'hsl(var(--chart-2))',
+    'hsl(var(--chart-3))',
+    'hsl(var(--chart-4))',
+    'hsl(var(--chart-5))',
+];
 
-export const LeaderboardTable = ({ title, description, data, unit }: LeaderboardTableProps) => {
+export const GenericBarChart = ({ title, data, xAxisDataKey, barDataKey, fillColor }: GenericBarChartProps) => {
   return (
     <Card className="h-full">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[50px]">Rank</TableHead>
-              <TableHead>Nom</TableHead>
-              <TableHead className="text-right">{unit}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((item) => (
-              <TableRow key={item.rank}>
-                <TableCell>
-                    <Badge variant="outline" className={rankColor(item.rank)}>
-                        {item.rank}
-                    </Badge>
-                </TableCell>
-                <TableCell className="font-medium flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                        <AvatarFallback>{item.avatar}</AvatarFallback>
-                    </Avatar>
-                    {item.name}
-                </TableCell>
-                <TableCell className="text-right font-bold text-lg">{item.value}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={data} margin={{ top: 20, right: 10, left: -20, bottom: 40 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            
+            <XAxis 
+              dataKey={xAxisDataKey} 
+              stroke="hsl(var(--foreground))"
+              fontSize={13} 
+              tickLine={false} 
+              axisLine={false}
+              interval={0}
+              angle={-45}
+              textAnchor="end"
+              height={60} 
+            />
+
+            <YAxis 
+              stroke="hsl(var(--muted-foreground))" 
+              fontSize={12} 
+              tickLine={false} 
+              axisLine={false} 
+            />
+            <Tooltip 
+              cursor={{ fill: 'hsl(var(--muted))' }} 
+              contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))' }} 
+            />
+            <Bar dataKey={barDataKey} radius={[4, 4, 0, 0]} fill={typeof fillColor === 'string' ? fillColor : undefined}>
+              {typeof fillColor === 'function'
+                ? data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={fillColor(entry, index)} />
+                  ))
+                : null}
+              <LabelList dataKey={barDataKey} position="top" style={{ fill: 'hsl(var(--foreground))', fontSize: '12px' }} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </CardContent>
     </Card>
   );
@@ -4126,81 +4298,127 @@ export default MapComponent;
 
 
 
-# --- components/ui-admin/slider.tsx ---
-// src/components/ui-admin/slider.tsx
-import * as React from "react"
-import * as SliderPrimitive from "@radix-ui/react-slider"
+# --- layout/AdminNavContent.tsx ---
+// src/layout/AdminNavContent.tsx
+import { NavLink } from 'react-router-dom';
+import { Button } from '@/components/ui-admin/button';
+import { Users, Flag, PieChart, MapPin, FileText, Settings, LayoutDashboard, AudioLines, Building2, Target } from 'lucide-react';
 
-import { cn } from "@/lib/utils"
+// Liens spécifiques à l'administrateur
+const adminNavLinks = [
+  { to: '/admin', text: 'Tableau de Bord', icon: LayoutDashboard }, 
+  { to: '/admin/managers', text: 'Managers', icon: Users },
+  { to: '/admin/commerciaux', text: 'Commerciaux', icon: Users },
+  { to: '/admin/equipes', text: 'Equipes', icon: Flag },
+  { to: '/admin/immeubles', text: 'Immeubles', icon: Building2 },
+  { to: '/admin/suivi', text: 'Suivi', icon: AudioLines },
+  { to: '/admin/zones', text: 'Zones', icon: MapPin },
+  { to: '/admin/assignations-objectifs', text: 'Assignations & Objectifs', icon: Target },
+  { to: '/admin/statistiques', text: 'Statistiques', icon: PieChart },
+  { to: '/admin/rapports', text: 'Rapports & exports', icon: FileText },
+  { to: '/admin/parametres', text: 'Paramètres', icon: Settings },
+];
 
-function Slider({
-  className,
-  defaultValue,
-  value,
-  min = 0,
-  max = 100,
-  ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
-  const _values = React.useMemo(
-    () =>
-      Array.isArray(value)
-        ? value
-        : Array.isArray(defaultValue)
-          ? defaultValue
-          : [min, max],
-    [value, defaultValue, min, max]
-  )
-
-  return (
-    <SliderPrimitive.Root
-      data-slot="slider"
-      defaultValue={defaultValue}
-      value={value}
-      min={min}
-      max={max}
-      className={cn(
-        "relative flex w-full touch-none items-center select-none data-[disabled]:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col",
-        className
-      )}
-      {...props}
-    >
-      <SliderPrimitive.Track
-        data-slot="slider-track"
-        className={cn(
-          "bg-muted relative grow overflow-hidden rounded-full data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5"
-        )}
-      >
-        {/* MODIFICATION: La barre de progression utilise la couleur primaire */}
-        <SliderPrimitive.Range
-          data-slot="slider-range"
-          className={cn(
-            "bg-primary absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full"
-          )}
-        />
-      </SliderPrimitive.Track>
-      {Array.from({ length: _values.length }, (_, index) => (
-        // MODIFICATION: Le curseur utilise la couleur primaire
-        <SliderPrimitive.Thumb
-          data-slot="slider-thumb"
-          key={index}
-          className="border-primary bg-primary ring-ring/50 block size-4 shrink-0 rounded-full border shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
-        />
-      ))}
-    </SliderPrimitive.Root>
-  )
+interface AdminNavContentProps {
+  isCollapsed: boolean;
+  onLinkClick?: () => void;
 }
 
-export { Slider }
+export const AdminNavContent = ({ isCollapsed, onLinkClick }: AdminNavContentProps) => {
+  return (
+    <nav className="flex flex-col gap-1 px-2">
+      {adminNavLinks.map((link) => (
+        <NavLink to={link.to} key={link.text} end={link.to === '/admin'} onClick={onLinkClick}>
+          {({ isActive }) => (
+            <Button
+              variant={isActive ? 'secondary' : 'ghost'}
+              className={`w-full justify-start gap-3 h-10 transition-colors duration-200 ${
+                isActive
+                  ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair))]'
+                  : 'hover:bg-zinc-100 text-black'
+              }`}
+            >
+              <link.icon className="h-5 w-5" />
+              {!isCollapsed && <span className="truncate">{link.text}</span>}
+            </Button>
+          )}
+        </NavLink>
+      ))}
+    </nav>
+  );
+};
+
+
+# --- components/charts/GenericLineChart.tsx ---
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+interface ChartDataItem {
+  [key: string]: string | number;
+}
+
+interface LineConfig {
+  dataKey: string;
+  stroke: string;
+  name?: string; 
+}
+
+interface GenericLineChartProps {
+  title: string;
+  data: ChartDataItem[];
+  xAxisDataKey: string;
+  lines: LineConfig[];
+}
+
+export const GenericLineChart = ({ title, data, xAxisDataKey, lines }: GenericLineChartProps) => {
+  return (
+    <Card className="h-full">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={350}> 
+          <LineChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey={xAxisDataKey} stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'hsl(var(--background))', 
+                borderColor: 'hsl(var(--border))',
+                borderRadius: '0.5rem',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+              }} 
+            />
+            <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: '20px' }}/>
+            {lines.map(line => (
+              <Line 
+                key={line.dataKey} 
+                type="monotone" 
+                dataKey={line.dataKey} 
+                stroke={line.stroke} 
+                strokeWidth={2} 
+                dot={{ r: 4 }}
+                name={line.name || line.dataKey} 
+                activeDot={{ r: 6 }}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+};
 
 
 # --- components/ui-admin/StatCard.tsx ---
-// src/components/ui/StatCard.tsx
+// src/components/ui-admin/StatCard.tsx
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui-admin/card';
 import type { LucideIcon } from 'lucide-react';
 import CountUp from 'react-countup';
 import { cn } from '@/lib/utils';
-import { ArrowUp, ArrowDown } from 'lucide-react'; // <-- 1. Importer les icônes
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
 interface StatCardProps {
   title: string;
@@ -4209,21 +4427,20 @@ interface StatCardProps {
   prefix?: string;
   suffix?: string;
   color?: string;
-  change?: number; // <-- 2. Ajouter la nouvelle prop 'change'
+  change?: number;
 }
 
 const StatCard = ({ title, value, Icon, prefix, suffix, color, change }: StatCardProps) => {
-  // 3. Déterminer si le changement est positif ou non
   const isPositive = change !== undefined && change >= 0;
 
   return (
-    <Card className="transition-transform duration-300 hover:scale-[1.03] hover:shadow-lg">
+    <Card className="transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border border-gray-200 rounded-xl overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className={cn("h-4 w-4 text-muted-foreground", color)} />
+        <CardTitle className="text-sm font-medium text-gray-600">{title}</CardTitle>
+        <Icon className={cn("h-5 w-5 text-gray-500", color)} />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">
+        <div className="text-3xl font-bold text-gray-900">
           {typeof value === 'number' && !isNaN(value) ? (
             <CountUp
               start={0}
@@ -4238,10 +4455,9 @@ const StatCard = ({ title, value, Icon, prefix, suffix, color, change }: StatCar
             <span className="text-muted-foreground">N/A</span>
           )}
         </div>
-        {/* --- 4. LOGIQUE POUR AFFICHER L'ÉVOLUTION --- */}
         {change !== undefined && (
           <p className={cn(
-             "text-xs text-muted-foreground flex items-center gap-1 mt-1",
+             "text-xs flex items-center gap-1 mt-1",
              isPositive ? "text-emerald-600" : "text-red-600"
           )}>
             {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
@@ -4256,117 +4472,6 @@ const StatCard = ({ title, value, Icon, prefix, suffix, color, change }: StatCar
 };
 
 export default StatCard;
-
-
-# --- layout/AdminHeader.tsx ---
-// src/layout/AdminHeader.tsx
-import { useState } from 'react'; // 'useEffect' a été retiré car non utilisé
-import { Button } from '@/components/ui-admin/button';
-import { Sheet, SheetContent, SheetHeader, SheetTrigger } from '@/components/ui-admin/sheet';
-import { Menu } from 'lucide-react';
-import { AdminNavContent } from './AdminNavContent';
-import { BrandLogo } from '@/components/ui-commercial/BrandLogo';
-import { DateTimeDisplay } from './DateTimeDisplay';
-import { UserNav } from './UserNav';
-
-const AdminHeader = () => {
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
-
-  return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b border-b-[hsl(var(--winvest-blue-moyen))] bg-[hsl(var(--winvest-blue-moyen))] px-4 text-white sm:px-6">
-      {/* Section de gauche : Titre et menu hamburger pour mobile */}
-      <div className="flex items-center gap-4">
-        <div className="lg:hidden">
-          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="border-white/30 bg-transparent text-white hover:bg-black/10">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[250px] p-0 bg-white">
-              <SheetHeader className='p-4 border-b'><BrandLogo /></SheetHeader>
-              <div className="py-4">
-                <AdminNavContent isCollapsed={false} onLinkClick={() => setIsSheetOpen(false)} />
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
-        <h1 className="text-xl md:text-2xl font-bold">Espace Admin</h1>
-      </div>
-      
-      {/* Section de droite : Date, Heure et Menu Utilisateur */}
-      <div className="flex items-center gap-4">
-        <DateTimeDisplay />
-        <div className="border-l h-8"></div> {/* Votre séparateur est bien conservé */}
-        <UserNav />
-      </div>
-    </header>
-  );
-};
-
-export default AdminHeader;
-
-
-# --- layout/AdminSidebar.tsx ---
-// src/layout/AdminSidebar.tsx
-import { Button } from '@/components/ui-admin/button';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { AdminNavContent } from './AdminNavContent';
-import { UserNavMenu } from './UserNavMenu';
-import logo from '@/assets/logo.png';
-
-interface AdminSidebarProps {
-  isCollapsed: boolean;
-  toggleSidebar: () => void;
-}
-
-export const AdminSidebar = ({ isCollapsed, toggleSidebar }: AdminSidebarProps) => {
-  return (
-    <aside
-      className={`hidden lg:flex flex-col bg-[#FAFAFA] transition-all duration-300 sticky top-0 h-screen ${
-        isCollapsed ? 'w-20' : 'w-64'
-      }`}
-    >
-      {/* HEADER CORRIGÉ */}
-      <div
-        className={`flex items-center h-20 px-4 shrink-0 ${ // shrink-0 empêche le header de se réduire
-          isCollapsed ? 'justify-center' : 'justify-between'
-        }`}
-      >
-        {/* Le logo n'est visible que si la sidebar est dépliée */}
-        {!isCollapsed && (
-          // Le logo est dans un conteneur pour ne pas perturber le flexbox
-          <div className="flex-1"> 
-            <img
-              src={logo}
-              alt="Logo Groupe Finanssor"
-              className="h-30 w-auto object-contain -translate-x-6" // Votre style est conservé
-            />
-          </div>
-        )}
-
-        {/* Bouton pour plier/déplier */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleSidebar}
-        >
-          {isCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-        </Button>
-      </div>
-
-      {/* NAVIGATION */}
-      <div className="flex-1 overflow-y-auto"> {/* Ajout de overflow-y-auto pour les petits écrans */}
-        <AdminNavContent isCollapsed={isCollapsed} />
-      </div>
-
-      {/* USER MENU */}
-      <div className="p-2 border-t mt-auto shrink-0">
-        <UserNavMenu isCollapsed={isCollapsed} />
-      </div>
-    </aside>
-  );
-};
 
 
 # --- components/ui-admin/card.tsx ---
@@ -4452,154 +4557,216 @@ CardFooter.displayName = "CardFooter"
 export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
 
 
-# --- layout/CommercialNavContent.tsx ---
-// src/layout/CommercialNavContent.tsx
-import { NavLink } from 'react-router-dom';
+# --- components/ui-admin/tooltip.tsx ---
+import * as React from "react"
+import * as TooltipPrimitive from "@radix-ui/react-tooltip"
+
+import { cn } from "@/lib/utils"
+
+function TooltipProvider({
+  delayDuration = 0,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
+  return (
+    <TooltipPrimitive.Provider
+      data-slot="tooltip-provider"
+      delayDuration={delayDuration}
+      {...props}
+    />
+  )
+}
+
+function Tooltip({
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+  return (
+    <TooltipProvider>
+      <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+    </TooltipProvider>
+  )
+}
+
+function TooltipTrigger({
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
+  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+}
+
+function TooltipContent({
+  className,
+  sideOffset = 0,
+  children,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+  return (
+    <TooltipPrimitive.Portal>
+      <TooltipPrimitive.Content
+        data-slot="tooltip-content"
+        sideOffset={sideOffset}
+        className={cn(
+          "bg-primary text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-3 py-1.5 text-xs text-balance",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        <TooltipPrimitive.Arrow className="bg-primary fill-primary z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
+      </TooltipPrimitive.Content>
+    </TooltipPrimitive.Portal>
+  )
+}
+
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+
+
+
+# --- layout/CommercialHeader.tsx ---
+// src/layout/CommercialHeader.tsx
+import { useState } from 'react';
 import { Button } from '@/components/ui-admin/button';
-import { 
-    LayoutDashboard, 
-    Target, 
-    History, 
-    BarChart2, 
-    User as UserIcon 
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui-admin/sheet';
+import { Menu } from 'lucide-react';
+import { CommercialNavContent } from './CommercialNavContent';
+import { BrandLogo } from '@/components/ui-commercial/BrandLogo';
+import { DateTimeDisplay } from './DateTimeDisplay';
+import { UserNav } from './UserNav';
 
-const commercialNavLinks = [
-    { to: '/commercial/dashboard', text: 'Tableau de bord', icon: LayoutDashboard, exact: true },
-    { to: '/commercial/prospecting', text: 'Prospection', icon: Target, exact: false },
-    { to: '/commercial/history', text: 'Historique', icon: History, exact: true },
-    { to: '/commercial/stats', text: 'Mes statistiques', icon: BarChart2, exact: true },
-    { to: '/commercial/profile', text: 'Profil', icon: UserIcon, exact: true },
-];
-
-interface CommercialNavContentProps {
-  isCollapsed: boolean;
-  onLinkClick?: () => void;
-}
-
-export const CommercialNavContent = ({ isCollapsed, onLinkClick }: CommercialNavContentProps) => {
-  return (
-    <nav className="flex flex-col gap-1 px-2">
-      {commercialNavLinks.map((link) => (
-        // --- CORRECTION DÉFINITIVE ICI ---
-        <NavLink to={link.to} key={link.text} onClick={onLinkClick} end={link.exact}>
-          {({ isActive }) => (
-            <Button
-              variant='ghost'
-              className={cn(
-                "w-full justify-start gap-3 h-10 transition-colors duration-200",
-                isActive
-                  ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] font-semibold hover:bg-[hsl(var(--winvest-blue-clair))]'
-                  : 'hover:bg-zinc-100 text-black'
-              )}
-            >
-              <link.icon className="h-5 w-5" />
-              {!isCollapsed && <span className="truncate">{link.text}</span>}
-            </Button>
-          )}
-        </NavLink>
-      ))}
-    </nav>
-  );
-};
-
-
-# --- components/ui-admin/GenericRadialBarChart.tsx ---
-// src/components/charts/GenericRadialBarChart.tsx
-
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
-import { ResponsiveContainer, PolarAngleAxis, RadialBarChart, RadialBar } from 'recharts';
-
-interface GenericRadialChartProps {
-  title: string;
-  value: number;
-  total: number;
-  color: string;
-}
-
-export const GenericRadialBarChart = ({ title, value, total, color }: GenericRadialChartProps) => {
-  const percentage = total > 0 ? (value / total) * 100 : 0;
-  const data = [{ name: 'objectif', value: percentage }];
+const CommercialHeader = () => {
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 flex justify-center items-center relative">
-        <ResponsiveContainer width="100%" height={200}>
-          <RadialBarChart
-            innerRadius="80%"
-            outerRadius="100%"
-            data={data}
-            startAngle={90}
-            endAngle={-270}
-            cx="50%"
-            cy="50%"
-            barSize={15}
-          >
-            <PolarAngleAxis
-              type="number"
-              domain={[0, 100]}
-              angleAxisId={0}
-              tick={false}
-            />
-            <RadialBar
-              background
-              dataKey="value"
-              cornerRadius={10}
-              angleAxisId={0}
-              className={color} // Utilise la classe de couleur passée
-            />
-          </RadialBarChart>
-        </ResponsiveContainer>
-        <div className="absolute flex flex-col items-center justify-center">
-          <span className="text-4xl font-bold">{Math.round(percentage)}%</span>
-          <span className="text-sm text-muted-foreground">{value} / {total}</span>
+    <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b border-b-[hsl(var(--winvest-blue-moyen))] bg-[hsl(var(--winvest-blue-moyen))] px-4 text-white sm:px-6">
+      
+      {/* Section de gauche */}
+      <div className="flex items-center gap-4">
+        <div className="lg:hidden">
+          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="border-white/30 bg-transparent text-white hover:bg-black/10">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[250px] p-0 bg-white">
+              <div className="p-4 border-b"><BrandLogo /></div>
+              <div className="py-4 px-2">
+                <CommercialNavContent isCollapsed={false} onLinkClick={() => setIsSheetOpen(false)} />
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
-      </CardContent>
-    </Card>
+        <h1 className="text-xl md:text-2xl font-bold">Espace Commercial</h1>
+      </div>
+      
+      {/* Section de droite */}
+      <div className="flex items-center gap-4">
+        <DateTimeDisplay />
+        <UserNav />
+      </div>
+    </header>
+  );
+};
+
+export default CommercialHeader;
+
+
+# --- layout/DateTimeDisplay.tsx ---
+    // src/layout/DateTimeDisplay.tsx
+import { useState, useEffect } from 'react';
+
+// Hook personnalisé pour formater la date et l'heure
+const useDateTime = () => {
+    const [date, setDate] = useState(new Date());
+
+    useEffect(() => {
+        const timerId = setInterval(() => setDate(new Date()), 1000);
+        return () => clearInterval(timerId);
+    }, []);
+
+    const day = date.toLocaleDateString('fr-FR', { weekday: 'long' });
+    const dayNumber = date.getDate();
+    const month = date.toLocaleDateString('fr-FR', { month: 'long' });
+
+    const time = date.toLocaleTimeString('fr-FR', {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+    const seconds = date.toLocaleTimeString('fr-FR', { second: '2-digit' });
+
+    // Capitaliser la première lettre du jour et du mois
+    const formattedDay = day.charAt(0).toUpperCase() + day.slice(1);
+    const formattedMonth = month.charAt(0).toUpperCase() + month.slice(1);
+
+    return {
+        dateString: `${formattedDay} ${dayNumber} ${formattedMonth}`,
+        timeString: time,
+        secondsString: seconds,
+    };
+};
+
+
+export const DateTimeDisplay = () => {
+  const { dateString, timeString} = useDateTime();
+
+  return (
+    <div className="hidden md:flex items-center gap-4 bg-black/10 px-4 py-1.5 rounded-lg border border-white/90">
+      {/* Section Date */}
+      <div className="text-right">
+        <span className="text-sm font-semibold tracking-wide">{dateString}</span>
+      </div>
+
+      {/* Séparateur */}
+      <div className="h-6 w-px bg-white/30"></div>
+
+      {/* Section Heure */}
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-2xl font-bold tracking-tighter">{timeString}</span>
+        {/* Les secondes clignotent avec une opacité variable */}
+      </div>
+    </div>
   );
 };
 
 
-# --- components/charts/GenericStackedBarChart.tsx ---
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui-admin/card";
+# --- components/page-components/ZoneMapViewer.tsx ---
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
+import MapComponent from '@/components/MapComponent';
+import { Map, Pin } from 'lucide-react';
+import type { Zone } from '@/types/types';
 
-interface ChartDataItem {
-  [key: string]: string | number;
+interface ZoneMapViewerProps {
+  zone: Zone | null;
 }
 
-interface StackedBarChartProps {
-  title: string;
-  description: string;
-  data: ChartDataItem[];
-  xAxisKey: string;
-  bars: { key: string; name: string; color: string }[];
-}
-
-export const GenericStackedBarChart = ({ title, description, data, xAxisKey, bars }: StackedBarChartProps) => {
+export const ZoneMapViewer = ({ zone }: ZoneMapViewerProps) => {
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="shadow-md hover:shadow-lg transition-shadow h-full flex flex-col">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardTitle className="flex items-center text-purple-600">
+          <Pin className="mr-3 h-6 w-6" /> Visualisation de la Zone
+        </CardTitle>
+        <CardDescription>
+          {zone ? `Détails pour la zone : ${zone.nom}` : 'Sélectionnez une zone pour la voir ici.'}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 pb-0">
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 80, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-            <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-            <YAxis type="category" dataKey={xAxisKey} stroke="hsl(var(--muted-foreground))" fontSize={12} width={80} />
-            <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))' }} />
-            <Legend wrapperStyle={{ paddingTop: '20px' }}/>
-            {bars.map(bar => (
-              <Bar key={bar.key} dataKey={bar.key} name={bar.name} stackId="a" fill={bar.color} radius={[4, 4, 4, 4]} />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
+      <CardContent className="flex-grow rounded-b-lg overflow-hidden p-0">
+        {zone ? (
+          <MapComponent
+            latitude={zone.latitude}
+            longitude={zone.longitude}
+            zoom={13} 
+            radius={zone.rayonMetres}
+            color={zone.couleur} // Pass the zone color
+            key={zone.id} // Important: force le re-rendu de la map quand la zone change
+          />
+        ) : (
+          <div className="h-full bg-gray-100 flex flex-col items-center justify-center text-center p-8">
+            <Map className="h-24 w-24 text-gray-300 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-600">Aucune zone sélectionnée</h3>
+            <p className="text-gray-500 mt-2">
+              Veuillez choisir une zone dans le panneau d'assignation pour afficher sa localisation et son périmètre.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -4902,7 +5069,7 @@ import axios from 'axios';
 const API_URL = 'http://localhost:3000/statistics';
 
 // Définition des types pour les filtres
-export type PeriodType = 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+export type PeriodType = 'WEEK' | 'MONTH' | 'YEAR';
 export type StatEntityType = 'COMMERCIAL' | 'EQUIPE' | 'MANAGER';
 
 export interface StatisticsQuery {
@@ -5203,51 +5370,45 @@ export { Avatar, AvatarImage, AvatarFallback }
 
 
 
-# --- services/assignment-goals.service.ts ---
-import axios from 'axios';
-import { AssignmentType } from '@/types/enums';
+# --- components/ui-admin/Modal.tsx ---
+// src/components/ui/Modal.tsx
+import { X } from 'lucide-react';
+import type { ReactNode } from 'react';
 
-const API_URL = 'http://localhost:3000/assignment-goals';
-
-interface AssignZonePayload {
-  zoneId: string;
-  assigneeId: string;
-  assigneeType: AssignmentType;
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
 }
 
-interface SetMonthlyGoalPayload {
-  commercialId: string;
-  goal: number;
-  month: number;
-  year: number;
-}
+export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
+  if (!isOpen) {
+    return null;
+  }
 
-const assignZone = async (zoneId: string, assigneeId: string, assigneeType: AssignmentType) => {
-  const payload: AssignZonePayload = {
-    zoneId,
-    assigneeId,
-    assigneeType,
-  };
-  const response = await axios.post(`${API_URL}/assign-zone`, payload);
-  return response.data;
+  return (
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 animate-in fade-in-0"
+      onClick={onClose}
+    >
+      <div
+        className="relative bg-white rounded-lg shadow-xl w-full max-w-6xl animate-in zoom-in-95"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-6">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
 };
-
-const setMonthlyGoal = async (commercialId: string, goal: number, month: number, year: number) => {
-  const payload: SetMonthlyGoalPayload = {
-    commercialId,
-    goal,
-    month,
-    year,
-  };
-  const response = await axios.post(`${API_URL}/set-monthly-goal`, payload);
-  return response.data;
-};
-
-export const assignmentGoalsService = {
-  assignZone,
-  setMonthlyGoal,
-};
-
 
 
 # --- components/ui-admin/input.tsx ---
@@ -5471,23 +5632,6 @@ export enum PeriodType {
 }
 
 
-# --- components/ui-admin/skeleton.tsx ---
-import { cn } from "@/lib/utils"
-
-function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="skeleton"
-      className={cn("bg-accent animate-pulse rounded-md", className)}
-      {...props}
-    />
-  )
-}
-
-export { Skeleton }
-
-
-
 # --- pages/backoffice/DashboardBackoffice.tsx ---
 // Fichier: src/pages/admin/DashboardAdmin.tsx
 const DashboardBackoffice = () => {
@@ -5498,6 +5642,18 @@ const DashboardBackoffice = () => {
     );
   };
   export default DashboardBackoffice;
+
+
+# --- pages/directeur/DashboardDirecteur.tsx ---
+// Fichier: src/pages/admin/DashboardAdmin.tsx
+const DashboardDirecteur = () => {
+    return (
+      <div className="p-8">
+          <h1 className="text-3xl font-bold">Tableau de Bord - Admin</h1>
+      </div>
+    );
+  };
+  export default DashboardDirecteur;
 
 
 # --- pages/manager/DashboardManager.tsx ---

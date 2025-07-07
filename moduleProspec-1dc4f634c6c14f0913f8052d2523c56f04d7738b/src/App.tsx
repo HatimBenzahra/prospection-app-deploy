@@ -9,8 +9,10 @@ import RoleBasedRedirect from './routes/RoleBasedRedirect';
 import AdminLayout from './layout/AdminLayout';
 import CommercialLayout from './layout/CommercialLayout';
 import Login from './pages/auth/Login';
+import SelectCommercialPage from './pages/commercial/CommercialSelectionPage'; // <-- IMPORT NOUVEAU
 
 // --- Pages Admin ---
+// ... (imports admin inchangés) ...
 import DashboardAdmin from './pages/admin/Dashboard/DashboardAdmin';
 import ManagersPage from './pages/admin/Managers/ManagersPage';
 import ManagerDetailsPage from './pages/admin/Managers/ManagerDetailsPage';
@@ -28,11 +30,9 @@ import AssignmentGoalsPage from './pages/admin/assignment-goals/AssignmentGoalsP
 
 // --- Pages Commercial ---
 import CommercialDashboardPage from './pages/commercial/DashboardCommercial';
-import SelectBuildingPage from './pages/commercial/SelectBuildingPage';
-import ProspectingSetupPage from './pages/commercial/ProspectingSetupPage'; // <-- On importe le vrai composant
+import ProspectingSetupPage from './pages/commercial/ProspectingSetupPage'; 
 import ProspectingDoorsPage from './pages/commercial/ProspectingDoorsPage';
 
-// On crée des composants temporaires pour les routes non encore développées
 const CommercialHistory = () => <div className="p-8"><h1 className="text-3xl font-bold">Historique de Prospection</h1></div>;
 const CommercialStats = () => <div className="p-8"><h1 className="text-3xl font-bold">Mes Statistiques</h1></div>;
 const CommercialProfile = () => <div className="p-8"><h1 className="text-3xl font-bold">Mon Profil</h1></div>;
@@ -48,8 +48,11 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* --- Route Publique --- */}
+        {/* --- Routes Publiques --- */}
         <Route path="/login" element={<Login />} />
+        {/* NOUVELLE ROUTE PUBLIQUE POUR LA SÉLECTION */}
+        <Route path="/select-commercial" element={<SelectCommercialPage />} />
+
 
         {/* --- Routes Privées Protégées --- */}
         <Route element={<PrivateRoute />}>
@@ -81,7 +84,7 @@ function App() {
             <Route path="dashboard" element={<CommercialDashboardPage />} /> 
             
             {/* Flow de prospection */}
-            <Route path="prospecting" element={<SelectBuildingPage />} />
+            <Route path="prospecting" element={<SelectCommercialPage />} />
             <Route path="prospecting/setup/:buildingId" element={<ProspectingSetupPage />} />
             <Route path="prospecting/doors/:buildingId" element={<ProspectingDoorsPage />} />
 

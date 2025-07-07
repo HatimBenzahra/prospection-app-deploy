@@ -1,3 +1,5 @@
+// src/pages/auth/Login.tsx
+
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui-admin/button';
@@ -8,8 +10,20 @@ const Login = () => {
   const navigate = useNavigate();
 
   const handleLogin = (role: 'admin' | 'manager' | 'directeur' | 'backoffice' | 'commercial') => {
-    login(role);
-    navigate('/'); // On redirige vers la racine, qui s'occupera de dispatcher vers le bon dashboard
+    if (role === 'commercial') {
+      // Pour le commercial, on redirige vers la page de sélection
+      navigate('/select-commercial');
+      return;
+    }
+
+    // Pour les autres rôles, on simule une connexion avec un utilisateur générique
+    const userData = { 
+        id: `${role}-user-id`, 
+        name: `${role.charAt(0).toUpperCase() + role.slice(1)} User`, 
+        role 
+    };
+    login(userData);
+    navigate('/');
   };
 
   return (
@@ -24,6 +38,7 @@ const Login = () => {
           <Button variant="outline" onClick={() => handleLogin('manager')}>Connexion Manager</Button>
           <Button variant="outline" onClick={() => handleLogin('directeur')}>Connexion Directeur</Button>
           <Button variant="outline" onClick={() => handleLogin('backoffice')}>Connexion Back-office</Button>
+          {/* Le bouton commercial redirige maintenant */}
           <Button variant="outline" onClick={() => handleLogin('commercial')}>Connexion Commercial</Button>
         </CardContent>
       </Card>

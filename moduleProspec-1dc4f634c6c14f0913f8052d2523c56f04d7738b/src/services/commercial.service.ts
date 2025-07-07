@@ -20,12 +20,12 @@ type CreateCommercialPayload = {
   email: string;
   telephone?: string;
   equipeId?: string;
-  managerId: string; // Ajout du managerId
+  managerId: string;
 };
 
-// AJOUT: Type pour la mise à jour
 type UpdateCommercialPayload = Partial<CreateCommercialPayload>;
 
+// Renommée pour éviter la confusion, mais la fonctionnalité est la même
 const getCommerciaux = async (): Promise<CommercialFromAPI[]> => {
   const response = await axios.get(API_URL);
   return response.data;
@@ -36,7 +36,6 @@ const createCommercial = async (data: CreateCommercialPayload): Promise<Commerci
   return response.data;
 };
 
-// AJOUT: Fonction pour mettre à jour un commercial
 const updateCommercial = async (id: string, data: UpdateCommercialPayload): Promise<CommercialFromAPI> => {
   const response = await axios.patch(`${API_URL}/${id}`, data);
   return response.data;
@@ -45,10 +44,7 @@ const updateCommercial = async (id: string, data: UpdateCommercialPayload): Prom
 const deleteCommercial = async (id: string): Promise<void> => {
   await axios.delete(`${API_URL}/${id}`);
 };
-// frontend-shadcn/src/services/commercial.service.ts
-// ... (haut du fichier inchangé)
 
-// AJOUT DE LA NOUVELLE FONCTION
 const getCommercialDetails = async (id: string): Promise<any> => {
   const response = await axios.get(`${API_URL}/${id}`);
   return response.data;
@@ -56,7 +52,7 @@ const getCommercialDetails = async (id: string): Promise<any> => {
 
 export const commercialService = {
   getCommerciaux,
-  getCommercialDetails, // AJOUT
+  getCommercialDetails,
   createCommercial,
   updateCommercial,
   deleteCommercial,
