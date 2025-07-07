@@ -229,13 +229,13 @@ export class StatisticsService {
       const now = new Date();
       let startDate: Date;
 
-      if (period === PeriodType.WEEK) {
+      if (period === PeriodType.WEEKLY) {
         const currentDay = now.getDay();
         const diff = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
         startDate = new Date(new Date().setDate(diff));
-      } else if (period === PeriodType.MONTH) {
+      } else if (period === PeriodType.MONTHLY) {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      } else if (period === PeriodType.YEAR) {
+      } else if (period === PeriodType.YEARLY) {
         startDate = new Date(now.getFullYear(), 0, 1);
       } else {
         return undefined;
@@ -347,11 +347,11 @@ export class StatisticsService {
     period: PeriodType,
   ) {
     const formatKey = (date: Date) => {
-      if (period === PeriodType.WEEK) {
+      if (period === PeriodType.WEEKLY) {
         const startOfWeek = new Date(date);
         startOfWeek.setDate(date.getDate() - date.getDay() + 1);
         return startOfWeek.toISOString().substring(0, 10);
-      } else if (period === PeriodType.MONTH) {
+      } else if (period === PeriodType.MONTHLY) {
         return date.toISOString().substring(0, 7); // YYYY-MM
       } else {
         // YEARLY
