@@ -20,6 +20,7 @@ import type { Manager as ManagerFromAPI } from "../Managers/managers-table/colum
 const CommerciauxPage = () => {
   const [data, setData] = useState<Commercial[]>([]);
   const [managers, setManagers] = useState<ManagerFromAPI[]>([]);
+  const [equipes, setEquipes] = useState<{ id: string; nom: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -44,6 +45,7 @@ const CommerciauxPage = () => {
       ]);
 
       setManagers(managersFromApi);
+      setEquipes(equipesFromApi);
 
       const equipesMap = new Map(equipesFromApi.map((e) => [e.id, e.nom] as const));
       const managersMap = new Map(managersFromApi.map((m) => [m.id, `${m.prenom} ${m.nom}`] as const));
@@ -126,17 +128,14 @@ const CommerciauxPage = () => {
     setNewCommercialData((prev) => ({ ...prev, [e.target.id]: e.target.value }));
   };
   const handleAddCommercial = async () => {
-    const { nom, prenom, email, managerId } = newCommercialData;
+    const { nom, prenom, email, telephone, managerId } = newCommercialData;
     if (!nom || !prenom || !email || !managerId) {
       alert("Veuillez remplir tous les champs obligatoires.");
       return;
     }
 
     try {
-      await commercialService.createCommercial({
-        ...newCommercialData,
-        managerId: managerId, 
-      });
+      await commercialService.createCommercial({ nom, prenom, email, telephone, managerId });
       setIsAddModalOpen(false);
       setNewCommercialData(initialFormState);
       fetchData();
@@ -189,7 +188,7 @@ const CommerciauxPage = () => {
         </ul>
         <div className="flex justify-end gap-2 mt-6">
           <Button variant="outline" onClick={() => setItemsToDelete([])}>Annuler</Button>
-          <Button variant="destructive" onClick={handleDelete}>Valider</Button>
+          <Button className="bg-green-600 text-white hover:bg-green-700" onClick={handleDelete}>Valider</Button>
         </div>
       </Modal>
 

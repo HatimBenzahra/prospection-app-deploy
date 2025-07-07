@@ -151,7 +151,7 @@ const CommercialDetailsPage = () => {
           </div>
           <div className="flex items-center space-x-2">
             <UserCheck className="h-5 w-5 text-gray-500" />
-            <span>{commercial.equipe.manager.prenom} {commercial.equipe.manager.nom}</span>
+            <span>{commercial.equipe ? `${commercial.equipe.manager.prenom} ${commercial.equipe.manager.nom}` : 'N/A'}</span>
           </div>
         </CardContent>
       </Card>

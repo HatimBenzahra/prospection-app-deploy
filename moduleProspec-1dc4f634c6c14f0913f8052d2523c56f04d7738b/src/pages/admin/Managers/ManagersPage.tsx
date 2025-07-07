@@ -174,7 +174,7 @@ const ManagersPage = () => {
         </ul>
         <div className="flex justify-end gap-2 mt-6">
           <Button variant="outline" onClick={() => setManagersToDelete([])}>Annuler</Button>
-          <Button variant="destructive" onClick={handleDelete}>Valider</Button>
+          <Button className="bg-green-600 text-white hover:bg-green-700" onClick={handleDelete}>Valider</Button>
         </div>
       </Modal>
 
