@@ -1,19 +1,23 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/immeubles';
+const API_URL = 'http://localhost:3000/admin/immeubles';
+const COMMERCIAL_API_URL = 'http://localhost:3000/commercial/immeubles';
 
 export interface ImmeubleFromApi {
   id: string;
   adresse: string;
   ville: string;
   codePostal: string;
-  zone: { id: string; nom: string }; // Added id to zone
+  zone: { id: string; nom: string };
   prospectors: { id: string; prenom: string; nom: string }[];
   status: string;
   portes: any[];
   historiques: any[];
-  latitude: number; // Added latitude
-  longitude: number; // Added longitude
+  latitude: number;
+  longitude: number;
+  nbPortesTotal: number;
+  hasElevator: boolean;
+  digicode: string | null;
 }
 
 export interface ImmeubleDetailsFromApi extends ImmeubleFromApi {
@@ -28,6 +32,7 @@ export interface ImmeubleDetailsFromApi extends ImmeubleFromApi {
   portes: { id: string; numeroPorte: string; statut: string; passage: number; commentaire: string; nbPassages: number }[];
 }
 
+// Admin functions
 const getImmeubles = async (): Promise<ImmeubleFromApi[]> => {
   const response = await axios.get(API_URL);
   return response.data;
@@ -53,10 +58,43 @@ const deleteImmeuble = async (id: string) => {
   return response.data;
 };
 
+// Commercial functions
+const createImmeubleForCommercial = async (immeubleData: any, commercialId: string) => {
+  const response = await axios.post(COMMERCIAL_API_URL, { ...immeubleData, commercialId });
+  return response.data;
+};
+
+const getImmeublesForCommercial = async (commercialId: string): Promise<ImmeubleFromApi[]> => {
+  const response = await axios.get(`${COMMERCIAL_API_URL}/by-commercial/${commercialId}`);
+  return response.data;
+};
+
+const getImmeubleByIdForCommercial = async (id: string, commercialId: string): Promise<ImmeubleDetailsFromApi> => {
+  const response = await axios.get(`${COMMERCIAL_API_URL}/${id}/for-commercial/${commercialId}`);
+  return response.data;
+};
+
+const updateImmeubleForCommercial = async (id: string, immeubleData: any, commercialId: string) => {
+  const response = await axios.patch(`${COMMERCIAL_API_URL}/${id}/for-commercial/${commercialId}`, immeubleData);
+  return response.data;
+};
+
+const deleteImmeubleForCommercial = async (id: string, commercialId: string) => {
+  const response = await axios.delete(`${COMMERCIAL_API_URL}/${id}/for-commercial/${commercialId}`);
+  return response.data;
+};
+
 export const immeubleService = {
+  // Admin
   getImmeubles,
   getImmeubleDetails,
   createImmeuble,
   updateImmeuble,
   deleteImmeuble,
+  // Commercial
+  createImmeubleForCommercial,
+  getImmeublesForCommercial,
+  getImmeubleByIdForCommercial,
+  updateImmeubleForCommercial,
+  deleteImmeubleForCommercial,
 };

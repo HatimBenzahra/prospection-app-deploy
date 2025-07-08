@@ -113,20 +113,29 @@ const CommercialDetailsPage = () => {
   }));
 
   const handleBackClick = () => {
-    const fromManager = location.state?.fromManager;
-    if (fromManager) {
-      navigate(`/admin/managers/${fromManager}`);
-    } else {
-      navigate('/admin/commerciaux');
-    }
+    navigate(-1);
   };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center">
-        <Button variant="outline" size="icon" className="mr-4" onClick={handleBackClick}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+        {location.state?.fromManager ? (
+          <div style={{ border: '2px solid #6366f1', borderRadius: '6px', padding: '2px 8px', marginRight: '16px' }}>
+            <Button variant="outline" size="icon" onClick={handleBackClick}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : location.state?.fromEquipe ? (
+          <div style={{ border: '2px solid #22c55e', borderRadius: '6px', padding: '2px 8px', marginRight: '16px' }}>
+            <Button variant="outline" size="icon" onClick={handleBackClick}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <Button variant="outline" size="icon" className="mr-4" onClick={handleBackClick}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        )}
         <h1 className="text-2xl font-bold">
           Statistiques de {stats.commercialInfo.prenom} {stats.commercialInfo.nom}
         </h1>

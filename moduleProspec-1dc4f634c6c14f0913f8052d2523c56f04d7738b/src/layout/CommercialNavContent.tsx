@@ -6,12 +6,14 @@ import {
     Target, 
     History, 
     BarChart2, 
-    User as UserIcon 
+    User as UserIcon,
+    Building // Import the Building icon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const commercialNavLinks = [
     { to: '/commercial/dashboard', text: 'Tableau de bord', icon: LayoutDashboard, exact: true },
+    { to: '/commercial/immeubles', text: 'Mes Immeubles', icon: Building, exact: true }, // Add the new link
     { to: '/commercial/prospecting', text: 'Prospection', icon: Target, exact: false },
     { to: '/commercial/history', text: 'Historique', icon: History, exact: true },
     { to: '/commercial/stats', text: 'Mes statistiques', icon: BarChart2, exact: true },
@@ -27,7 +29,6 @@ export const CommercialNavContent = ({ isCollapsed, onLinkClick }: CommercialNav
   return (
     <nav className="flex flex-col gap-1 px-2">
       {commercialNavLinks.map((link) => (
-        // --- CORRECTION DÉFINITIVE ICI ---
         <NavLink to={link.to} key={link.text} onClick={onLinkClick} end={link.exact}>
           {({ isActive }) => (
             <Button

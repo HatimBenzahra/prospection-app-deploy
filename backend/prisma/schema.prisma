@@ -15,6 +15,8 @@ model Manager {
   telephone String?
   equipes   Equipe[]
   zones     Zone[]   @relation("ManagerZones")
+
+  @@map("managers")
 }
 
 model Equipe {
@@ -26,6 +28,7 @@ model Equipe {
   zones       Zone[]       @relation("EquipeZones")
 
   @@unique([nom, managerId])
+  @@map("equipes")
 }
 
 model Commercial {
@@ -41,6 +44,8 @@ model Commercial {
   historiques        HistoriqueProspection[]
   zones              Zone[]                  @relation("CommercialZones")
   immeubles          Immeuble[]              @relation("ImmeubleProspectors")
+
+  @@map("commerciaux")
 }
 
 model Zone {
@@ -61,6 +66,7 @@ model Zone {
   manager         Manager?       @relation("ManagerZones", fields: [managerId], references: [id])
 
   @@unique([nom, typeAssignation])
+  @@map("zones")
 }
 
 model Immeuble {
@@ -72,15 +78,17 @@ model Immeuble {
   nbPortesTotal      Int
   prospectingMode    ProspectingMode
   dateDerniereVisite DateTime?
-  zoneId             String
-  latitude           Float
-  longitude          Float
+  zoneId             String?
+  latitude           Float?
+  longitude          Float?
   hasElevator        Boolean
   digicode           String?
   historiques        HistoriqueProspection[]
-  zone               Zone                    @relation(fields: [zoneId], references: [id])
+  zone               Zone?                   @relation(fields: [zoneId], references: [id])
   portes             Porte[]
   prospectors        Commercial[]            @relation("ImmeubleProspectors")
+
+  @@map("immeubles")
 }
 
 model Porte {
@@ -91,6 +99,8 @@ model Porte {
   commentaire String?
   immeubleId  String
   immeuble    Immeuble    @relation(fields: [immeubleId], references: [id])
+
+  @@map("portes")
 }
 
 model HistoriqueProspection {
@@ -106,6 +116,8 @@ model HistoriqueProspection {
   commentaire      String?
   commercial       Commercial @relation(fields: [commercialId], references: [id])
   immeuble         Immeuble   @relation(fields: [immeubleId], references: [id])
+
+  @@map("historiques_prospection")
 }
 
 enum ImmeubleStatus {

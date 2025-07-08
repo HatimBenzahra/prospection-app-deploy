@@ -32,6 +32,7 @@ import AssignmentGoalsPage from './pages/admin/assignment-goals/AssignmentGoalsP
 import CommercialDashboardPage from './pages/commercial/dashboard/DashboardCommercial';
 import ProspectingSetupPage from './pages/commercial/prospection/ProspectingSetupPage'; 
 import ProspectingDoorsPage from './pages/commercial/prospection/ProspectingDoorsPage';
+import CommercialImmeublesPage from './pages/commercial/CommercialImmeublesPage'; // Import the new page
 
 const CommercialHistory = () => <div className="p-8"><h1 className="text-3xl font-bold">Historique de Prospection</h1></div>;
 const CommercialStats = () => <div className="p-8"><h1 className="text-3xl font-bold">Mes Statistiques</h1></div>;
@@ -83,7 +84,8 @@ function App() {
             <Route index element={<Navigate to="/commercial/dashboard" replace />} /> 
             
             <Route path="dashboard" element={<CommercialDashboardPage />} /> 
-            
+            <Route path="immeubles" element={<CommercialImmeublesPage />} /> {/* Add the new route */}
+
             {/* Flow de prospection */}
             <Route path="prospecting" element={<SelectBuildingPage />} />
             <Route path="prospecting/setup/:buildingId" element={<ProspectingSetupPage />} />

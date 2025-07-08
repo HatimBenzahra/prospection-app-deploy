@@ -2,13 +2,25 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateImmeubleDto } from './dto/create-immeuble.dto';
 import { UpdateImmeubleDto } from './dto/update-immeuble.dto';
+import { CreateCommercialImmeubleDto } from './dto/create-commercial-immeuble.dto';
+import { UpdateCommercialImmeubleDto } from './dto/update-commercial-immeuble.dto';
+import { ImmeubleStatus, ProspectingMode } from '@prisma/client';
 
 @Injectable()
 export class ImmeubleService {
   constructor(private prisma: PrismaService) {}
 
+  // Admin methods
   create(createImmeubleDto: CreateImmeubleDto) {
-    return this.prisma.immeuble.create({ data: createImmeubleDto });
+    const { prospectorsIds, ...rest } = createImmeubleDto;
+    return this.prisma.immeuble.create({
+      data: {
+        ...rest,
+        prospectors: {
+          connect: prospectorsIds?.map((id) => ({ id })),
+        },
+      },
+    });
   }
 
   findAll() {
@@ -22,6 +34,105 @@ export class ImmeubleService {
       where: { id },
       include: { zone: true, prospectors: true, portes: true },
     });
+  }
+
+  update(id: string, updateImmeubleDto: UpdateImmeubleDto) {
+    const { prospectorsIds, ...rest } = updateImmeubleDto;
+    const data = {
+      ...rest,
+      ...(prospectorsIds && {
+        prospectors: {
+          set: prospectorsIds.map((id) => ({ id })),
+        },
+      }),
+    };
+    return this.prisma.immeuble.update({
+      where: { id },
+      data,
+    });
+  }
+
+  remove(id: string) {
+    return this.prisma.immeuble.delete({ where: { id } });
+  }
+
+  // Commercial methods
+  async createForCommercial(createDto: Omit<CreateCommercialImmeubleDto, 'commercialId'>, commercialId: string) {
+    const commercial = await this.prisma.commercial.findUnique({
+      where: { id: commercialId },
+    });
+
+    if (!commercial) {
+      throw new NotFoundException(`Commercial with ID ${commercialId} not found.`);
+    }
+
+    const zone = await this.prisma.zone.findFirst({
+      where: { commercialId: commercialId },
+    });
+
+    return this.prisma.immeuble.create({
+      data: {
+        ...createDto,
+        zoneId: zone ? zone.id : null, // Set zoneId to null if no zone is found
+        prospectingMode: ProspectingMode.SOLO,
+        status: ImmeubleStatus.A_VISITER,
+        prospectors: {
+          connect: { id: commercialId },
+        },
+      },
+    });
+  }
+
+  findAllForCommercial(commercialId: string) {
+    return this.prisma.immeuble.findMany({
+      where: {
+        prospectors: {
+          some: {
+            id: commercialId,
+          },
+        },
+      },
+      include: {
+        zone: true,
+        prospectors: true,
+      },
+    });
+  }
+
+  async findOneForCommercial(id: string, commercialId: string) {
+    const immeuble = await this.prisma.immeuble.findFirst({
+      where: {
+        id,
+        prospectors: {
+          some: {
+            id: commercialId,
+          },
+        },
+      },
+      include: {
+        zone: true,
+        prospectors: true,
+        portes: true,
+      },
+    });
+
+    if (!immeuble) {
+      throw new NotFoundException(`Immeuble with ID ${id} not found or not assigned to you.`);
+    }
+    return immeuble;
+  }
+
+  async updateForCommercial(id: string, updateDto: UpdateCommercialImmeubleDto, commercialId: string) {
+    await this.findOneForCommercial(id, commercialId); // Authorization check
+    return this.prisma.immeuble.update({
+      where: { id },
+      data: updateDto,
+    });
+  }
+
+  async removeForCommercial(id: string, commercialId: string) {
+    await this.findOneForCommercial(id, commercialId); // Authorization check
+    return this.prisma.immeuble.delete({ where: { id } });
   }
 
   async getImmeubleDetails(immeubleId: string) {
@@ -48,29 +159,10 @@ export class ImmeubleService {
       { contratsSignes: 0, rdvPris: 0 },
     );
 
-    const portesAffichees = immeuble.portes;
-    if (immeuble.prospectingMode === 'SOLO') {
-      // Pour SOLO, on ne filtre que sur le papier, mais on les affiche toutes
-      // La logique de filtrage pair/impair sera sur le front si nécessaire
-    } else if (immeuble.prospectingMode === 'DUO') {
-      // Aucune filtration spécifique ici, on les affiche toutes
-    }
-
     return {
       ...immeuble,
       stats,
-      portes: portesAffichees,
+      portes: immeuble.portes,
     };
-  }
-
-  update(id: string, updateImmeubleDto: UpdateImmeubleDto) {
-    return this.prisma.immeuble.update({
-      where: { id },
-      data: updateImmeubleDto,
-    });
-  }
-
-  remove(id: string) {
-    return this.prisma.immeuble.delete({ where: { id } });
   }
 }

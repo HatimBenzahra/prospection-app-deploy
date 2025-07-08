@@ -172,7 +172,9 @@ const ManagerDetailsPage = () => {
 
     return (
         <div className="space-y-8">
-            <Button variant="outline" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" /> Retour</Button>
+            <Button variant="outline" onClick={() => navigate('/admin/managers')}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Retour
+            </Button>
             
 
             <Card>
