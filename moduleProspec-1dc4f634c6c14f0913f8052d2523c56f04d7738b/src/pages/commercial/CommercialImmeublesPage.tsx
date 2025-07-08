@@ -52,6 +52,9 @@ const CommercialImmeublesPage: React.FC = () => {
   const [formState, setFormState] = useState<ImmeubleFormState>({} as ImmeubleFormState);
 
   const geocodeAddress = useCallback(async (address: string, city: string, postalCode: string) => {
+    // In a real application, this function would call a geocoding API (e.g., OpenStreetMap Nominatim, Google Maps Geocoding API)
+    // to convert the address into latitude and longitude coordinates. An API key would likely be required.
+    // For this simulation, we're generating dummy coordinates.
     if (!address || !city || !postalCode) return { latitude: undefined, longitude: undefined };
     await new Promise(resolve => setTimeout(resolve, 500));
     const seed = (address + city + postalCode).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -188,9 +191,7 @@ const CommercialImmeublesPage: React.FC = () => {
                     <p><strong>Portes:</strong> <span className="font-medium text-foreground">{immeuble.nbPortesTotal}</span></p>
                     <p><strong>Ascenseur:</strong> <span className="font-medium text-foreground">{immeuble.hasElevator ? 'Oui' : 'Non'}</span></p>
                     {immeuble.digicode && <p><strong>Digicode:</strong> <span className="font-medium text-foreground">{immeuble.digicode}</span></p>}
-                    {immeuble.latitude && immeuble.longitude && (
-                      <p><strong>Coordonnées:</strong> <span className="font-medium text-foreground">{immeuble.latitude.toFixed(4)}, {immeuble.longitude.toFixed(4)}</span></p>
-                    )}
+                    
                   </div>
                 </CardContent>
                 <div className="flex justify-end p-4 pt-0 space-x-2">
@@ -209,7 +210,7 @@ const CommercialImmeublesPage: React.FC = () => {
       </Card>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[425px] bg-white">
+        <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle>{editingImmeuble ? 'Modifier' : 'Ajouter'} un immeuble</DialogTitle>
             <DialogDescription>Renseignez les informations de l'immeuble. La latitude et longitude sont calculées automatiquement.</DialogDescription>
@@ -224,6 +225,7 @@ const CommercialImmeublesPage: React.FC = () => {
               <Input name="digicode" value={formState.digicode} onChange={handleFormChange} placeholder="Digicode (optionnel)" />
               <Input name="nbPortesTotal" type="number" value={formState.nbPortesTotal} onChange={handleFormChange} placeholder="Nb. Portes" required />
             </div>
+            
             <div className="flex items-center space-x-2">
               <Checkbox id="hasElevator" name="hasElevator" checked={formState.hasElevator} onCheckedChange={(checked) => setFormState(prev => ({ ...prev, hasElevator: !!checked }))} />
               <Label htmlFor="hasElevator">Ascenseur présent</Label>
