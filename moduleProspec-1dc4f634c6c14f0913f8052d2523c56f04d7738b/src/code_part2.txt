@@ -1,288 +1,5 @@
 
 
-# --- pages/commercial/DashboardCommercial.tsx ---
-// src/pages/commercial/DashboardCommercialPage.tsx
-
-import { useState, useEffect } from 'react';
-// import axios from 'axios'; // Supprimé car nous utilisons des données simulées
-import { useAuth } from '@/contexts/AuthContext';
-import StatCard from '@/components/ui-admin/StatCard';
-import { Button } from '@/components/ui-admin/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
-import { 
-    MapPin, 
-    CheckCircle, 
-    Percent, 
-    DoorOpen, 
-    PlayCircle, 
-    Clock, 
-    PlusCircle,
-    BarChart2
-} from 'lucide-react';
-import { GenericLineChart } from '@/components/charts/GenericLineChart';
-import { ZoneFocusMap } from './ZoneFocusMap';
-import { cn } from '@/lib/utils';
-
-// =================================================================
-// DÉBUT DES DONNÉES SIMULÉES (MOCK DATA)
-// Ces données remplacent les appels API pour le développement en frontend.
-// =================================================================
-
-const mockZoneAssignee = {
-    nom: 'Paris 17ème - Batignolles',
-    latlng: [48.8839, 2.3184] as [number, number],
-    radius: 1000, // or any appropriate value
-    color: '#3b82f6', // or any appropriate color
-};
-
-const mockImmeublesDansZone = [
-    { id: 'imm-1', adresse: '123 Rue des Dames', latlng: [48.8855, 2.321] as [number, number] },
-    { id: 'imm-2', adresse: '45 Avenue de Clichy', latlng: [48.8865, 2.325] as [number, number] },
-    { id: 'imm-3', adresse: '78 Boulevard des Batignolles', latlng: [48.883, 2.319] as [number, number] },
-    { id: 'imm-4', adresse: '9 Rue Legendre', latlng: [48.888, 2.315] as [number, number] },
-];
-
-const mockAccesRapides = [
-    { 
-        title: "Démarrer une nouvelle prospection",
-        description: "Enregistrer une visite dans un nouvel immeuble.",
-        href: "/commercial/prospection/nouvelle",
-        icon: PlayCircle 
-    },
-    { 
-        title: "Ajouter un immeuble",
-        description: "Enrichir la base de données de votre secteur.",
-        href: "/commercial/immeubles/ajouter",
-        icon: PlusCircle
-    },
-    { 
-        title: "Voir tous mes rapports",
-        description: "Consulter l'historique détaillé de vos visites.",
-        href: "/commercial/rapports",
-        icon: BarChart2
-    }
-];
-
-const mockStats = {
-    kpis: {
-        immeublesVisites: 12,
-        portesVisitees: 157,
-        contratsSignes: 8,
-        tauxDeConversion: 5.1,
-        heuresTravaillees: 32, // Ajout pour la carte "Heures Travaillées"
-    },
-    repartitionStatuts: {
-        "RDV Pris": 21,
-        "Contrat Signé": 8,
-        "Refus Définitif": 45,
-        "Pas Intéressé": 63,
-        "À Recontacter": 15,
-        "Absent": 5,
-    }
-};
-
-const mockHistory = [
-    { id: 'hist-1', adresse: '123 Rue des Dames', ville: 'Paris', dateProspection: '2023-10-26T10:00:00Z', portesProspectees: 40, tauxCouverture: 80, nbRdvPris: 5, nbContratsSignes: 2 },
-    { id: 'hist-2', adresse: '45 Avenue de Clichy', ville: 'Paris', dateProspection: '2023-10-25T14:30:00Z', portesProspectees: 60, tauxCouverture: 75, nbRdvPris: 8, nbContratsSignes: 3 },
-    { id: 'hist-3', adresse: '78 Boulevard des Batignolles', ville: 'Paris', dateProspection: '2023-10-24T11:00:00Z', portesProspectees: 30, tauxCouverture: 90, nbRdvPris: 4, nbContratsSignes: 1 },
-    { id: 'hist-4', adresse: '9 Rue Legendre', ville: 'Paris', dateProspection: '2023-10-23T16:00:00Z', portesProspectees: 27, tauxCouverture: 65, nbRdvPris: 4, nbContratsSignes: 2 },
-];
-
-// =================================================================
-// FIN DES DONNÉES SIMULÉES
-// =================================================================
-
-const CommercialDashboardPage = () => {
-    const [timeFilter, setTimeFilter] = useState<'week' | 'month'>('week');
-    const { user } = useAuth();
-    const [stats, setStats] = useState<any>(null);
-    const [history, setHistory] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        const fetchSimulatedData = () => {
-            if (!user || !user.id) {
-                setError('ID du commercial non disponible.');
-                setLoading(false);
-                return;
-            }
-
-            setLoading(true);
-            setError(null);
-
-            // Simulation d'un appel API avec un délai de 1 seconde
-            setTimeout(() => {
-                try {
-                    // Ici, nous utilisons nos données simulées au lieu d'une réponse d'API
-                    setStats(mockStats);
-                    setHistory(mockHistory);
-                } catch (err) {
-                    console.error('Error processing simulated data:', err);
-                    setError('Erreur lors du traitement des données simulées.');
-                } finally {
-                    setLoading(false);
-                }
-            }, 1000); // Délai de 1000ms (1 seconde)
-        };
-
-        fetchSimulatedData();
-    }, [user]);
-
-    // Transformation des données pour GenericLineChart (corrigée pour être plus logique)
-    const activitePortesData = history?.map((item: any) => ({
-        name: item.adresse, // Utilise l'adresse comme étiquette sur l'axe X
-        Portes: item.portesProspectees, // Nombre de portes réellement prospectées
-        RDV: item.nbRdvPris, // Nombre de RDV pris
-        Contrats: item.nbContratsSignes, // Nombre de contrats signés
-    })) || [];
-
-    if (loading) {
-        return <div className="text-center py-8">Chargement de vos données...</div>;
-    }
-
-    if (error) {
-        return <div className="text-center py-8 text-red-500">{error}</div>;
-    }
-
-    // Utilisation des données simulées après le chargement
-    const currentStats = stats?.kpis || { immeublesVisites: 0, portesVisitees: 0, contratsSignes: 0, tauxDeConversion: 0, heuresTravaillees: 0 };
-    const repartitionStatuts = stats?.repartitionStatuts || {};
-    const totalPortes = (Object.values(repartitionStatuts) as number[]).reduce((sum, count) => sum + count, 0);
-
-    return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold">Tableau de Bord</h1>
-                <p className="text-muted-foreground">Bienvenue ! Voici un résumé de votre activité.</p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-3">
-                            <MapPin className="h-6 w-6 text-primary" />
-                            <span>Zone de Prospection Actuelle</span>
-                        </CardTitle>
-                        <CardDescription>Secteur prioritaire pour la semaine en cours.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <h3 className="text-2xl font-bold text-primary">{mockZoneAssignee.nom}</h3>
-                        <p className="text-muted-foreground mt-2">Vous avez {mockImmeublesDansZone.length} immeubles enregistrés dans cette zone.</p>
-                        <div className="mt-4 space-y-3">
-                            {mockAccesRapides.map(item => (
-                                <a href={item.href} key={item.title} className="block">
-                                    <Card className="border hover:border-[hsl(var(--winvest-blue-clair))] hover:bg-zinc-50 hover:shadow-sm transition-all group">
-                                        <CardHeader className="flex flex-row items-center gap-4 p-3 space-y-0">
-                                            <div className="p-2 bg-muted rounded-md"><item.icon className="h-5 w-5 text-primary" /></div>
-                                            <div>
-                                                <p className="font-semibold group-hover:text-primary transition-colors">{item.title}</p>
-                                                <p className="text-xs text-muted-foreground">{item.description}</p>
-                                            </div>
-                                        </CardHeader>
-                                    </Card>
-                                </a>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-                <div className="min-h-[400px]">
-                    <ZoneFocusMap zone={mockZoneAssignee} immeubles={mockImmeublesDansZone} />
-                </div>
-            </div>
-
-             <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <h2 className="text-2xl font-semibold">Vos Performances</h2>
-                    <div className="flex items-center gap-1 rounded-lg border p-1 bg-white">
-                        <Button 
-                            variant="ghost" 
-                            onClick={() => setTimeFilter('week')}
-                            className={cn( "transition-all text-black", timeFilter === 'week' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair))]' : 'hover:bg-zinc-100' )}
-                        >Cette semaine</Button>
-                        <Button 
-                            variant="ghost" 
-                            onClick={() => setTimeFilter('month')}
-                            className={cn( "transition-all text-black", timeFilter === 'month' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair))]' : 'hover:bg-zinc-100' )}
-                        >Ce mois</Button>
-                    </div>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                    <StatCard title="Immeubles Visitées" value={currentStats.immeublesVisites} Icon={MapPin} color="text-blue-500" />
-                    <StatCard title="Portes Visitées" value={currentStats.portesVisitees} Icon={DoorOpen} color="text-orange-500" />
-                    <StatCard title="Contrats Signés" value={currentStats.contratsSignes} Icon={CheckCircle} color="text-emerald-500" />
-                    <StatCard title="Taux de Conversion" value={currentStats.tauxDeConversion} Icon={Percent} color="text-violet-500" suffix="%" />
-                    <StatCard title="Heures Travaillées" value={currentStats.heuresTravaillees} Icon={Clock} color="text-amber-500" suffix="h" />
-                </div>
-            </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Répartition des Statuts</CardTitle>
-                    <CardDescription>Proportion de chaque statut sur l'ensemble des portes prospectées.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {Object.entries(repartitionStatuts).map(([status, count]) => (
-                            <div key={status} className="flex items-center justify-between p-3 border rounded-md">
-                                <span className="font-medium">{status}</span>
-                                <span className="text-lg font-bold">{((count as number / totalPortes) * 100 || 0).toFixed(1)}%</span>
-                            </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Historique de Prospection</CardTitle>
-                    <CardDescription>Détail des visites et performances par immeuble.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Immeuble</th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Dernière Visite</th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Taux Couverture</th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RDV Pris</th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contrats Signés</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {history?.map((item: any) => (
-                                    <tr key={item.id}>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.adresse}, {item.ville}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(item.dateProspection).toLocaleDateString()}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.tauxCouverture}%</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.nbRdvPris}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.nbContratsSignes}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <GenericLineChart 
-                title="Entonnoir de Prospection par Immeuble"
-                data={activitePortesData} 
-                xAxisDataKey="name" 
-                lines={[
-                    { dataKey: 'Portes', name: "Portes Prospectées", stroke: 'hsl(var(--winvest-blue-profond))' },
-                    { dataKey: 'RDV', name: "RDV Pris", stroke: 'hsl(var(--winvest-blue-moyen))' },
-                    { dataKey: 'Contrats', name: "Contrats Signés", stroke: 'hsl(var(--emerald-500))' }
-                ]}
-            />
-        </div>
-    );
-};
-
-export default CommercialDashboardPage;
-
-
 # --- pages/admin/statitistiques/StatistiquesPage.tsx ---
 // src/pages/admin/statistiques/StatistiquesPage.tsx
 import { useState, useMemo, useEffect } from 'react';
@@ -559,6 +276,282 @@ const StatistiquesPage = () => {
 };
 
 export default StatistiquesPage;
+
+
+# --- pages/admin/Managers/ManagerDetailsPage.tsx ---
+import React, { useEffect, useState, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import type { RowSelectionState } from "@tanstack/react-table";
+import { ArrowLeft, Briefcase, CheckCircle, Target, Users, User, Mail, Phone } from 'lucide-react';
+
+import { Button } from '@/components/ui-admin/button';
+import { Skeleton } from '@/components/ui-admin/skeleton';
+import StatCard from '@/components/ui-admin/StatCard';
+import { DataTable } from "@/components/data-table/DataTable";
+import { GenericLineChart } from '@/components/charts/GenericLineChart';
+import { managerService } from '@/services/manager.service';
+import type { Commercial } from '../commerciaux/commerciaux-table/columns';
+import { createColumns as createCommerciauxColumns } from "../commerciaux/commerciaux-table/columns";
+import { createEquipesColumns, type EquipeDuManager } from './managers-table/equipes-columns';
+import { Modal } from '@/components/ui-admin/Modal';
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
+
+import { statisticsService } from '@/services/statistics.service';
+
+interface ManagerDetails {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone?: string;
+  equipes: EquipeDuManager[];
+}
+
+interface ManagerStats {
+  contratsSignes: number;
+  rdvPris: number;
+  tauxConclusion: number;
+}
+
+interface PerformanceHistoryItem {
+  name: string;
+  performance: number;
+  [key: string]: string | number;
+}
+
+const ManagerDetailsPage = () => {
+    const { managerId } = useParams<{ managerId: string }>();
+    const navigate = useNavigate();
+    
+    const [manager, setManager] = useState<ManagerDetails | null>(null);
+    const [stats, setStats] = useState<ManagerStats | null>(null);
+    const [perfHistory, setPerfHistory] = useState<PerformanceHistoryItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    
+    const [selectedTeam, setSelectedTeam] = useState<EquipeDuManager | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [teamRowSelection, setTeamRowSelection] = React.useState<RowSelectionState>({});
+
+    const equipesColumns = useMemo(() => createEquipesColumns(), []);
+    const commerciauxColumns = useMemo(() => {
+        const allCols = createCommerciauxColumns(false, () => {}, managerId);
+        return allCols.filter(col => col.id !== 'manager' && col.id !== 'equipe');
+    }, [managerId]);
+
+    useEffect(() => {
+        if (managerId) {
+            setLoading(true);
+            Promise.all([
+                managerService.getManagerDetails(managerId),
+                statisticsService.getStatsForManager(managerId),
+                statisticsService.getManagerPerformanceHistory(managerId)
+            ]).then(([managerData, statsData, historyData]) => {
+                const formattedEquipes = managerData.equipes.map((e: any) => ({
+                    id: e.id,
+                    nom: e.nom,
+                    nbCommerciaux: e.commerciaux.length,
+                    commerciaux: e.commerciaux.map((c: Commercial, index: number) => ({
+                        ...c,
+                        manager: `${managerData.prenom} ${managerData.nom}`,
+                        managerId: managerData.id,
+                        equipe: e.nom,
+                        equipeId: e.id,
+                        classement: index + 1,
+                        telephone: c.telephone || '',
+                    }))
+                }));
+                setManager({ ...managerData, equipes: formattedEquipes });
+                setStats(statsData);
+                setPerfHistory(historyData);
+                setLoading(false);
+            }).catch(err => {
+                console.error("Erreur de chargement des détails du manager:", err);
+                setLoading(false);
+            });
+        }
+    }, [managerId]);
+
+    const explanations = [
+        {
+            title: "À Propos de la Performance Globale",
+            content: (
+                <div className="text-sm text-gray-600 space-y-4">
+                    <div>
+                        <h4 className="font-semibold text-gray-800">Qu'est-ce que c'est ?</h4>
+                        <p>Cet indicateur illustre l'évolution mensuelle du taux de conversion des RDV en contrats pour l'ensemble des équipes.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-800">Comment est-ce calculé ?</h4>
+                        <p>(Contrats Signés du mois / RDV Pris du mois) * 100.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-800">À quoi ça sert ?</h4>
+                        <p>Il permet de visualiser les tendances de performance et d'identifier les mois les plus productifs.</p>
+                    </div>
+                </div>
+            )
+        },
+        {
+            title: "À Propos du Taux de Conclusion",
+            content: (
+                <div className="text-sm text-gray-600 space-y-4">
+                    <div>
+                        <h4 className="font-semibold text-gray-800">Qu'est-ce que c'est ?</h4>
+                        <p>C'est le pourcentage global de RDV qui ont abouti à un contrat signé sur toute la période.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-800">Comment est-ce calculé ?</h4>
+                        <p>(Total Contrats Signés / Total RDV Pris) * 100.</p>
+                    </div>
+                    <div>
+                        <h4 className="font-semibold text-gray-800">À quoi ça sert ?</h4>
+                        <p>Il donne une mesure de l'efficacité de la conversion finale, un indicateur clé de la performance commerciale.</p>
+                    </div>
+                </div>
+            )
+        }
+    ];
+
+    const [activeExplanationIndex, setActiveExplanationIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setActiveExplanationIndex(prevIndex => (prevIndex + 1) % explanations.length);
+        }, 7000); // Change slide every 7 seconds
+
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleTeamRowClick = (equipe: EquipeDuManager) => {
+        setSelectedTeam(equipe);
+        setIsModalOpen(true);
+    };
+    
+    if (loading) {
+        return (
+            <div className="space-y-6 animate-pulse">
+                <Skeleton className="h-10 w-48" />
+                <Skeleton className="h-24 w-full" />
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Skeleton className="h-28 rounded-lg" /><Skeleton className="h-28 rounded-lg" />
+                    <Skeleton className="h-28 rounded-lg" /><Skeleton className="h-28 rounded-lg" />
+                </div>
+                <Skeleton className="h-96 w-full" />
+            </div>
+        );
+    }
+    
+    if (!manager) return <div>Manager non trouvé.</div>;
+
+    const currentStats = {
+      rdvPris: stats?.rdvPris ?? 0,
+      contratsSignes: stats?.contratsSignes ?? 0,
+      tauxConclusion: stats?.tauxConclusion ?? 0,
+    };
+    const commerciauxDeLequipeSelectionnee = manager.equipes.find((e) => e.id === selectedTeam?.id)?.commerciaux || [];
+
+    return (
+        <div className="space-y-8">
+            <Button variant="outline" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" /> Retour</Button>
+            
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Informations Personnelles</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="flex items-center space-x-2">
+                        <User className="h-5 w-5 text-gray-500" />
+                        <span>{manager.prenom} {manager.nom}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Mail className="h-5 w-5 text-gray-500" />
+                        <span>{manager.email}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Phone className="h-5 w-5 text-gray-500" />
+                        <span>{manager.telephone || 'N/A'}</span>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <StatCard title="Contrats (Total)" value={currentStats.contratsSignes} Icon={CheckCircle} color="text-emerald-500" />
+                <StatCard title="RDV (Total)" value={currentStats.rdvPris} Icon={Briefcase} color="text-sky-500"/>
+                <StatCard title="Taux Conclusion" value={currentStats.tauxConclusion} Icon={Target} suffix="%" color="text-amber-500"/>
+                <StatCard title="Nb. Équipes" value={manager.equipes.length} Icon={Users} color="text-yellow-500"/>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                <div className="lg:col-span-2">
+                    <GenericLineChart 
+                        title="Évolution de la Performance Globale"
+                        data={perfHistory} 
+                        xAxisDataKey="name" 
+                        lines={[{ dataKey: 'performance', stroke: '#3b82f6', name: 'Performance (%)' }]} 
+                    />
+                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-md">{explanations[activeExplanationIndex].title}</CardTitle>
+                    </CardHeader>
+                    <CardContent key={activeExplanationIndex} className="animate-in fade-in duration-500">
+                        {explanations[activeExplanationIndex].content}
+                    </CardContent>
+                    <div className="flex justify-center p-4">
+                        {explanations.map((_, index) => (
+                            <span
+                                key={index}
+                                className={`h-2 w-2 rounded-full mx-1 cursor-pointer ${index === activeExplanationIndex ? 'bg-blue-500' : 'bg-gray-300'}`}
+                                onClick={() => setActiveExplanationIndex(index)}
+                            />
+                        ))}
+                    </div>
+                </Card>
+            </div>
+            
+            <div className="space-y-4">
+                <DataTable
+                    columns={equipesColumns}
+                    data={manager.equipes}
+                    title="Équipes Managées"
+                    filterColumnId="nom"
+                    filterPlaceholder="Filtrer par équipe..."
+                    onRowClick={handleTeamRowClick}
+                    isDeleteMode={false}
+                    onToggleDeleteMode={() => {}}
+                    onConfirmDelete={() => {}}
+                    rowSelection={teamRowSelection}
+                    setRowSelection={setTeamRowSelection}
+                />
+            </div>
+
+            {selectedTeam && (
+                <Modal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    title={`Commerciaux de l'équipe : ${selectedTeam.nom}`}
+                >
+                    {commerciauxDeLequipeSelectionnee.length > 0 ? (
+                        <DataTable
+                            columns={commerciauxColumns} data={commerciauxDeLequipeSelectionnee}
+                            title=""
+                            filterColumnId="nom" filterPlaceholder="Filtrer par commercial..."
+                            isDeleteMode={false} onToggleDeleteMode={() => {}} rowSelection={{}} setRowSelection={() => {}} onConfirmDelete={() => {}}
+                        />
+                    ) : (
+                        <div className="text-center text-gray-500 py-8">
+                            <p>Cette équipe n'a aucun commercial pour le moment.</p>
+                        </div>
+                    )}
+                </Modal>
+            )}
+        </div>
+    );
+};
+
+export default ManagerDetailsPage;
 
 
 # --- pages/admin/commerciaux/CommerciauxPage.tsx ---
@@ -1051,201 +1044,6 @@ const EquipesPage = () => {
 export default EquipesPage;
 
 
-# --- components/data-table/DataTable.tsx ---
-import * as React from "react"
-import { useNavigate } from "react-router-dom"
-import {
-  type ColumnDef, type ColumnFiltersState, type SortingState, type RowSelectionState, type Row,
-  flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
-  getSortedRowModel, useReactTable,
-} from "@tanstack/react-table"
-import { PlusCircle, Search, Trash2, XCircle } from "lucide-react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui-admin/table"
-import { Button } from "@/components/ui-admin/button"
-import { Input } from "@/components/ui-admin/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-admin/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-admin/select"
-import { cn } from "@/lib/utils"
-
-interface DataTableProps<TData extends { id: string }, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  filterColumnId: string
-  filterPlaceholder: string
-  title: string
-  rowLinkBasePath?: string
-  onRowClick?: (row: TData) => void
-  addEntityButtonText?: string
-  onAddEntity?: () => void
-  isDeleteMode: boolean
-  onToggleDeleteMode: () => void
-  onConfirmDelete: (selectedRows: TData[]) => void
-  rowSelection: RowSelectionState
-  setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>
-  customHeaderContent?: React.ReactNode
-  noCardWrapper?: boolean;
-}
-
-export function DataTable<TData extends { id: string }, TValue>({
-  columns, data, filterColumnId, filterPlaceholder, title, rowLinkBasePath, onRowClick,
-  addEntityButtonText, onAddEntity,
-  isDeleteMode, onToggleDeleteMode, onConfirmDelete,
-  rowSelection, setRowSelection,
-  customHeaderContent,
-  noCardWrapper = false,
-}: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [searchFocused, setSearchFocused] = React.useState(false)
-  const navigate = useNavigate()
-
-  const table = useReactTable({
-    data, columns, onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters, onRowSelectionChange: setRowSelection,
-    getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(),
-    state: { sorting, columnFilters, rowSelection },
-  })
-
-  const selectedRowsData = table.getFilteredSelectedRowModel().rows.map(row => row.original)
-  const areRowsClickable = (onRowClick || rowLinkBasePath) && !isDeleteMode
-
-  const handleRowClick = (row: Row<TData>) => {
-    if (isDeleteMode) {
-      row.toggleSelected()
-    } else if (onRowClick) {
-      onRowClick(row.original)
-    } else if (rowLinkBasePath) {
-      navigate(`${rowLinkBasePath}/${row.original.id}`)
-    }
-  }
-
-  const tableContent = (
-    <>
-      {title && (
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-      )}
-      
-      <CardContent className={!title ? "pt-6" : ""}>
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-          <div className={cn(
-            "relative w-full md:w-auto transition-all",
-            searchFocused ? "ring-2 ring-primary/30 rounded-md" : "",
-          )}>
-            <Search className={cn(
-              "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-all",
-              searchFocused ? "text-primary" : "text-muted-foreground"
-            )} />
-            <Input
-              placeholder={filterPlaceholder}
-              value={(table.getColumn(filterColumnId)?.getFilterValue() as string) ?? ""}
-              onChange={e=>table.getColumn(filterColumnId)?.setFilterValue(e.target.value)}
-              className="pl-10 w-full min-w-[280px] md:min-w-[320px]"
-              onFocus={()=>setSearchFocused(true)}
-              onBlur={()=>setSearchFocused(false)}
-              aria-label="Rechercher"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {customHeaderContent}
-            {!isDeleteMode ? (
-              <>
-                {addEntityButtonText && (
-                  <Button onClick={onAddEntity} className="bg-black text-white hover:bg-zinc-800 focus:ring-2 focus:ring-black/40 focus:outline-none">
-                    <PlusCircle className="mr-2 h-4 w-4" />{addEntityButtonText}
-                  </Button>
-                )}
-                <Button variant="outline" onClick={onToggleDeleteMode} className="focus:ring-2 focus:ring-destructive/30 focus:outline-none">
-                  <Trash2 className="mr-2 h-4 w-4" />Supprimer
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="destructive" disabled={selectedRowsData.length===0} onClick={()=>onConfirmDelete(selectedRowsData)} className="bg-red-600 text-white hover:bg-red-700 border border-red-600 focus:ring-2 focus:ring-red-400 focus:outline-none">
-                  <Trash2 className="mr-2 h-4 w-4" />Supprimer ({selectedRowsData.length})
-                </Button>
-                <Button variant="outline" onClick={onToggleDeleteMode} className="focus:ring-2 focus:ring-muted/30 focus:outline-none">
-                  <XCircle className="mr-2 h-4 w-4" />Annuler
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-        
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map(headerGroup=>(
-              <TableRow key={headerGroup.id} className="border-b-[#EFEDED] hover:bg-transparent">
-                {headerGroup.headers.map(header=>(
-                  <TableHead key={header.id} className={cn("h-12 px-4 text-base font-semibold text-gray-600 bg-muted/50", (header.column.columnDef.meta as { className?: string })?.className)}>
-                    {header.isPlaceholder?null:flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length?table.getRowModel().rows.map((row,index)=>(
-              <TableRow key={row.id} data-state={row.getIsSelected()&&"selected"} onClick={()=>handleRowClick(row)} className={cn(
-                "group border-b-[#EFEDED] animate-in fade-in-0 slide-in-from-bottom-2 transition",
-                areRowsClickable?"cursor-pointer":"select-none",
-                row.getIsSelected()&&isDeleteMode?"bg-red-50":row.getIsSelected()?"bg-blue-50":""
-              )} style={{animationDelay:`${index*30}ms`}}>
-                {row.getVisibleCells().map(cell=>(
-                  <TableCell key={cell.id} className={cn("group-hover:bg-zinc-100 transition-colors duration-150 py-4 px-4", (cell.column.columnDef.meta as { className?: string })?.className)}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            )):(
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-gray-400">
-                  <span className="flex flex-col items-center justify-center gap-2">
-                    <Search className="mx-auto h-8 w-8 opacity-30" />
-                    <span>Aucun résultat trouvé.</span>
-                  </span>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-        
-        <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-4 pt-4">
-          <div className="text-sm text-muted-foreground">
-            {isDeleteMode?`${table.getFilteredSelectedRowModel().rows.length} sélectionné(s) sur ${table.getFilteredRowModel().rows.length} visible(s)`:
-            `${table.getFilteredRowModel().rows.length} ligne(s) affichée(s)`}
-          </div>
-          <div className="flex items-center justify-center sm:justify-end flex-wrap gap-4">
-            <Select value={`${table.getState().pagination.pageSize}`} onValueChange={v=>table.setPageSize(Number(v))}>
-              <SelectTrigger className="w-[140px] md:w-[160px] min-w-[140px]"><SelectValue placeholder={`${table.getState().pagination.pageSize} par page`}/></SelectTrigger>
-              <SelectContent>{[10,20,30,40,50].map(ps=><SelectItem key={ps} value={`${ps}`}>{ps} par page</SelectItem>)}</SelectContent>
-            </Select>
-            <div className="flex items-center space-x-2 rounded-lg border px-3 py-1 bg-gray-50 min-w-[180px]">
-              <div className="text-sm font-medium">Page {table.getState().pagination.pageIndex+1} sur {table.getPageCount()}</div>
-              <Button variant="outline" size="sm" onClick={()=>table.previousPage()} disabled={!table.getCanPreviousPage()}>Précédent</Button>
-              <Button variant="outline" size="sm" onClick={()=>table.nextPage()} disabled={!table.getCanNextPage()}>Suivant</Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </>
-  );
-
-  if (noCardWrapper) {
-    return tableContent;
-  }
-  
-  return (
-    <Card>
-      {tableContent}
-    </Card>
-  )
-}
-
-
 # --- pages/admin/Managers/ManagersPage.tsx ---
 // frontend-shadcn/src/pages/admin/Managers/ManagersPage.tsx
 
@@ -1472,218 +1270,194 @@ const ManagersPage = () => {
 export default ManagersPage;
 
 
-# --- components/ui-admin/calendar.tsx ---
+# --- pages/admin/immeubles/columns.tsx ---
+// frontend-shadcn/src/pages/admin/immeubles/columns.tsx
+
 "use client"
 
-import * as React from "react"
-import {
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from "lucide-react"
-import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker"
+import type { ColumnDef } from "@tanstack/react-table"
+import { Link } from "react-router-dom";
+import { ArrowUpDown, Eye, User, MapPin, Percent, Users } from "lucide-react"
+import { Button } from "@/components/ui-admin/button"
+import { Badge } from "@/components/ui-admin/badge"
+import { Checkbox } from "@/components/ui-admin/checkbox"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui-admin/tooltip"
+import { Avatar, AvatarFallback } from "@/components/ui-admin/avatar";
 
-import { cn } from "@/lib/utils"
-import { Button, buttonVariants } from "@/components/ui-admin/button"
-
-function Calendar({
-  className,
-  classNames,
-  showOutsideDays = true,
-  captionLayout = "label",
-  buttonVariant = "ghost",
-  formatters,
-  components,
-  ...props
-}: React.ComponentProps<typeof DayPicker> & {
-  buttonVariant?: React.ComponentProps<typeof Button>["variant"]
-}) {
-  const defaultClassNames = getDefaultClassNames()
-
-  return (
-    <DayPicker
-      showOutsideDays={showOutsideDays}
-      className={cn(
-        "bg-background group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
-        String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
-        String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
-        className
-      )}
-      captionLayout={captionLayout}
-      formatters={{
-        formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
-        ...formatters,
-      }}
-      classNames={{
-        root: cn("w-fit", defaultClassNames.root),
-        months: cn(
-          "flex gap-4 flex-col md:flex-row relative",
-          defaultClassNames.months
-        ),
-        month: cn("flex flex-col w-full gap-4", defaultClassNames.month),
-        nav: cn(
-          "flex items-center gap-1 w-full absolute top-0 inset-x-0 justify-between",
-          defaultClassNames.nav
-        ),
-        button_previous: cn(
-          buttonVariants({ variant: buttonVariant }),
-          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none",
-          defaultClassNames.button_previous
-        ),
-        button_next: cn(
-          buttonVariants({ variant: buttonVariant }),
-          "size-(--cell-size) aria-disabled:opacity-50 p-0 select-none",
-          defaultClassNames.button_next
-        ),
-        month_caption: cn(
-          "flex items-center justify-center h-(--cell-size) w-full px-(--cell-size)",
-          defaultClassNames.month_caption
-        ),
-        dropdowns: cn(
-          "w-full flex items-center text-sm font-medium justify-center h-(--cell-size) gap-1.5",
-          defaultClassNames.dropdowns
-        ),
-        dropdown_root: cn(
-          "relative has-focus:border-ring border border-input shadow-xs has-focus:ring-ring/50 has-focus:ring-[3px] rounded-md",
-          defaultClassNames.dropdown_root
-        ),
-        dropdown: cn("absolute inset-0 opacity-0", defaultClassNames.dropdown),
-        caption_label: cn(
-          "select-none font-medium",
-          captionLayout === "label"
-            ? "text-sm"
-            : "rounded-md pl-2 pr-1 flex items-center gap-1 text-sm h-8 [&>svg]:text-muted-foreground [&>svg]:size-3.5",
-          defaultClassNames.caption_label
-        ),
-        table: "w-full border-collapse",
-        weekdays: cn("flex", defaultClassNames.weekdays),
-        weekday: cn(
-          "text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] select-none",
-          defaultClassNames.weekday
-        ),
-        week: cn("flex w-full mt-2", defaultClassNames.week),
-        week_number_header: cn(
-          "select-none w-(--cell-size)",
-          defaultClassNames.week_number_header
-        ),
-        week_number: cn(
-          "text-[0.8rem] select-none text-muted-foreground",
-          defaultClassNames.week_number
-        ),
-        day: cn(
-          "relative w-full h-full p-0 text-center [&:first-child[data-selected=true]_button]:rounded-l-md [&:last-child[data-selected=true]_button]:rounded-r-md group/day aspect-square select-none",
-          defaultClassNames.day
-        ),
-        range_start: cn(
-          "rounded-l-md bg-accent",
-          defaultClassNames.range_start
-        ),
-        range_middle: cn("rounded-none", defaultClassNames.range_middle),
-        range_end: cn("rounded-r-md bg-accent", defaultClassNames.range_end),
-        today: cn(
-          "bg-accent text-accent-foreground rounded-md data-[selected=true]:rounded-none",
-          defaultClassNames.today
-        ),
-        outside: cn(
-          "text-muted-foreground aria-selected:text-muted-foreground",
-          defaultClassNames.outside
-        ),
-        disabled: cn(
-          "text-muted-foreground opacity-50",
-          defaultClassNames.disabled
-        ),
-        hidden: cn("invisible", defaultClassNames.hidden),
-        ...classNames,
-      }}
-      components={{
-        Root: ({ className, rootRef, ...props }) => {
-          return (
-            <div
-              data-slot="calendar"
-              ref={rootRef}
-              className={cn(className)}
-              {...props}
-            />
-          )
-        },
-        Chevron: ({ className, orientation, ...props }) => {
-          if (orientation === "left") {
-            return (
-              <ChevronLeftIcon className={cn("size-4", className)} {...props} />
-            )
-          }
-
-          if (orientation === "right") {
-            return (
-              <ChevronRightIcon
-                className={cn("size-4", className)}
-                {...props}
-              />
-            )
-          }
-
-          return (
-            <ChevronDownIcon className={cn("size-4", className)} {...props} />
-          )
-        },
-        DayButton: CalendarDayButton,
-        WeekNumber: ({ children, ...props }) => {
-          return (
-            <td {...props}>
-              <div className="flex size-(--cell-size) items-center justify-center text-center">
-                {children}
-              </div>
-            </td>
-          )
-        },
-        ...components,
-      }}
-      {...props}
-    />
-  )
+export type Immeuble = {
+  id: string;
+  adresse: string;
+  ville: string;
+  codePostal: string;
+  status: "À visiter" | "Visité" | "RDV Pris" | "Inaccessible";
+  nbPortes: number;
+  nbPortesProspectees: number;
+  prospectingMode: "Solo" | "Duo";
+  prospectors: {
+    id: string;
+    nom: string;
+    avatarFallback: string;
+  }[];
+  dateVisite: string | null;
+  zone: string;
+  zoneId: string;
+  latlng: [number, number];
 }
 
-function CalendarDayButton({
-  className,
-  day,
-  modifiers,
-  ...props
-}: React.ComponentProps<typeof DayButton>) {
-  const defaultClassNames = getDefaultClassNames()
+const Header = ({ title }: { title: string }) => (
+  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
+)
 
-  const ref = React.useRef<HTMLButtonElement>(null)
-  React.useEffect(() => {
-    if (modifiers.focused) ref.current?.focus()
-  }, [modifiers.focused])
+const SortableHeader = ({ title, column }: { title: string, column: any }) => (
+  <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="p-0 h-8 hover:bg-transparent">
+    <Header title={title} />
+    <ArrowUpDown className="ml-2 h-3 w-3" />
+  </Button>
+)
 
-  return (
-    <Button
-      ref={ref}
-      variant="ghost"
-      size="icon"
-      data-day={day.date.toLocaleDateString()}
-      data-selected-single={
-        modifiers.selected &&
-        !modifiers.range_start &&
-        !modifiers.range_end &&
-        !modifiers.range_middle
-      }
-      data-range-start={modifiers.range_start}
-      data-range-end={modifiers.range_end}
-      data-range-middle={modifiers.range_middle}
-      className={cn(
-        "data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50 dark:hover:text-accent-foreground flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px] data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md [&>span]:text-xs [&>span]:opacity-70",
-        defaultClassNames.day,
-        className
-      )}
-      {...props}
-    />
-  )
-}
+const statusConfig = {
+    "À visiter": "bg-blue-100 text-blue-800 border-blue-300",
+    "Visité": "bg-gray-100 text-gray-800 border-gray-300",
+    "RDV Pris": "bg-green-100 text-green-800 border-green-300",
+    "Inaccessible": "bg-red-100 text-red-800 border-red-300",
+};
 
-export { Calendar, CalendarDayButton }
+export const createColumns = (
+    isDeleteMode: boolean, 
+    onFocusOnImmeuble: (immeuble: Immeuble) => void = () => {},
+    onFocusOnZone: (zoneId: string) => void = () => {}
+): ColumnDef<Immeuble>[] => [
+    ...(isDeleteMode ? [{ 
+        id: "select", 
+        header: ({ table }: any) => (<Checkbox checked={table.getIsAllPageRowsSelected()} onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all" />), 
+        cell: ({ row }: any) => (<Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} aria-label="Select row" onClick={(e) => e.stopPropagation()} />), 
+        enableSorting: false, enableHiding: false, 
+    }] : []),
 
+    {
+      accessorKey: "adresse",
+      header: ({ column }) => <SortableHeader title="Adresse" column={column} />,
+      cell: ({ row }) => {
+        const immeuble = row.original;
+        return (
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); onFocusOnImmeuble(immeuble); }}>
+                  {immeuble.adresse}
+                  <div className="text-xs text-muted-foreground">{`${immeuble.codePostal} ${immeuble.ville}`}</div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent><p>Cliquer pour voir sur la carte</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      },
+    },
+    {
+      accessorKey: "status",
+      header: ({ column }) => <SortableHeader title="Statut" column={column} />,
+      cell: ({ row }) => <Badge variant="outline" className={statusConfig[row.original.status]}>{row.original.status}</Badge>
+    },
+    {
+        id: "couverture",
+        header: ({ column }) => <SortableHeader title="Couverture" column={column} />,
+        cell: ({ row }) => {
+            const { nbPortes, nbPortesProspectees } = row.original;
+            if (nbPortes === 0) return <span className="text-muted-foreground">N/A</span>;
+            const percentage = (nbPortesProspectees / nbPortes) * 100;
+            return (
+                <div className="flex items-center gap-2">
+                    <Percent className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{percentage.toFixed(0)}%</span>
+                    <span className="text-xs text-muted-foreground">({nbPortesProspectees}/{nbPortes})</span>
+                </div>
+            )
+        },
+        sortingFn: (rowA, rowB) => {
+            const percA = rowA.original.nbPortes > 0 ? (rowA.original.nbPortesProspectees / rowA.original.nbPortes) : -1;
+            const percB = rowB.original.nbPortes > 0 ? (rowB.original.nbPortesProspectees / rowB.original.nbPortes) : -1;
+            return percA - percB;
+        }
+    },
+    {
+        accessorKey: "zone",
+        header: ({ column }) => <SortableHeader title="Zone" column={column} />,
+        cell: ({ row }) => (
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" onClick={(e) => { e.stopPropagation(); onFocusOnZone(row.original.zoneId); }} >
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>{row.original.zone}</span>
+                  </div>
+              </TooltipTrigger>
+              <TooltipContent><p>Cliquer pour voir la zone sur la carte</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+    },
+    {
+        accessorKey: "prospectingMode",
+        header: ({ column }) => <SortableHeader title="Mode" column={column} />,
+        cell: ({ row }) => {
+            const { prospectingMode, prospectors } = row.original;
+            if (prospectors.length === 0) {
+                return <span className="text-muted-foreground">-</span>;
+            }
+            const Icon = prospectingMode === 'Duo' ? Users : User;
+            return (
+                <Badge variant="secondary" className="font-medium">
+                    <Icon className="h-3 w-3 mr-1.5" />
+                    {prospectingMode}
+                </Badge>
+            );
+        }
+    },
+    {
+        accessorKey: "prospectors",
+        header: ({ column }) => <SortableHeader title="Prospecteurs" column={column} />,
+        cell: ({ row }) => {
+            const { prospectors } = row.original;
+            if (!prospectors || prospectors.length === 0) {
+                return <span className="text-muted-foreground">N/A</span>;
+            }
+            return (
+                <div className="flex items-center">
+                    <div className="flex -space-x-2">
+                        {prospectors.map(p => (
+                            <TooltipProvider key={p.id} delayDuration={100}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Link to={`/admin/commerciaux/${p.id}`} onClick={(e) => e.stopPropagation()} className="hover:z-10">
+                                            <Avatar className="h-8 w-8 border-2 border-white">
+                                                <AvatarFallback>{p.avatarFallback}</AvatarFallback>
+                                            </Avatar>
+                                        </Link>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>{p.nom}</p></TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        ))}
+                    </div>
+                </div>
+            );
+        },
+        sortingFn: (rowA, rowB) => {
+            const nameA = rowA.original.prospectors[0]?.nom || '';
+            const nameB = rowB.original.prospectors[0]?.nom || '';
+            return nameA.localeCompare(nameB);
+        }
+    },
+    {
+        id: "actions",
+        header: () => <div className="text-right"><Header title="Actions" /></div>,
+        cell: ({ row }) => {
+            const immeuble = row.original;
+            return ( <div className="text-right"><Button asChild variant="ghost" className="h-8 w-8 p-0 cursor-pointer"><Link to={`/admin/immeubles/${immeuble.id}`} onClick={(e) => e.stopPropagation()}><Eye className="h-4 w-4" /><span className="sr-only">Voir les détails de l'immeuble</span></Link></Button></div> )
+        },
+    },
+]
 
 
 # --- components/ui-admin/dropdown-menu.tsx ---
@@ -1890,346 +1664,565 @@ export {
 }
 
 
-# --- pages/admin/immeubles/ImmeublesPage.tsx ---
-// frontend-shadcn/src/pages/admin/immeubles/ImmeublesPage.tsx
+# --- pages/admin/zones/ZoneMap.tsx ---
+// frontend-shadcn/src/pages/admin/zones/ZoneMap.tsx
 
-import { useState, useMemo, useEffect } from "react";
-import type { Immeuble } from "./columns";
-import { createColumns } from "./columns";
-import type { Zone } from '../zones/columns';
-import { DataTable } from "@/components/data-table/DataTable";
-import { ImmeublesMap } from './ImmeublesMap';
-import type { RowSelectionState } from "@tanstack/react-table";
-import { ViewToggleContainer } from "@/components/ui-admin/ViewToggleContainer";
-import { immeubleService } from "@/services/immeuble.service";
-import { zoneService } from "@/services/zone.service";
-import { Skeleton } from "@/components/ui-admin/skeleton";
+import React, { useState, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Circle, Popup, useMap, FeatureGroup, Marker } from 'react-leaflet';
+import type { FeatureGroup as FeatureGroupType } from 'leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { cn } from '@/lib/utils';
+import { Maximize, Shrink } from 'lucide-react';
+import { Button } from '@/components/ui-admin/button';
+import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
+import 'leaflet-geosearch/dist/geosearch.css';
 
-const ImmeublesPage = () => {
-    const [view, setView] = useState<'table' | 'map'>('table');
-    const [immeubles, setImmeubles] = useState<Immeuble[]>([]);
-    const [zones, setZones] = useState<Zone[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [immeubleToFocusId, setImmeubleToFocusId] = useState<string | null>(null);
-    const [zoneToFocusId, setZoneToFocusId] = useState<string | null>(null);
-    const [isDeleteMode, setIsDeleteMode] = useState(false);
-    const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+// --- Patch et icônes ---
+// @ts-ignore
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+});
+
+const zoneCenterIcon = new L.Icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(222.2 47.4% 11.2%)" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="6"/></svg>'),
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+    popupAnchor: [0, -8],
+});
+
+const searchMarkerIcon = new L.Icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(206, 92%, 52%)" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-code"><path d="M15.5 15.5 20 20"/><path d="M9 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="m14 14-2.5 2.5"/><path d="m14 6-2.5-2.5"/><path d="m6 14-2.5 2.5"/><path d="m6 6 2.5-2.5"/></svg>'),
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32],
+});
+
+interface Zone {
+  id: string;
+  name: string;
+  assignedTo: string;
+  color: string;
+  latlng: L.LatLngExpression;
+  radius: number;
+}
+
+interface Immeuble {
+  id: string;
+  adresse: string;
+  latlng: L.LatLngExpression;
+  status: string;
+}
+
+interface ZoneMapProps {
+  existingZones: Zone[];
+  immeubles?: Immeuble[];
+  zoneToFocus: string | null;
+}
+
+const SearchControl = () => {
+    const map = useMap();
+    useEffect(() => {
+        const provider = new OpenStreetMapProvider({
+            params: { countrycodes: 'fr', 'accept-language': 'fr' },
+        });
+        // @ts-ignore
+        const searchControl = new GeoSearchControl({
+            provider: provider, style: 'bar', marker: { icon: searchMarkerIcon, draggable: false },
+            showPopup: false, autoClose: true, retainZoomLevel: false,
+            animateZoom: true, keepResult: true, searchLabel: 'Entrez une adresse en France...', updateMap: false, 
+        });
+        const onLocationFound = (event: any) => {
+            if (event.location && event.location.y && event.location.x) {
+                map.flyTo(new L.LatLng(event.location.y, event.location.x), 14, { animate: true, duration: 1.5 }); 
+            }
+        };
+        map.addControl(searchControl);
+        map.on('geosearch/showlocation', onLocationFound);
+        return () => { map.removeControl(searchControl); map.off('geosearch/showlocation', onLocationFound); };
+    }, [map]);
+    return null;
+};
+
+// LA LOGIQUE FINALE, SIMPLIFIÉE
+const MapViewController = ({ zones, zoneToFocus, featureGroupRef }: { zones: Zone[], zoneToFocus: string | null, featureGroupRef: React.RefObject<FeatureGroupType | null> }) => {
+    const map = useMap();
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        const timer = setTimeout(() => {
+            if (!map) return;
 
-    const fetchData = async () => {
-        setLoading(true);
-        try {
-            const [immeublesFromApi, zonesFromApi] = await Promise.all([
-                immeubleService.getImmeubles(),
-                zoneService.getZones()
-            ]);
-            
-            const formattedImmeubles: Immeuble[] = immeublesFromApi.map(imm => {
-                let statusText: Immeuble['status'] = 'À visiter';
-                switch(imm.status) {
-                    case 'VISITE': statusText = 'Visité'; break;
-                    case 'RDV_PRIS': statusText = 'RDV Pris'; break;
-                    case 'INACCESSIBLE': statusText = 'Inaccessible'; break;
+            // SI UNE ZONE EST CIBLÉE : on zoome dessus. C'est tout.
+            if (zoneToFocus) {
+                const zone = zones.find(z => z.id === zoneToFocus);
+                if (zone) {
+                    map.flyTo(zone.latlng, 15, { animate: true, duration: 1.5 });
                 }
-                
-                const prospecteurs = Array.isArray(imm.prospectors) ? imm.prospectors : [];
-                const portes = Array.isArray(imm.portes) ? imm.portes : [];
-                const historiques = Array.isArray(imm.historiques) ? imm.historiques : [];
-                
-                return {
-                    id: imm.id,
-                    adresse: imm.adresse,
-                    ville: imm.ville,
-                    codePostal: imm.codePostal,
-                    status: statusText,
-                    nbPortes: portes.length,
-                    nbPortesProspectees: historiques.reduce((acc: number, h: { nbPortesVisitees: number }) => acc + h.nbPortesVisitees, 0),
-                    prospectingMode: prospecteurs.length > 1 ? "Duo" : "Solo",
-                    prospectors: prospecteurs.map((p: { id: string; prenom: string; nom: string; }) => ({
-                        id: p.id,
-                        nom: `${p.prenom || ''} ${p.nom || ''}`.trim(),
-                        avatarFallback: `${p.prenom?.[0] || ''}${p.nom?.[0] || ''}`.toUpperCase()
-                    })),
-                    dateVisite: historiques.length > 0 ? historiques[0].dateProspection : null,
-                    zone: imm.zone?.nom || 'N/A',
-                    zoneId: imm.zone?.id || '',
-                    latlng: [imm.latitude, imm.longitude],
-                };
-            });
-            
-            const formattedZones: Zone[] = zonesFromApi.map(z => ({
-                id: z.id, name: z.nom, assignedTo: 'N/A',
-                color: z.couleur || 'grey', latlng: [z.latitude, z.longitude],
-                radius: z.rayonMetres, dateCreation: z.createdAt,
-            }));
+            } 
+            // SINON (aucune zone ciblée) : on affiche toutes les zones.
+            else {
+                if (featureGroupRef.current && zones.length > 0) {
+                    const bounds = featureGroupRef.current.getBounds();
+                    if (bounds.isValid()) {
+                        map.fitBounds(bounds, { padding: [50, 50], animate: true });
+                    }
+                }
+            }
+        }, 50); // Léger délai pour la stabilité
 
-            setImmeubles(formattedImmeubles);
-            setZones(formattedZones);
+        return () => clearTimeout(timer);
+    }, [map, zones, zoneToFocus, featureGroupRef]); // On se base uniquement sur les props
 
-        } catch (error) {
-            console.error("Erreur de chargement des données:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    return null;
+}
 
-    const handleSelectAndFocusImmeuble = (immeuble: Immeuble) => {
-        setImmeubleToFocusId(immeuble.id);
-        setZoneToFocusId(null);
-        setView('map');
-    };
-
-    const handleSelectAndFocusZone = (zoneId: string) => {
-        setZoneToFocusId(zoneId);
-        setImmeubleToFocusId(null);
-        setView('map');
-    };
-    
-    const handleClearFocus = () => {
-        setImmeubleToFocusId(null);
-        setZoneToFocusId(null);
-    };
-
-    const toggleDeleteMode = () => {
-        setIsDeleteMode(prev => !prev);
-        setRowSelection({});
-    };
-
-    const handleConfirmDelete = async (selectedItems: Immeuble[]) => {
-        try {
-            await Promise.all(selectedItems.map(imm => immeubleService.deleteImmeuble(imm.id)));
-            fetchData();
-        } catch (error) {
-            console.error("Erreur lors de la suppression:", error);
-        }
-        setIsDeleteMode(false);
-        setRowSelection({});
-    };
-
-    const columns = useMemo(() => createColumns(isDeleteMode, handleSelectAndFocusImmeuble, handleSelectAndFocusZone), [isDeleteMode]);
-
-    if (loading) {
-        return (
-            <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-                <div className="flex justify-between items-center">
-                    <Skeleton className="h-10 w-1/3" />
-                    <Skeleton className="h-10 w-32" />
-                </div>
-                <Skeleton className="h-96 w-full" />
-            </div>
-        )
-    }
-
-    const tableComponent = (
-        <DataTable
-            noCardWrapper
-            columns={columns}
-            data={immeubles}
-            title=""
-            filterColumnId="adresse"
-            filterPlaceholder="Filtrer par adresse..."
-            addEntityButtonText=""
-            onAddEntity={() => {}}
-            isDeleteMode={isDeleteMode}
-            onToggleDeleteMode={toggleDeleteMode}
-            rowSelection={rowSelection}
-            setRowSelection={setRowSelection}
-            onConfirmDelete={handleConfirmDelete}
-            onRowClick={handleSelectAndFocusImmeuble}
-        />
-    );
-    
-    const mapComponent = (
-        <ImmeublesMap 
-            zones={zones} 
-            immeubles={immeubles} 
-            immeubleToFocusId={immeubleToFocusId}
-            zoneToFocusId={zoneToFocusId}
-            onFocusClear={handleClearFocus}
-        />
-    );
-
+const ZoneDisplay = ({ zone }: { zone: Zone }) => {
+    const map = useMap();
+    const handleDoubleClick = () => { map.flyTo(zone.latlng, 15, { animate: true, duration: 1.5 }); };
     return (
-        <ViewToggleContainer
-            title="Gestion des Immeubles"
-            description="Basculez entre la vue tableau et la vue carte. Cliquez sur une adresse ou une zone pour la localiser."
-            view={view}
-            onViewChange={setView}
-            tableComponent={tableComponent}
-            mapComponent={mapComponent}
-        />
+        <>
+            <Circle key={`circle-${zone.id}`} center={zone.latlng} radius={zone.radius} pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.2 }}>
+                <Popup><b>{zone.name}</b></Popup>
+            </Circle>
+            <Marker key={`marker-${zone.id}`} position={zone.latlng} icon={zoneCenterIcon} eventHandlers={{ dblclick: handleDoubleClick }}/>
+        </>
     );
 };
 
-export default ImmeublesPage;
+export const ZoneMap = ({ existingZones, immeubles = [], zoneToFocus }: ZoneMapProps) => {
+    const featureGroupRef = useRef<FeatureGroupType>(null);
+    const [isModalFullscreen, setIsModalFullscreen] = useState(false);
+
+  return (
+    <div className={cn( 'relative h-full w-full', isModalFullscreen && 'fixed inset-0 z-[2000] bg-black/80 p-4' )}>
+      <div className={cn( 'relative h-full w-full', isModalFullscreen && 'rounded-lg overflow-hidden' )}>
+        <div className="absolute top-4 right-4 z-[1001] flex flex-col gap-2">
+            <Button size="icon" variant="secondary" className="shadow-lg bg-white hover:bg-slate-100 text-slate-800"
+                onClick={() => setIsModalFullscreen(!isModalFullscreen)}>
+                {isModalFullscreen ? <Shrink className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+            </Button>
+        </div>
+        <MapContainer 
+            key={String(isModalFullscreen) + zoneToFocus} // Astuce : forcer le re-rendu si le focus change
+            center={[48.8566, 2.3522]} zoom={10} 
+            style={{ height: '100%', width: '100%', zIndex: 1 }}
+            scrollWheelZoom={true} dragging={true} touchZoom={true}
+            className={cn(!isModalFullscreen && "rounded-lg")}
+        >
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'/>
+            <SearchControl />
+            <MapViewController 
+                zones={existingZones} 
+                zoneToFocus={zoneToFocus} 
+                featureGroupRef={featureGroupRef} 
+            />
+            <FeatureGroup ref={featureGroupRef}>
+                {existingZones.map(zone => <ZoneDisplay key={zone.id} zone={zone} />)}
+                {immeubles.map(immeuble => (
+                    <Marker key={immeuble.id} position={immeuble.latlng}>
+                        <Popup><b>{immeuble.adresse}</b><br />Statut: {immeuble.status}</Popup>
+                    </Marker>
+                ))}
+            </FeatureGroup>
+        </MapContainer>
+      </div>
+    </div>
+  );
+};
 
 
-# --- pages/admin/commerciaux/commerciaux-table/columns.tsx ---
-// frontend-shadcn/src/pages/admin/commerciaux/commerciaux-table/columns.tsx
-"use client"
+# --- pages/admin/zones/ZonesPage.tsx ---
+// frontend-shadcn/src/pages/admin/zones/ZonesPage.tsx
 
-import type { ColumnDef } from "@tanstack/react-table"
-import { Link } from "react-router-dom"
-import { ArrowUpDown, Mail, Eye, Edit } from "lucide-react"
-import { Button } from "@/components/ui-admin/button"
-import { Badge } from "@/components/ui-admin/badge"
-import { Checkbox } from "@/components/ui-admin/checkbox"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui-admin/tooltip"
+import { useState, useEffect, useMemo } from 'react';
+import { ZoneMap } from './ZoneMap';
+import { Button } from '@/components/ui-admin/button';
+import { DataTable } from '@/components/data-table/DataTable';
+import { createZoneColumns, type Zone as ZoneTableType } from './columns';
+import { Modal } from '@/components/ui-admin/Modal';
+import { ZoneCreatorModal } from './ZoneCreatorModal';
+import type { RowSelectionState } from '@tanstack/react-table';
+import { zoneService } from '@/services/zone.service';
+import { AssignmentType } from '@/types/enums';
+import L from 'leaflet';
+import { ViewToggleContainer } from '@/components/ui-admin/ViewToggleContainer';
 
-export type Commercial = {
-  id: string;
-  nom: string;
-  prenom: string;
-  email: string;
-  telephone: string | null;
-  manager: string;
-  managerId: string;
-  equipe: string;
-  equipeId?: string;
-  classement: number;
-}
-
-const Header = ({ title }: { title: string }) => (
-  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
-)
-
-const SortableHeader = ({ title, column }: { title: string, column: any }) => (
-  <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="p-0 h-8 hover:bg-transparent">
-    <Header title={title} />
-    <ArrowUpDown className="ml-2 h-3 w-3" />
-  </Button>
-)
-
-export const createColumns = (isDeleteMode: boolean, onEdit: (commercial: Commercial) => void, managerIdForBack?: string): ColumnDef<Commercial>[] => {
-  const columns: ColumnDef<Commercial>[] = [
-    // --- Colonne de sélection ---
-    ...(isDeleteMode ? [{
-      id: "select",
-      header: ({ table }: { table: any }) => (
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-          onClick={(e) => e.stopPropagation()}
-        />
-      ),
-      cell: ({ row }: { row: any }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-          onClick={(e) => e.stopPropagation()}
-        />
-      ),
-      enableSorting: false,
-      enableHiding: false,
-    }] : []),
-
-    // --- Colonnes de données ---
-    {
-      accessorKey: "nom",
-      header: ({ column }) => <SortableHeader title="Nom" column={column} />,
-      cell: ({ row }) => <div className="font-medium text-foreground">{row.getValue("nom")}</div>,
-    },
-    {
-      accessorKey: "prenom",
-      header: () => <Header title="Prénom" />,
-    },
-    {
-      accessorKey: "email",
-      header: () => <Header title="Email" />,
-      cell: ({ row }) => (
-        <a href={`mailto:${row.getValue("email")}`} className="flex items-center gap-2 hover:underline">
-          <Mail className="h-4 w-4 text-muted-foreground" />
-          {row.getValue("email")}
-        </a>
-      )
-    },
-    {
-      accessorKey: "manager",
-      header: () => <Header title="Manager" />,
-      cell: ({ row }) => {
-        const managerName = row.original.manager;
-        const managerId = row.original.managerId;
-        return (
-            <Link 
-                to={`/admin/managers/${managerId}`} 
-                className="hover:underline hover:text-primary transition-colors"
-                onClick={(e) => e.stopPropagation()}
-            >
-                {managerName}
-            </Link>
-        )
-      },
-    },
-    {
-      accessorKey: "equipe",
-      header: () => <Header title="Équipe" />,
-    },
-    {
-      accessorKey: "classement",
-      header: ({ column }) => <div className="flex justify-center"><SortableHeader title="Classement" column={column} /></div>,
-      meta: { className: "text-center" },
-      cell: ({ row }) => {
-        const classement = row.getValue("classement") as number;
-        // CORRECTION: Rétablissement des couleurs des badges
-        let badgeClass = "";
-        if (classement === 1) badgeClass = "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200/80";
-        else if (classement === 2) badgeClass = "bg-slate-200 text-slate-800 border-slate-300 hover:bg-slate-300/80";
-        else if (classement === 3) badgeClass = "bg-orange-200 text-orange-800 border-orange-300 hover:bg-orange-300/80";
-        else badgeClass = "bg-gray-100 text-gray-800 border-gray-300";
-        
-        return (
-          <div className="flex justify-center">
-            <Badge variant="outline" className={badgeClass}>{classement}</Badge>
-          </div>
-        );
-      },
-    },
-
-    // --- Colonne d'Actions (améliorée) ---
-    {
-        id: "actions",
-        header: () => <div className="text-right"><Header title="Actions" /></div>,
-        cell: ({ row }) => {
-            const commercial = row.original;
-            return (
-                // CORRECTION: Utilisation d'un TooltipProvider et ajout d'espace
-                <TooltipProvider delayDuration={100}>
-                    <div className="text-right space-x-2">
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button asChild variant="ghost" className="h-8 w-8 p-0">
-                                    <Link to={`/admin/commerciaux/${commercial.id}`} state={{ fromManager: managerIdForBack }} onClick={(e) => { e.stopPropagation(); }}>
-                                        <Eye className="h-4 w-4" />
-                                        <span className="sr-only">Voir les détails</span>
-                                    </Link>
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Voir les détails</p></TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => { e.stopPropagation(); onEdit(commercial); }}>
-                                    <Edit className="h-4 w-4" />
-                                    <span className="sr-only">Modifier</span>
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Modifier</p></TooltipContent>
-                        </Tooltip>
-                    </div>
-                </TooltipProvider>
-            )
-        },
-    },
-  ]
+const ZonesPage = () => {
+  const [view, setView] = useState<'table' | 'map'>('table');
+  const [existingZones, setExistingZones] = useState<ZoneTableType[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  return columns;
+  const [isCreatorOpen, setIsCreatorOpen] = useState(false);
+  const [editingZone, setEditingZone] = useState<ZoneTableType | null>(null);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [itemsToDelete, setItemsToDelete] = useState<ZoneTableType[]>([]);
+  const [zoneToFocusId, setZoneToFocusId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [zones] = await Promise.all([
+        zoneService.getZones(),
+      ]);
+
+      const formattedZones: ZoneTableType[] = zones.map(z => ({
+        id: z.id,
+        name: z.nom,
+        assignedTo: 'Non assignée', // Plus d'assignation directe ici
+        color: z.couleur || 'gray',
+        latlng: [z.latitude, z.longitude],
+        radius: z.rayonMetres,
+        dateCreation: z.createdAt,
+      }));
+
+      setExistingZones(formattedZones);
+    } catch (error) {
+      console.error('Erreur de chargement des données:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditClick = (zone: ZoneTableType) => {
+    setEditingZone(zone);
+    setIsCreatorOpen(true);
+  };
+
+  const handleCloseCreator = () => {
+    setIsCreatorOpen(false);
+    setEditingZone(null);
+  };
+
+  const handleZoneValidated = async (data: {
+    id?: string;
+    center: L.LatLng;
+    radius: number;
+    name: string;
+    color: string;
+  }) => {
+    const payload: any = {
+      nom: data.name,
+      latitude: data.center.lat,
+      longitude: data.center.lng,
+      rayonMetres: data.radius,
+      couleur: data.color,
+      typeAssignation: AssignmentType.EQUIPE, // Valeur par défaut, car l'assignation est gérée ailleurs
+    };
+
+    try {
+      if (data.id) {
+        await zoneService.updateZone(data.id, payload);
+      } else {
+        await zoneService.createZone(payload);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de la zone:', error);
+    }
+
+    handleCloseCreator();
+    fetchData();
+  };
+
+  const handleConfirmDelete = (selectedRows: ZoneTableType[]) => setItemsToDelete(selectedRows);
+  const handleDelete = async () => {
+    try {
+      await Promise.all(itemsToDelete.map(z => zoneService.deleteZone(z.id)));
+      setItemsToDelete([]);
+      setIsDeleteMode(false);
+      setRowSelection({});
+      fetchData();
+    } catch (error) {
+      console.error('Erreur de suppression:', error);
+    }
+  };
+
+  // MODIFICATION : C'est la fonction qui gère le clic sur une ligne
+  const handleRowClick = (zone: ZoneTableType) => {
+    setZoneToFocusId(zone.id); // On définit la zone à cibler
+    setView('map'); // Et on bascule sur la carte
+  };
+
+  // MODIFICATION : C'est la fonction qui gère le changement de vue via les boutons
+  const handleViewChange = (newView: 'table' | 'map') => {
+    if (newView === 'map') {
+      // Si on bascule sur la carte, on s'assure qu'aucune zone n'est ciblée
+      setZoneToFocusId(null); 
+    }
+    setView(newView);
+  };
+  const toggleDeleteMode = () => {
+    setIsDeleteMode(prev => !prev);
+    setRowSelection({});
+  };
+  const zoneColumns = useMemo(() => createZoneColumns(isDeleteMode, handleEditClick), [isDeleteMode]);
+
+  if (loading) return <div>Chargement...</div>;
+
+  const tableComponent = (
+    <DataTable
+        noCardWrapper
+        columns={zoneColumns}
+        data={existingZones}
+        title=""
+        filterColumnId="name"
+        filterPlaceholder="Rechercher une zone par son nom..."
+        addEntityButtonText="Ajouter une Zone"
+        onAddEntity={() => {
+          setEditingZone(null);
+          setIsCreatorOpen(true);
+        }}
+        isDeleteMode={isDeleteMode}
+        onToggleDeleteMode={toggleDeleteMode}
+        rowSelection={rowSelection}
+        setRowSelection={setRowSelection}
+        onConfirmDelete={handleConfirmDelete}
+        onRowClick={handleRowClick} // Ce prop est bien utilisé pour cibler une zone
+      />
+  );
+  
+  const mapComponent = (
+     <ZoneMap
+        existingZones={existingZones}
+        zoneToFocus={zoneToFocusId}
+      />
+  );
+
+  return (
+    <div className="h-full flex flex-col gap-6">
+      {isCreatorOpen && (
+        <ZoneCreatorModal
+          onValidate={handleZoneValidated}
+          onClose={handleCloseCreator}
+          existingZones={existingZones}
+          zoneToEdit={editingZone}
+        />
+      )}
+      <Modal
+        isOpen={itemsToDelete.length > 0}
+        onClose={() => setItemsToDelete([])}
+        title="Confirmer la suppression"
+      >
+        <p className="text-sm text-muted-foreground mt-2">
+          Êtes-vous sûr de vouloir supprimer les {itemsToDelete.length} zone(s) sélectionnée(s)
+          ?
+        </p>
+        <ul className="my-4 list-disc list-inside max-h-40 overflow-y-auto bg-slate-50 p-3 rounded-md">
+          {itemsToDelete.map(item => (<li key={item.id}>{item.name}</li>))}
+        </ul>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={() => setItemsToDelete([])}>Annuler</Button>
+          <Button variant="destructive" onClick={handleDelete}>Valider la suppression</Button>
+        </div>
+      </Modal>
+
+      <ViewToggleContainer
+        title="Gestion des Zones"
+        description="Basculez entre la vue tableau et la vue carte interactive pour créer, modifier et visualiser les zones."
+        view={view}
+        onViewChange={handleViewChange} // MODIFICATION: Utilisation de la nouvelle fonction de gestion
+        tableComponent={tableComponent}
+        mapComponent={mapComponent}
+      />
+    </div>
+  );
+};
+
+export default ZonesPage;
+
+
+# --- components/ui-admin/select.tsx ---
+import * as React from "react"
+import * as SelectPrimitive from "@radix-ui/react-select"
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+function Select({
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  return <SelectPrimitive.Root data-slot="select" {...props} />
 }
+
+function SelectGroup({
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Group>) {
+  return <SelectPrimitive.Group data-slot="select-group" {...props} />
+}
+
+function SelectValue({
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Value>) {
+  return <SelectPrimitive.Value data-slot="select-value" {...props} />
+}
+
+function SelectTrigger({
+  className,
+  size = "default",
+  children,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
+  size?: "sm" | "default"
+}) {
+  return (
+    <SelectPrimitive.Trigger
+      data-slot="select-trigger"
+      data-size={size}
+      className={cn(
+        "border-input data-[placeholder]:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <SelectPrimitive.Icon asChild>
+        <ChevronDownIcon className="size-4 opacity-50" />
+      </SelectPrimitive.Icon>
+    </SelectPrimitive.Trigger>
+  )
+}
+
+function SelectContent({
+  className,
+  children,
+  position = "popper",
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+  return (
+    <SelectPrimitive.Portal>
+      <SelectPrimitive.Content
+        data-slot="select-content"
+        className={cn(
+          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:translate-x-1 data-[side=top]:slide-in-from-bottom-2 relative z-[51] max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border shadow-md",
+          position === "popper" &&
+            "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+          className
+        )}
+        position={position}
+        {...props}
+      >
+        <SelectScrollUpButton />
+        <SelectPrimitive.Viewport
+          className={cn(
+            "p-1",
+            position === "popper" &&
+              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
+          )}
+        >
+          {children}
+        </SelectPrimitive.Viewport>
+        <SelectScrollDownButton />
+      </SelectPrimitive.Content>
+    </SelectPrimitive.Portal>
+  )
+}
+
+function SelectLabel({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Label>) {
+  return (
+    <SelectPrimitive.Label
+      data-slot="select-label"
+      className={cn("text-muted-foreground px-2 py-1.5 text-xs", className)}
+      {...props}
+    />
+  )
+}
+
+function SelectItem({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+  return (
+    <SelectPrimitive.Item
+      data-slot="select-item"
+      className={cn(
+        "focus:bg-accent focus:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        className
+      )}
+      {...props}
+    >
+      <span className="absolute right-2 flex size-3.5 items-center justify-center">
+        <SelectPrimitive.ItemIndicator>
+          <CheckIcon className="size-4" />
+        </SelectPrimitive.ItemIndicator>
+      </span>
+      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    </SelectPrimitive.Item>
+  )
+}
+
+function SelectSeparator({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Separator>) {
+  return (
+    <SelectPrimitive.Separator
+      data-slot="select-separator"
+      className={cn("bg-border pointer-events-none -mx-1 my-1 h-px", className)}
+      {...props}
+    />
+  )
+}
+
+function SelectScrollUpButton({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.ScrollUpButton>) {
+  return (
+    <SelectPrimitive.ScrollUpButton
+      data-slot="select-scroll-up-button"
+      className={cn(
+        "flex cursor-default items-center justify-center py-1",
+        className
+      )}
+      {...props}
+    >
+      <ChevronUpIcon className="size-4" />
+    </SelectPrimitive.ScrollUpButton>
+  )
+}
+
+function SelectScrollDownButton({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.ScrollDownButton>) {
+  return (
+    <SelectPrimitive.ScrollDownButton
+      data-slot="select-scroll-down-button"
+      className={cn(
+        "flex cursor-default items-center justify-center py-1",
+        className
+      )}
+      {...props}
+    >
+      <ChevronDownIcon className="size-4" />
+    </SelectPrimitive.ScrollDownButton>
+  )
+}
+
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectScrollDownButton,
+  SelectScrollUpButton,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+}
+
 
 
 # --- pages/admin/immeubles/ImmeublesMap.tsx ---
@@ -2555,118 +2548,138 @@ export const ImmeublesMap = (props: ImmeublesMapProps) => {
 
 
 
-# --- App.tsx ---
-// src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+# --- pages/admin/suivi/SuiviPage.tsx ---
+// frontend-shadcn/src/pages/admin/suivi/SuiviPage.tsx
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { SuiviSidebar } from './SuiviSidebar';
+import { SuiviMap } from './SuiviMap';
+import { FloatingTranscriptPopup } from './FloatingTranscriptPopup';
+import type { Commercial, Transcription, Zone } from './types';
 
-// --- Logique de Routage ---
-import PrivateRoute from './routes/PrivateRoute';
-import RoleBasedRedirect from './routes/RoleBasedRedirect';
+// --- MOCK DATA (inchangé) ---
+const MOCK_COMMERCIALS: Commercial[] = [
+  { id: 'com-001', name: 'Alice Leroy', avatarFallback: 'AL', position: [48.873, 2.34], equipe: 'Alpha' },
+  { id: 'com-002', name: 'Paul Girard', avatarFallback: 'PG', position: [48.858, 2.359], equipe: 'Alpha' },
+  { id: 'com-003', name: 'Emma Bonnet', avatarFallback: 'EB', position: [48.887, 2.344], equipe: 'Bêta' },
+  { id: 'com-004', name: 'Hugo Moreau', avatarFallback: 'HM', position: [48.865, 2.335], equipe: 'Bêta' },
+];
+const MOCK_TRANSCRIPTIONS: Transcription[] = [
+  { id: 't-1', commercialId: 'com-001', commercialName: 'Alice Leroy', date: new Date(Date.now() - 5 * 60000), snippet: 'Bonjour, je suis Alice de Finanssor. Je vous contacte...', fullText: 'Bonjour, je suis Alice de Finanssor. Je vous contacte au sujet de votre éligibilité à notre nouvelle offre. XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXX XXXXXXX XXXXXXX SCSFSFS ' },
+];
+const MOCK_ZONES: Zone[] = [
+  { id: 'zone-1', name: 'Opéra', color: 'green', latlng: [48.872, 2.34], radius: 1500 },
+];
 
-// --- Layouts et Pages Publiques ---
-import AdminLayout from './layout/AdminLayout';
-import CommercialLayout from './layout/CommercialLayout';
-import Login from './pages/auth/Login';
+const SuiviPage = () => {
+  const [selectedCommercial, setSelectedCommercial] = useState<Commercial | null>(MOCK_COMMERCIALS[0] || null);
+  const [selectedTranscription, setSelectedTranscription] = useState<Transcription | null>(null);
+  
+  const [liveText, setLiveText] = useState('');
+  const [isProspecting, setIsProspecting] = useState(false);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const prospectingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-// --- Pages Admin ---
-import DashboardAdmin from './pages/admin/Dashboard/DashboardAdmin';
-import ManagersPage from './pages/admin/Managers/ManagersPage';
-import ManagerDetailsPage from './pages/admin/Managers/ManagerDetailsPage';
-import CommerciauxPage from './pages/admin/commerciaux/CommerciauxPage';
-import CommercialDetailsPage from './pages/admin/commerciaux/CommercialDetailsPage';
-import EquipesPage from './pages/admin/Equipes/EquipesPage'; 
-import EquipeDetailsPage from './pages/admin/Equipes/EquipeDetailsPage';
-import StatistiquesPage from './pages/admin/statitistiques/StatistiquesPage';
-import ZonesPage from './pages/admin/zones/ZonesPage';
-import ZoneDetailsPage from './pages/admin/zones/ZoneDetailsPage'; 
-import ImmeublesPage from './pages/admin/immeubles/ImmeublesPage';
-import ImmeubleDetailsPage from './pages/admin/immeubles/portes/ImmeubleDetailsPage';
-import SuiviPage from './pages/admin/suivi/SuiviPage';
-import AssignmentGoalsPage from './pages/admin/assignment-goals/AssignmentGoalsPage';
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:8080');
+    ws.onopen = () => console.log('WebSocket connecté (Admin)');
+    ws.onclose = () => console.log('WebSocket déconnecté (Admin)');
 
-// --- Pages Commercial ---
-import CommercialDashboardPage from './pages/commercial/DashboardCommercial';
-import SelectBuildingPage from './pages/commercial/SelectBuildingPage';
-import ProspectingSetupPage from './pages/commercial/ProspectingSetupPage'; // <-- On importe le vrai composant
-import ProspectingDoorsPage from './pages/commercial/ProspectingDoorsPage';
+    ws.onmessage = (event) => {
+      // Gérer les données audio binaires
+      if (event.data instanceof Blob) {
+        setAudioChunks(prev => [...prev, event.data]);
+        return;
+      }
+      
+      // Gérer les données texte (transcription)
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'LIVE_TRANSCRIPT' && data.payload.commercialId === selectedCommercial?.id) {
+          setIsProspecting(true);
+          setLiveText(data.payload.text);
 
-// On crée des composants temporaires pour les routes non encore développées
-const CommercialHistory = () => <div className="p-8"><h1 className="text-3xl font-bold">Historique de Prospection</h1></div>;
-const CommercialStats = () => <div className="p-8"><h1 className="text-3xl font-bold">Mes Statistiques</h1></div>;
-const CommercialProfile = () => <div className="p-8"><h1 className="text-3xl font-bold">Mon Profil</h1></div>;
+          if (prospectingTimeoutRef.current) clearTimeout(prospectingTimeoutRef.current);
+          prospectingTimeoutRef.current = setTimeout(() => {
+            setIsProspecting(false);
+          }, 3000);
+        }
+      } catch (error) {
+          // Si ce n'est pas du JSON, on l'ignore (ça pourrait être un message de ping/pong, etc.)
+      }
+    };
 
-// --- Pages des autres Rôles (pour l'exemple) ---
-import DashboardManager from './pages/manager/DashboardManager';
-import DashboardDirecteur from './pages/directeur/DashboardDirecteur';
-import DashboardBackoffice from './pages/backoffice/DashboardBackoffice';
+    return () => {
+      ws.close();
+      if(prospectingTimeoutRef.current) clearTimeout(prospectingTimeoutRef.current);
+    };
+  }, [selectedCommercial]);
+  
+  // Vider les chunks audio à chaque fois qu'on en reçoit de nouveaux pour éviter une accumulation infinie
+  useEffect(() => {
+    if(audioChunks.length > 0) {
+        const timer = setTimeout(() => setAudioChunks([]), 0);
+        return () => clearTimeout(timer);
+    }
+  }, [audioChunks]);
 
-import { Toaster } from "sonner";
+  useEffect(() => {
+    setLiveText('');
+    setIsProspecting(false);
+    setAudioChunks([]);
+  }, [selectedCommercial]);
 
-function App() {
+  const handleSelectCommercial = (commercial: Commercial) => setSelectedCommercial(commercial);
+  const handleHistoryItemClick = (transcription: Transcription) => setSelectedTranscription(transcription);
+  const handleClosePopup = () => setSelectedTranscription(null);
+
+  const filteredTranscriptions = useMemo(() => {
+    if (!selectedCommercial) return [];
+    return MOCK_TRANSCRIPTIONS.filter(t => t.commercialId === selectedCommercial.id);
+  }, [selectedCommercial]);
+  
+  const commercialsMap = useMemo(() => MOCK_COMMERCIALS.reduce((acc, comm) => {
+    acc[comm.id] = { name: comm.name, avatarFallback: comm.avatarFallback };
+    return acc;
+  }, {} as { [id: string]: { name: string; avatarFallback: string } }), []);
+
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* --- Route Publique --- */}
-        <Route path="/login" element={<Login />} />
-
-        {/* --- Routes Privées Protégées --- */}
-        <Route element={<PrivateRoute />}>
-          
-          <Route path="/" element={<RoleBasedRedirect />} />
-          
-          {/* --- Layout pour les administrateurs --- */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<DashboardAdmin />} />
-            <Route path="managers" element={<ManagersPage />} />
-            <Route path="managers/:managerId" element={<ManagerDetailsPage />} />
-            <Route path="equipes" element={<EquipesPage />} /> 
-            <Route path="equipes/:equipeId" element={<EquipeDetailsPage />} />
-            <Route path="commerciaux" element={<CommerciauxPage />} />
-            <Route path="commerciaux/:id" element={<CommercialDetailsPage />} />
-            <Route path="statistiques" element={<StatistiquesPage />} />
-            <Route path="zones" element={<ZonesPage />} /> 
-            <Route path="zones/:zoneId" element={<ZoneDetailsPage />} /> 
-            <Route path="immeubles" element={<ImmeublesPage />} />
-            <Route path="immeubles/:immeubleId" element={<ImmeubleDetailsPage />} />
-            <Route path="suivi" element={<SuiviPage />} />
-            <Route path="assignations-objectifs" element={<AssignmentGoalsPage />} />
-          </Route>
-
-          {/* --- Layout pour les commerciaux --- */}
-          <Route path="/commercial" element={<CommercialLayout />}>
-            <Route index element={<Navigate to="/commercial/dashboard" replace />} /> 
-            
-            <Route path="dashboard" element={<CommercialDashboardPage />} /> 
-            
-            {/* Flow de prospection */}
-            <Route path="prospecting" element={<SelectBuildingPage />} />
-            <Route path="prospecting/setup/:buildingId" element={<ProspectingSetupPage />} />
-            <Route path="prospecting/doors/:buildingId" element={<ProspectingDoorsPage />} />
-
-            {/* Autres pages du commercial */}
-            <Route path="history" element={<CommercialHistory />} />
-            <Route path="stats" element={<CommercialStats />} />
-            <Route path="profile" element={<CommercialProfile />} />
-          </Route>
-            
-          {/* Routes pour les autres rôles */}
-          <Route path="/manager" element={<DashboardManager />} />
-          <Route path="/directeur" element={<DashboardDirecteur />} />
-          <Route path="/backoffice" element={<DashboardBackoffice />} />
-
-        </Route>
-
-        <Route path="*" element={<div>Page non trouvée</div>} />
-      </Routes>
-      <Toaster richColors position="top-right" />
-    </BrowserRouter>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)]">
+      <div className="lg:col-span-1 h-full flex flex-col gap-6">
+        <SuiviSidebar 
+          activeCommercial={selectedCommercial} 
+          transcriptions={filteredTranscriptions}
+          commercialsMap={commercialsMap}
+          onHistoryItemClick={handleHistoryItemClick}
+          liveText={liveText}
+          isProspecting={isProspecting}
+          audioChunks={audioChunks}
+        />
+      </div>
+      
+      <div className="lg:col-span-2 h-full relative">
+        <SuiviMap 
+          zones={MOCK_ZONES} 
+          commercials={MOCK_COMMERCIALS}
+          onMarkerClick={handleSelectCommercial}
+          selectedCommercialId={selectedCommercial?.id}
+        />
+        {selectedTranscription && (
+          <div className="absolute inset-0 z-[1000] flex items-center justify-center p-4 pointer-events-none">
+            <FloatingTranscriptPopup
+              transcription={selectedTranscription}
+              onClose={handleClosePopup}
+            />
+          </div>
+        )}
+      </div>
+    </div>
   );
-}
+};
 
-export default App;
+export default SuiviPage;
 
 
-# --- pages/commercial/ProspectingSetupPage.tsx ---
+# --- pages/commercial/prospection/ProspectingSetupPage.tsx ---
 // src/pages/commercial/ProspectingSetupPage.tsx
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -2780,7 +2793,7 @@ const ProspectingSetupPage = () => {
 export default ProspectingSetupPage;
 
 
-# --- pages/commercial/SelectBuildingPage.tsx ---
+# --- pages/commercial/prospection/SelectBuildingPage.tsx ---
 // src/pages/commercial/SelectBuildingPage.tsx
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -3437,106 +3450,190 @@ export {
 
 
 
-# --- pages/admin/zones/ZoneDetailsPage.tsx ---
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { zoneService, type ZoneDetailsFromApi } from '@/services/zone.service';
-import { Button } from '@/components/ui-admin/button';
-import { ArrowLeft, MapPin, Building, CheckCircle, Briefcase } from 'lucide-react';
-import { Skeleton } from '@/components/ui-admin/skeleton';
-import StatCard from '@/components/ui-admin/StatCard';
-import { ZoneMap } from './ZoneMap'; // Assurez-vous que ce composant peut être réutilisé ou adapté
-import type { Zone as ZoneTableType } from './columns';
+# --- pages/admin/zones/columns.tsx ---
+// frontend-shadcn/src/pages/admin/zones/columns.tsx
+"use client"
 
-const ZoneDetailsPage = () => {
-  const { zoneId } = useParams<{ zoneId: string }>();
-  const navigate = useNavigate();
-  const [zoneDetails, setZoneDetails] = useState<ZoneDetailsFromApi | null>(null);
-  const [loading, setLoading] = useState(true);
+import type { ColumnDef } from "@tanstack/react-table"
+import { format } from "date-fns"
+import { fr } from "date-fns/locale"
+import { Button } from "@/components/ui-admin/button"
+import { Badge } from "@/components/ui-admin/badge"
+import { Checkbox } from "@/components/ui-admin/checkbox"
+import { ArrowUpDown, Edit, Calendar, Eye } from "lucide-react"
+import { Link } from "react-router-dom";
 
-  useEffect(() => {
-    if (zoneId) {
-      setLoading(true);
-      zoneService.getZoneDetails(zoneId)
-        .then(data => {
-          setZoneDetails(data);
-        })
-        .catch(error => {
-          console.error('Erreur lors de la récupération des détails de la zone:', error);
-          setZoneDetails(null);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }
-  }, [zoneId]);
+export interface Zone {
+  id: string;
+  name: string;
+  assignedTo: string;
+  color: string;
+  latlng: [number, number];
+  radius: number;
+  dateCreation: string;
+}
 
-  if (loading) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-24 w-full" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-28 rounded-lg" />)}
-        </div>
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
-  }
+const Header = ({ title }: { title: string }) => (
+  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
+)
 
-  if (!zoneDetails) {
-    return <div>Zone non trouvée ou erreur de chargement.</div>;
-  }
+const SortableHeader = ({ title, column }: { title: string, column: any }) => (
+  <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="p-0 h-8 hover:bg-transparent">
+    <Header title={title} />
+    <ArrowUpDown className="ml-2 h-3 w-3" />
+  </Button>
+)
 
-  return (
-    <div className="h-full flex flex-col space-y-8">
-      <Button variant="outline" onClick={() => navigate(-1)}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Retour à la liste des zones
-      </Button>
+export const createZoneColumns = (isDeleteMode: boolean, onEdit: (zone: Zone) => void): ColumnDef<Zone>[] => [
+    // Colonne de sélection conditionnelle
+    ...(isDeleteMode ? [{
+      id: "select",
+      header: ({ table }: any) => (<Checkbox checked={table.getIsAllPageRowsSelected()} onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all" />),
+      cell: ({ row }: any) => (<Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} aria-label="Select row" onClick={(e) => e.stopPropagation()} />),
+      enableSorting: false, enableHiding: false,
+    }] : []),
+    {
+        accessorKey: "name",
+        header: ({ column }) => <SortableHeader title="Nom de la zone" column={column} />,
+        cell: ({ row }) => <div className="font-medium text-foreground">{row.original.name}</div>,
+    },
+    {
+        accessorKey: "assignedTo",
+        header: ({ column }) => <SortableHeader title="Assignée à" column={column} />,
+        cell: ({ row }) => {
+            const { color, assignedTo } = row.original;
+            const badgeStyle = color ? { backgroundColor: color, color: 'white', borderColor: 'transparent' } : {};
+            return ( <Badge style={badgeStyle} className="border-transparent">{assignedTo}</Badge> )
+        }
+    },
+    {
+        accessorKey: "dateCreation",
+        header: ({ column }) => <SortableHeader title="Date d'ajout" column={column} />,
+        cell: ({ row }) => (
+            <div className="flex items-center gap-2 text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span>{format(new Date(row.original.dateCreation), "d LLL yyyy", { locale: fr })}</span>
+            </div>
+        )
+    },
+    {
+        id: "actions",
+        header: () => <div className="text-right"><Header title="Actions" /></div>,
+        cell: ({ row }) => (
+            <div className="text-right space-x-2">
+                <Button asChild variant="ghost" size="icon">
+                    <Link to={`/admin/zones/${row.original.id}`} onClick={(e) => e.stopPropagation()}>
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">Voir les détails</span>
+                    </Link>
+                </Button>
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(row.original); }}>
+                    <Edit className="h-4 w-4" />
+                    <span className="sr-only">Modifier la zone</span>
+                </Button>
+            </div>
+        ),
+    },
+];
 
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-          <MapPin className="h-8 w-8 text-primary" />
-          Zone: {zoneDetails.nom}
-        </h1>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard title="Nombre d'immeubles" value={zoneDetails.stats.nbImmeubles} Icon={Building} color="text-blue-500" />
-        <StatCard title="Contrats Signés" value={zoneDetails.stats.totalContratsSignes} Icon={CheckCircle} color="text-emerald-500" />
-        <StatCard title="RDV Pris" value={zoneDetails.stats.totalRdvPris} Icon={Briefcase} color="text-sky-500" />
-      </div>
+# --- pages/admin/immeubles/portes/portes-columns.tsx ---
+// frontend-shadcn/src/pages/admin/immeubles/portes/portes-columns.tsx
 
-      <div className="flex-grow flex flex-col">
-        <h2 className="text-2xl font-bold mb-4">Carte de la Zone</h2>
-        <div className="flex-grow w-full">
-          <ZoneMap
-            existingZones={[{
-              id: zoneDetails.id,
-              name: zoneDetails.nom,
-              assignedTo: '', // L'assignation n'est pas nécessaire ici
-              color: zoneDetails.couleur,
-              latlng: [zoneDetails.latitude, zoneDetails.longitude],
-              radius: zoneDetails.rayonMetres,
-              dateCreation: zoneDetails.createdAt,
-            } as ZoneTableType]}
-            immeubles={zoneDetails.immeubles.map(imm => ({
-              id: imm.id,
-              adresse: imm.adresse,
-              status: imm.status, // Le statut est déjà une chaîne de caractères
-              latlng: [imm.latitude, imm.longitude],
-            }))}
-            zoneToFocus={zoneDetails.id}
-          />
-        </div>
-      </div>
-    </div>
-  );
+"use client"
+
+import type { ColumnDef } from "@tanstack/react-table"
+import { Badge } from "@/components/ui-admin/badge"
+import { ArrowUpDown, Hash, MessageSquare, Repeat } from "lucide-react"
+import { Button } from "@/components/ui-admin/button"
+
+// --- 1. MISE À JOUR DU TYPE Porte avec les nouveaux statuts ---
+export type Porte = {
+  id: string
+  numeroPorte: string
+  statut: "Non visité" | "Visité" | "Absent" | "Refus" | "Curieux" | "Contrat signé"
+  passage: number
+  commentaire: string
+}
+
+const Header = ({ title }: { title: string }) => (
+  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
+)
+
+const SortableHeader = ({ title, column }: { title: string, column: any }) => (
+  <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} className="p-0 h-8 hover:bg-transparent">
+    <Header title={title} />
+    <ArrowUpDown className="ml-2 h-3 w-3" />
+  </Button>
+)
+
+// --- 2. MISE À JOUR de la configuration des couleurs des badges ---
+const statusConfig = {
+    "Non visité": "bg-gray-100 text-gray-800 border-gray-300",
+    "Visité": "bg-blue-100 text-blue-800 border-blue-300",
+    "Absent": "bg-yellow-100 text-yellow-800 border-yellow-300",
+    "Refus": "bg-red-100 text-red-800 border-red-300",
+    "Curieux": "bg-purple-100 text-purple-800 border-purple-300",
+    "Contrat signé": "bg-green-100 text-green-800 border-green-300",
 };
 
-export default ZoneDetailsPage;
+export const createPortesColumns = (): ColumnDef<Porte>[] => [
+    {
+      accessorKey: "numeroPorte",
+      header: ({ column }) => <SortableHeader title="Porte" column={column} />,
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 font-medium">
+            <Hash className="h-4 w-4 text-muted-foreground" />
+            <span>{row.original.numeroPorte}</span>
+        </div>
+      ),
+      meta: { className: "w-[120px]" },
+    },
+    {
+      accessorKey: "statut",
+      header: ({ column }) => <SortableHeader title="Statut" column={column} />,
+      cell: ({ row }) => {
+        const statut = row.original.statut;
+        return <Badge variant="outline" className={statusConfig[statut]}>{statut}</Badge>
+      }
+    },
+    {
+      accessorKey: "passage",
+      header: ({ column }) => <SortableHeader title="Passage" column={column} />,
+      cell: ({ row }) => {
+        const { statut, passage } = row.original;
+        
+        // --- 3. MISE À JOUR de la logique de repassage ---
+        // Le repassage est applicable pour "Absent" et "Curieux".
+        const isRepassageApplicable = statut === 'Absent' || statut === 'Curieux';
 
+        if (!isRepassageApplicable || passage === 0) {
+            return <span className="text-muted-foreground">-</span>;
+        }
+
+        return (
+            <div className="flex items-center gap-2">
+                <Repeat className="h-4 w-4 text-muted-foreground" />
+                <span>{`Passage n°${passage}`}</span>
+            </div>
+        );
+      }
+    },
+    {
+      accessorKey: "commentaire",
+      header: () => <Header title="Commentaire" />,
+      cell: ({ row }) => {
+        const commentaire = row.original.commentaire;
+        if (!commentaire) return <span className="text-muted-foreground italic">Aucun</span>;
+        return (
+            <div className="flex items-start gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+                <span className="max-w-xs truncate">{commentaire}</span>
+            </div>
+        )
+      },
+    },
+]
 
 
 # --- components/ui-admin/ustomDatePicker.tsx ---
@@ -3620,81 +3717,6 @@ export const CustomDatePicker = ({ onCancel, onValidate }: CustomDatePickerProps
 };
 
 
-# --- components/page-components/GoalSettingCard.tsx ---
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui-admin/select';
-import { Button } from '@/components/ui-admin/button';
-import { Input } from '@/components/ui-admin/input';
-import { Target, Loader2 } from 'lucide-react';
-import type { Commercial } from '@/types/types';
-
-interface GoalSettingCardProps {
-  commercials: Commercial[];
-  onSetGoal: (commercialId: string, goal: number) => Promise<void>;
-}
-
-export const GoalSettingCard = ({ commercials, onSetGoal }: GoalSettingCardProps) => {
-  const [commercialId, setCommercialId] = useState('');
-  const [goal, setGoal] = useState<number | string>('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const isFormValid = commercialId && typeof goal === 'number' && goal > 0;
-
-  const handleSubmit = async () => {
-    if (!isFormValid) return;
-    setIsSubmitting(true);
-    await onSetGoal(commercialId, goal as number);
-    setIsSubmitting(false);
-  };
-  
-  return (
-     <Card className="shadow-md hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <CardTitle className="flex items-center text-green-600">
-          <Target className="mr-3 h-6 w-6" /> Définir un Objectif
-        </CardTitle>
-        <CardDescription>Fixez l'objectif mensuel de contrats pour un commercial.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Sélecteur de Commercial */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Commercial</label>
-          <Select onValueChange={setCommercialId} value={commercialId}>
-            <SelectTrigger><SelectValue placeholder="Sélectionner un commercial" /></SelectTrigger>
-            <SelectContent>
-              {commercials.map(c => <SelectItem key={c.id} value={c.id}>{c.prenom} {c.nom}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        {/* Input de l'objectif */}
-        <div className="space-y-2">
-            <label htmlFor="monthly-goal" className="text-sm font-medium">Objectif (nombre de contrats)</label>
-            <div className="relative">
-                <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input 
-                    id="monthly-goal" 
-                    type="number" 
-                    value={goal}
-                    onChange={e => setGoal(e.target.value === '' ? '' : parseInt(e.target.value, 10))} 
-                    min="1"
-                    placeholder="Ex: 10" 
-                    className="pl-10" 
-                />
-            </div>
-        </div>
-
-        <Button onClick={handleSubmit} disabled={!isFormValid || isSubmitting} className="w-full bg-green-600 hover:bg-green-700">
-          {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Target className="mr-2 h-4 w-4" />}
-          Définir l'Objectif
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-
 # --- pages/admin/suivi/HistoryList.tsx ---
 // src/pages/admin/suivi/HistoryList.tsx
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
@@ -3763,92 +3785,79 @@ export const HistoryList = ({ transcriptions, onHistoryItemClick, commercials }:
 };
 
 
-# --- pages/auth/CommercialSelectionPage.tsx ---
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { CommercialService } from '../../services/commercial.service';
-import { Commercial } from '../../types/types';
-import { Button } from '../../components/ui-admin/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui-admin/card';
-import { ScrollArea } from '../../components/ui-admin/scroll-area';
+# --- pages/admin/statitistiques/LeaderboardTable.tsx ---
+// src/pages/admin/statitistiques/LeaderboardTable.tsx
 
-const CommercialSelectionPage: React.FC = () => {
-  const [commerciaux, setCommerciaux] = useState<Commercial[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const { loginCommercial } = useAuth();
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui-admin/table';
+import { Badge } from '@/components/ui-admin/badge';
+import { Avatar, AvatarFallback } from '@/components/ui-admin/avatar';
+import { cn } from '@/lib/utils';
 
-  useEffect(() => {
-    const fetchCommerciaux = async () => {
-      try {
-        const service = new CommercialService();
-        const data = await service.getAllCommerciaux();
-        setCommerciaux(data);
-      } catch (err) {
-        setError('Failed to fetch commercials.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+interface Performer {
+  rank: number;
+  name: string;
+  avatar: string;
+  value: number;
+  change: number;
+}
 
-    fetchCommerciaux();
-  }, []);
+interface LeaderboardTableProps {
+  title: string;
+  description: string;
+  data: Performer[];
+  unit: string;
+}
 
-  const handleSelectCommercial = (commercial: Commercial) => {
-    loginCommercial(commercial);
-    navigate('/commercial/dashboard');
-  };
+const rankColor = (rank: number) => {
+    if (rank === 1) return "bg-yellow-400/20 text-yellow-700 border-yellow-400/50";
+    if (rank === 2) return "bg-slate-400/20 text-slate-700 border-slate-400/50";
+    if (rank === 3) return "bg-orange-400/20 text-orange-700 border-orange-400/50";
+    return "bg-gray-100 text-gray-600 border-transparent";
+}
 
-  if (loading) {
-    return <div className="flex justify-center items-center h-screen">Loading commercials...</div>;
-  }
-
-  if (error) {
-    return <div className="flex justify-center items-center h-screen text-red-500">{error}</div>;
-  }
-
+export const LeaderboardTable = ({ title, description, data, unit }: LeaderboardTableProps) => {
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100 p-4">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">Select Your Commercial Profile</CardTitle>
-          <CardDescription className="text-center text-gray-600">
-            Choose a commercial to access their dashboard and specific data.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {commerciaux.length === 0 ? (
-            <p className="text-center text-gray-500">No commercial profiles available.</p>
-          ) : (
-            <ScrollArea className="h-72 w-full rounded-md border p-4">
-              <div className="grid gap-4">
-                {commerciaux.map((commercial) => (
-                  <Button
-                    key={commercial.id}
-                    variant="outline"
-                    className="w-full justify-start h-12 text-lg"
-                    onClick={() => handleSelectCommercial(commercial)}
-                  >
-                    {commercial.name}
-                  </Button>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    <Card className="h-full shadow-lg border border-gray-200 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-xl">
+      <CardHeader className="bg-gray-50 border-b border-gray-200 py-4 px-6">
+        <CardTitle className="text-lg font-semibold text-gray-800">{title}</CardTitle>
+        <CardDescription className="text-sm text-gray-600">{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gray-50">
+              <TableHead className="w-[50px] text-gray-600">Rank</TableHead>
+              <TableHead className="text-gray-600">Nom</TableHead>
+              <TableHead className="text-right text-gray-600">{unit}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((item) => (
+              <TableRow key={item.rank} className="hover:bg-gray-50 transition-colors duration-200">
+                <TableCell>
+                    <Badge variant="outline" className={cn("font-bold text-sm", rankColor(item.rank))}>
+                        {item.rank}
+                    </Badge>
+                </TableCell>
+                <TableCell className="font-medium flex items-center gap-3 text-gray-800">
+                    <Avatar className="h-8 w-8 border border-gray-200">
+                        <AvatarFallback className="bg-gray-200 text-gray-700 text-sm font-semibold">{item.avatar}</AvatarFallback>
+                    </Avatar>
+                    {item.name}
+                </TableCell>
+                <TableCell className="text-right font-bold text-lg text-gray-900">{item.value}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 };
 
-export default CommercialSelectionPage;
 
-
-
-# --- pages/commercial/ZoneFocusMap.tsx ---
+# --- pages/commercial/dashboard/ZoneFocusMap.tsx ---
 // src/pages/commercial/ZoneFocusMap.tsx
 import { MapContainer, TileLayer, Circle, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -3918,73 +3927,79 @@ export const ZoneFocusMap = ({ zone, immeubles }: ZoneFocusMapProps) => {
 };
 
 
-# --- layout/UserNavMenu.tsx ---
-// src/layout/UserNavMenu.tsx
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui-admin/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui-admin/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui-admin/avatar';
-import { ChevronsUpDown, LogOut } from 'lucide-react';
-import { cn } from '@/lib/utils';
+# --- components/ui-admin/DatePickerWithPresets.tsx ---
+// src/components/ui/DatePickerWithPresets.tsx
 
-interface UserNavMenuProps {
-  isCollapsed: boolean;
+import { format } from "date-fns"
+import { fr } from "date-fns/locale"
+import type { DateRange } from "react-day-picker"
+import { Calendar as CalendarIcon } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui-admin/button"
+import { Calendar } from "@/components/ui-admin/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui-admin/popover"
+
+interface DatePickerWithPresetsProps {
+  className?: string
+  selectedDate: DateRange | undefined
+  onDateChange: (date: DateRange | undefined) => void
+  onPresetSelect: (preset: string) => void
 }
 
-export function UserNavMenu({ isCollapsed }: UserNavMenuProps) {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  if (!user) return null;
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const initials = user.name.split(' ').map((n) => n[0]).join('').toUpperCase();
-
+export function DatePickerWithPresets({
+  className,
+  selectedDate,
+  onDateChange,
+  onPresetSelect,
+}: DatePickerWithPresetsProps) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Popover>
+      <PopoverTrigger asChild>
         <Button
-          variant="ghost"
+          id="date"
+          variant="outline"
           className={cn(
-            `w-full h-auto px-2 py-2 transition-all duration-300 text-black hover:bg-zinc-100`,
-            isCollapsed ? 'justify-center' : 'justify-between'
+            "w-[280px] justify-start text-left font-normal h-11",
+            !selectedDate && "text-muted-foreground",
+            className
           )}
         >
-          <div className="flex items-center gap-3">
-            <Avatar className="h-8 w-8"><AvatarFallback>{initials}</AvatarFallback></Avatar>
-            {!isCollapsed && (
-              <div className="flex flex-col items-start truncate text-left">
-                <span className="text-sm font-medium">{user.name}</span>
-                <span className="text-xs text-muted-foreground">{user.role}</span>
-              </div>
-            )}
-          </div>
-          {!isCollapsed && <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />}
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {selectedDate?.from ? (
+            selectedDate.to ? (
+              <>
+                {format(selectedDate.from, "d LLL y", { locale: fr })} -{" "}
+                {format(selectedDate.to, "d LLL y", { locale: fr })}
+              </>
+            ) : (
+              format(selectedDate.from, "d LLL y", { locale: fr })
+            )
+          ) : (
+            <span>Choisir une période</span>
+          )}
         </Button>
-      </DropdownMenuTrigger>
-      
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user.role}@winvest.capital
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50">
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Déconnexion</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+      </PopoverTrigger>
+      <PopoverContent className="flex w-auto flex-col space-y-2 p-2" align="end">
+        <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => onPresetSelect('week')}>Cette semaine</Button>
+            <Button variant="ghost" size="sm" onClick={() => onPresetSelect('month')}>Ce mois</Button>
+            <Button variant="ghost" size="sm" onClick={() => onPresetSelect('year')}>Cette année</Button>
+        </div>
+        <div className="rounded-md border">
+          <Calendar
+            initialFocus
+            mode="range"
+            defaultMonth={selectedDate?.from}
+            selected={selectedDate}
+            onSelect={onDateChange}
+            numberOfMonths={2}
+            locale={fr}
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 
@@ -4103,187 +4118,248 @@ export const ViewToggleContainer = ({
 };
 
 
-# --- layout/UserNav.tsx ---
-// src/layout/UserNav.tsx
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui-admin/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuGroup,
-} from '@/components/ui-admin/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui-admin/avatar';
-import { LogOut, User as UserIcon } from 'lucide-react';
+# --- components/MapComponent.tsx ---
+import React, { useEffect, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
-export function UserNav() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  if (!user) return null;
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const initials = (user.name || '').split(' ').map((n) => n[0]).join('').toUpperCase();
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full hover:bg-black/10">
-          <Avatar className="h-10 w-10 border-2 border-white/50">
-            <AvatarFallback className="bg-transparent text-white font-bold">{initials}</AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user.email || `${user.role}@winvest.capital`}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem className="cursor-pointer">
-            <UserIcon className="mr-2 h-4 w-4" />
-            <span>Profil</span>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50">
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Déconnexion</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+interface MapComponentProps {
+  latitude: number;
+  longitude: number;
+  zoom: number;
+  radius?: number; // Optional radius for drawing a circle
+  color?: string; // New: Optional color for the circle
 }
 
+const MapComponent: React.FC<MapComponentProps> = ({ latitude, longitude, zoom, radius, color = 'blue' }) => {
+  const mapRef = useRef<L.Map | null>(null);
+  const circleRef = useRef<L.Circle | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
 
-# --- components/ui-admin/slider.tsx ---
-// src/components/ui-admin/slider.tsx
-import * as React from "react"
-import * as SliderPrimitive from "@radix-ui/react-slider"
+  // Effect for map initialization and cleanup
+  useEffect(() => {
+    if (mapContainerRef.current && !mapRef.current) {
+      mapRef.current = L.map(mapContainerRef.current).setView([latitude, longitude], zoom);
 
-import { cn } from "@/lib/utils"
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(mapRef.current);
+    }
 
-function Slider({
-  className,
-  defaultValue,
-  value,
-  min = 0,
-  max = 100,
-  ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
-  const _values = React.useMemo(
-    () =>
-      Array.isArray(value)
-        ? value
-        : Array.isArray(defaultValue)
-          ? defaultValue
-          : [min, max],
-    [value, defaultValue, min, max]
-  )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []); // Empty dependency array: runs once on mount, cleans up on unmount
 
+  // Effect for updating map layers and view
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return; // Ensure map is initialized before proceeding
+
+    // Remove existing circle if any
+    if (circleRef.current) {
+      map.removeLayer(circleRef.current);
+      circleRef.current = null;
+    }
+
+    // Add new circle and fit bounds if radius is provided
+    if (radius) {
+      const center = L.latLng(latitude, longitude);
+      const circle = L.circle(center, { radius: radius, color: color, fillColor: color, fillOpacity: 0.2 });
+      circle.addTo(map);
+      map.fitBounds(circle.getBounds());
+      circleRef.current = circle;
+    } else {
+      // If no radius, just set view
+      map.setView([latitude, longitude], zoom);
+    }
+  }, [latitude, longitude, zoom, radius]); // Dependencies: map instance and props that affect view/layers
+
+  return <div id="map-container" ref={mapContainerRef} className="h-full w-full rounded-lg shadow-md"></div>;
+};
+
+export default MapComponent;
+
+
+
+# --- layout/AdminNavContent.tsx ---
+// src/layout/AdminNavContent.tsx
+import { NavLink } from 'react-router-dom';
+import { Button } from '@/components/ui-admin/button';
+import { Users, Flag, PieChart, MapPin, FileText, Settings, LayoutDashboard, AudioLines, Building2, Target } from 'lucide-react';
+
+// Liens spécifiques à l'administrateur
+const adminNavLinks = [
+  { to: '/admin', text: 'Tableau de Bord', icon: LayoutDashboard }, 
+  { to: '/admin/managers', text: 'Managers', icon: Users },
+  { to: '/admin/commerciaux', text: 'Commerciaux', icon: Users },
+  { to: '/admin/equipes', text: 'Equipes', icon: Flag },
+  { to: '/admin/immeubles', text: 'Immeubles', icon: Building2 },
+  { to: '/admin/suivi', text: 'Suivi', icon: AudioLines },
+  { to: '/admin/zones', text: 'Zones', icon: MapPin },
+  { to: '/admin/assignations-objectifs', text: 'Assignations & Objectifs', icon: Target },
+  { to: '/admin/statistiques', text: 'Statistiques', icon: PieChart },
+  { to: '/admin/rapports', text: 'Rapports & exports', icon: FileText },
+  { to: '/admin/parametres', text: 'Paramètres', icon: Settings },
+];
+
+interface AdminNavContentProps {
+  isCollapsed: boolean;
+  onLinkClick?: () => void;
+}
+
+export const AdminNavContent = ({ isCollapsed, onLinkClick }: AdminNavContentProps) => {
   return (
-    <SliderPrimitive.Root
-      data-slot="slider"
-      defaultValue={defaultValue}
-      value={value}
-      min={min}
-      max={max}
-      className={cn(
-        "relative flex w-full touch-none items-center select-none data-[disabled]:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col",
-        className
-      )}
-      {...props}
-    >
-      <SliderPrimitive.Track
-        data-slot="slider-track"
-        className={cn(
-          "bg-muted relative grow overflow-hidden rounded-full data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5"
-        )}
-      >
-        {/* MODIFICATION: La barre de progression utilise la couleur primaire */}
-        <SliderPrimitive.Range
-          data-slot="slider-range"
-          className={cn(
-            "bg-primary absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full"
+    <nav className="flex flex-col gap-1 px-2">
+      {adminNavLinks.map((link) => (
+        <NavLink to={link.to} key={link.text} end={link.to === '/admin'} onClick={onLinkClick}>
+          {({ isActive }) => (
+            <Button
+              variant={isActive ? 'secondary' : 'ghost'}
+              className={`w-full justify-start gap-3 h-10 transition-colors duration-200 ${
+                isActive
+                  ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair))]'
+                  : 'hover:bg-zinc-100 text-black'
+              }`}
+            >
+              <link.icon className="h-5 w-5" />
+              {!isCollapsed && <span className="truncate">{link.text}</span>}
+            </Button>
           )}
-        />
-      </SliderPrimitive.Track>
-      {Array.from({ length: _values.length }, (_, index) => (
-        // MODIFICATION: Le curseur utilise la couleur primaire
-        <SliderPrimitive.Thumb
-          data-slot="slider-thumb"
-          key={index}
-          className="border-primary bg-primary ring-ring/50 block size-4 shrink-0 rounded-full border shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
-        />
+        </NavLink>
       ))}
-    </SliderPrimitive.Root>
-  )
-}
-
-export { Slider }
-
-
-# --- layout/AdminHeader.tsx ---
-// src/layout/AdminHeader.tsx
-import { useState } from 'react'; // 'useEffect' a été retiré car non utilisé
-import { Button } from '@/components/ui-admin/button';
-import { Sheet, SheetContent, SheetHeader, SheetTrigger } from '@/components/ui-admin/sheet';
-import { Menu } from 'lucide-react';
-import { AdminNavContent } from './AdminNavContent';
-import { BrandLogo } from '@/components/ui-commercial/BrandLogo';
-import { DateTimeDisplay } from './DateTimeDisplay';
-import { UserNav } from './UserNav';
-
-const AdminHeader = () => {
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
-
-  return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b border-b-[hsl(var(--winvest-blue-moyen))] bg-[hsl(var(--winvest-blue-moyen))] px-4 text-white sm:px-6">
-      {/* Section de gauche : Titre et menu hamburger pour mobile */}
-      <div className="flex items-center gap-4">
-        <div className="lg:hidden">
-          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="border-white/30 bg-transparent text-white hover:bg-black/10">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[250px] p-0 bg-white">
-              <SheetHeader className='p-4 border-b'><BrandLogo /></SheetHeader>
-              <div className="py-4">
-                <AdminNavContent isCollapsed={false} onLinkClick={() => setIsSheetOpen(false)} />
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
-        <h1 className="text-xl md:text-2xl font-bold">Espace Admin</h1>
-      </div>
-      
-      {/* Section de droite : Date, Heure et Menu Utilisateur */}
-      <div className="flex items-center gap-4">
-        <DateTimeDisplay />
-        <div className="border-l h-8"></div> {/* Votre séparateur est bien conservé */}
-        <UserNav />
-      </div>
-    </header>
+    </nav>
   );
 };
 
-export default AdminHeader;
+
+# --- components/charts/GenericLineChart.tsx ---
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+interface ChartDataItem {
+  [key: string]: string | number;
+}
+
+interface LineConfig {
+  dataKey: string;
+  stroke: string;
+  name?: string; 
+}
+
+interface GenericLineChartProps {
+  title: string;
+  data: ChartDataItem[];
+  xAxisDataKey: string;
+  lines: LineConfig[];
+}
+
+export const GenericLineChart = ({ title, data, xAxisDataKey, lines }: GenericLineChartProps) => {
+  return (
+    <Card className="h-full">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={350}> 
+          <LineChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey={xAxisDataKey} stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'hsl(var(--background))', 
+                borderColor: 'hsl(var(--border))',
+                borderRadius: '0.5rem',
+                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+              }} 
+            />
+            <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: '20px' }}/>
+            {lines.map(line => (
+              <Line 
+                key={line.dataKey} 
+                type="monotone" 
+                dataKey={line.dataKey} 
+                stroke={line.stroke} 
+                strokeWidth={2} 
+                dot={{ r: 4 }}
+                name={line.name || line.dataKey} 
+                activeDot={{ r: 6 }}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+};
+
+
+# --- components/ui-admin/StatCard.tsx ---
+// src/components/ui-admin/StatCard.tsx
+
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui-admin/card';
+import type { LucideIcon } from 'lucide-react';
+import CountUp from 'react-countup';
+import { cn } from '@/lib/utils';
+import { ArrowUp, ArrowDown } from 'lucide-react';
+
+interface StatCardProps {
+  title: string;
+  value: number;
+  Icon: LucideIcon;
+  prefix?: string;
+  suffix?: string;
+  color?: string;
+  change?: number;
+}
+
+const StatCard = ({ title, value, Icon, prefix, suffix, color, change }: StatCardProps) => {
+  const isPositive = change !== undefined && change >= 0;
+
+  return (
+    <Card className="transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border border-gray-200 rounded-xl overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-gray-600">{title}</CardTitle>
+        <Icon className={cn("h-5 w-5 text-gray-500", color)} />
+      </CardHeader>
+      <CardContent>
+        <div className="text-3xl font-bold text-gray-900">
+          {typeof value === 'number' && !isNaN(value) ? (
+            <CountUp
+              start={0}
+              end={value}
+              duration={1.5}
+              separator=" "
+              prefix={prefix}
+              suffix={suffix}
+              decimals={value % 1 !== 0 ? 1 : 0}
+            />
+          ) : (
+            <span className="text-muted-foreground">N/A</span>
+          )}
+        </div>
+        {change !== undefined && (
+          <p className={cn(
+             "text-xs flex items-center gap-1 mt-1",
+             isPositive ? "text-emerald-600" : "text-red-600"
+          )}>
+            {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+            <span>
+              {isPositive && '+'}{change.toFixed(1)}% vs période précédente
+            </span>
+        </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default StatCard;
 
 
 # --- send_to_gemini.py ---
@@ -4352,66 +4428,67 @@ if __name__ == "__main__":
 
 
 
-# --- layout/AdminSidebar.tsx ---
-// src/layout/AdminSidebar.tsx
-import { Button } from '@/components/ui-admin/button';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { AdminNavContent } from './AdminNavContent';
-import { UserNavMenu } from './UserNavMenu';
-import logo from '@/assets/logo.png';
+# --- components/ui-admin/tooltip.tsx ---
+import * as React from "react"
+import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
-interface AdminSidebarProps {
-  isCollapsed: boolean;
-  toggleSidebar: () => void;
+import { cn } from "@/lib/utils"
+
+function TooltipProvider({
+  delayDuration = 0,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
+  return (
+    <TooltipPrimitive.Provider
+      data-slot="tooltip-provider"
+      delayDuration={delayDuration}
+      {...props}
+    />
+  )
 }
 
-export const AdminSidebar = ({ isCollapsed, toggleSidebar }: AdminSidebarProps) => {
+function Tooltip({
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
   return (
-    <aside
-      className={`hidden lg:flex flex-col bg-[#FAFAFA] transition-all duration-300 sticky top-0 h-screen ${
-        isCollapsed ? 'w-20' : 'w-64'
-      }`}
-    >
-      {/* HEADER CORRIGÉ */}
-      <div
-        className={`flex items-center h-20 px-4 shrink-0 ${ // shrink-0 empêche le header de se réduire
-          isCollapsed ? 'justify-center' : 'justify-between'
-        }`}
-      >
-        {/* Le logo n'est visible que si la sidebar est dépliée */}
-        {!isCollapsed && (
-          // Le logo est dans un conteneur pour ne pas perturber le flexbox
-          <div className="flex-1"> 
-            <img
-              src={logo}
-              alt="Logo Groupe Finanssor"
-              className="h-30 w-auto object-contain -translate-x-6" // Votre style est conservé
-            />
-          </div>
+    <TooltipProvider>
+      <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+    </TooltipProvider>
+  )
+}
+
+function TooltipTrigger({
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
+  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+}
+
+function TooltipContent({
+  className,
+  sideOffset = 0,
+  children,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+  return (
+    <TooltipPrimitive.Portal>
+      <TooltipPrimitive.Content
+        data-slot="tooltip-content"
+        sideOffset={sideOffset}
+        className={cn(
+          "bg-primary text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-3 py-1.5 text-xs text-balance",
+          className
         )}
+        {...props}
+      >
+        {children}
+        <TooltipPrimitive.Arrow className="bg-primary fill-primary z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
+      </TooltipPrimitive.Content>
+    </TooltipPrimitive.Portal>
+  )
+}
 
-        {/* Bouton pour plier/déplier */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleSidebar}
-        >
-          {isCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-        </Button>
-      </div>
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
 
-      {/* NAVIGATION */}
-      <div className="flex-1 overflow-y-auto"> {/* Ajout de overflow-y-auto pour les petits écrans */}
-        <AdminNavContent isCollapsed={isCollapsed} />
-      </div>
-
-      {/* USER MENU */}
-      <div className="p-2 border-t mt-auto shrink-0">
-        <UserNavMenu isCollapsed={isCollapsed} />
-      </div>
-    </aside>
-  );
-};
 
 
 # --- pages/admin/statitistiques/StatistiquesSkeleton.tsx ---
@@ -4526,59 +4603,46 @@ export const CommercialNavContent = ({ isCollapsed, onLinkClick }: CommercialNav
 };
 
 
-# --- components/ui-admin/GenericRadialBarChart.tsx ---
-// src/components/charts/GenericRadialBarChart.tsx
+# --- components/page-components/ZoneMapViewer.tsx ---
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
+import MapComponent from '@/components/MapComponent';
+import { Map, Pin } from 'lucide-react';
+import type { Zone } from '@/types/types';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
-import { ResponsiveContainer, PolarAngleAxis, RadialBarChart, RadialBar } from 'recharts';
-
-interface GenericRadialChartProps {
-  title: string;
-  value: number;
-  total: number;
-  color: string;
+interface ZoneMapViewerProps {
+  zone: Zone | null;
 }
 
-export const GenericRadialBarChart = ({ title, value, total, color }: GenericRadialChartProps) => {
-  const percentage = total > 0 ? (value / total) * 100 : 0;
-  const data = [{ name: 'objectif', value: percentage }];
-
+export const ZoneMapViewer = ({ zone }: ZoneMapViewerProps) => {
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="shadow-md hover:shadow-lg transition-shadow h-full flex flex-col">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className="flex items-center text-purple-600">
+          <Pin className="mr-3 h-6 w-6" /> Visualisation de la Zone
+        </CardTitle>
+        <CardDescription>
+          {zone ? `Détails pour la zone : ${zone.nom}` : 'Sélectionnez une zone pour la voir ici.'}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 flex justify-center items-center relative">
-        <ResponsiveContainer width="100%" height={200}>
-          <RadialBarChart
-            innerRadius="80%"
-            outerRadius="100%"
-            data={data}
-            startAngle={90}
-            endAngle={-270}
-            cx="50%"
-            cy="50%"
-            barSize={15}
-          >
-            <PolarAngleAxis
-              type="number"
-              domain={[0, 100]}
-              angleAxisId={0}
-              tick={false}
-            />
-            <RadialBar
-              background
-              dataKey="value"
-              cornerRadius={10}
-              angleAxisId={0}
-              className={color} // Utilise la classe de couleur passée
-            />
-          </RadialBarChart>
-        </ResponsiveContainer>
-        <div className="absolute flex flex-col items-center justify-center">
-          <span className="text-4xl font-bold">{Math.round(percentage)}%</span>
-          <span className="text-sm text-muted-foreground">{value} / {total}</span>
-        </div>
+      <CardContent className="flex-grow rounded-b-lg overflow-hidden p-0">
+        {zone ? (
+          <MapComponent
+            latitude={zone.latitude}
+            longitude={zone.longitude}
+            zoom={13} 
+            radius={zone.rayonMetres}
+            color={zone.couleur} // Pass the zone color
+            key={zone.id} // Important: force le re-rendu de la map quand la zone change
+          />
+        ) : (
+          <div className="h-full bg-gray-100 flex flex-col items-center justify-center text-center p-8">
+            <Map className="h-24 w-24 text-gray-300 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-600">Aucune zone sélectionnée</h3>
+            <p className="text-gray-500 mt-2">
+              Veuillez choisir une zone dans le panneau d'assignation pour afficher sa localisation et son périmètre.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -4627,259 +4691,223 @@ export const GenericStackedBarChart = ({ title, description, data, xAxisKey, bar
 };
 
 
-# --- services/commercial.service.ts ---
-// frontend-shadcn/src/services/commercial.service.ts
+# --- services/immeuble.service.ts ---
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/commerciaux';
+const API_URL = 'http://localhost:3000/immeubles';
 
-export type CommercialFromAPI = {
+export interface ImmeubleFromApi {
   id: string;
-  nom: string;
-  prenom: string;
-  email: string;
-  telephone: string | null;
-  equipeId?: string;
-  managerId: string;
-  historiques: { nbContratsSignes: number }[];
-};
-
-type CreateCommercialPayload = {
-  nom: string;
-  prenom: string;
-  email: string;
-  telephone?: string;
-  equipeId?: string;
-  managerId: string; // Ajout du managerId
-};
-
-// AJOUT: Type pour la mise à jour
-type UpdateCommercialPayload = Partial<CreateCommercialPayload>;
-
-const getCommerciaux = async (): Promise<CommercialFromAPI[]> => {
-  const response = await axios.get(API_URL);
-  return response.data;
-};
-
-const createCommercial = async (data: CreateCommercialPayload): Promise<CommercialFromAPI> => {
-  const response = await axios.post(API_URL, data);
-  return response.data;
-};
-
-// AJOUT: Fonction pour mettre à jour un commercial
-const updateCommercial = async (id: string, data: UpdateCommercialPayload): Promise<CommercialFromAPI> => {
-  const response = await axios.patch(`${API_URL}/${id}`, data);
-  return response.data;
-};
-
-const deleteCommercial = async (id: string): Promise<void> => {
-  await axios.delete(`${API_URL}/${id}`);
-};
-// frontend-shadcn/src/services/commercial.service.ts
-// ... (haut du fichier inchangé)
-
-// AJOUT DE LA NOUVELLE FONCTION
-const getCommercialDetails = async (id: string): Promise<any> => {
-  const response = await axios.get(`${API_URL}/${id}`);
-  return response.data;
-};
-
-export const commercialService = {
-  getCommerciaux,
-  getCommercialDetails, // AJOUT
-  createCommercial,
-  updateCommercial,
-  deleteCommercial,
-};
-
-
-
-# --- services/manager.service.ts ---
-// frontend-shadcn/src/services/manager.service.ts
-import axios from 'axios';
-import type { Manager } from '@/types/types'; // On réutilise le type existant
-
-const API_URL = 'http://localhost:3000/managers'; // L'URL de notre back-end
-
-// DTO pour la création/mise à jour, on peut les définir ici
-type CreateManagerPayload = {
-  nom: string;
-  prenom: string;
-  email: string;
-  telephone?: string;
-};
-
-type UpdateManagerPayload = Partial<CreateManagerPayload>;
-
-// Fonction pour récupérer tous les managers
-const getManagers = async (): Promise<Manager[]> => {
-  const response = await axios.get(API_URL);
-  // On peut ajouter ici un mapping si les données de l'API ne correspondent pas exactement au type `Manager` du front.
-  // Dans notre cas, elles correspondent, mais c'est une bonne pratique.
-  return response.data;
-};
-
-// Fonction pour créer un manager
-const createManager = async (data: CreateManagerPayload): Promise<Manager> => {
-  const response = await axios.post(API_URL, data);
-  return response.data;
-};
-
-// Fonction pour mettre à jour un manager
-const updateManager = async (id: string, data: UpdateManagerPayload): Promise<Manager> => {
-  const response = await axios.patch(`${API_URL}/${id}`, data);
-  return response.data;
-};
-// AJOUT DE LA NOUVELLE FONCTION
-const getManagerDetails = async (id: string): Promise<any> => {
-  const response = await axios.get(`${API_URL}/${id}`);
-  return response.data;
-};
-// Fonction pour supprimer un manager
-const deleteManager = async (id: string): Promise<void> => {
-  await axios.delete(`${API_URL}/${id}`);
-};
-
-export const managerService = {
-  getManagers,
-  createManager,
-  getManagerDetails,
-  updateManager,
-  deleteManager,
-};
-
-
-# --- components/ui-admin/scroll-area.tsx ---
-import * as React from "react"
-import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
-
-import { cn } from "@/lib/utils"
-
-function ScrollArea({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
-  return (
-    <ScrollAreaPrimitive.Root
-      data-slot="scroll-area"
-      className={cn("relative", className)}
-      {...props}
-    >
-      <ScrollAreaPrimitive.Viewport
-        data-slot="scroll-area-viewport"
-        className="focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
-      >
-        {children}
-      </ScrollAreaPrimitive.Viewport>
-      <ScrollBar />
-      <ScrollAreaPrimitive.Corner />
-    </ScrollAreaPrimitive.Root>
-  )
+  adresse: string;
+  ville: string;
+  codePostal: string;
+  zone: { id: string; nom: string }; // Added id to zone
+  prospectors: { id: string; prenom: string; nom: string }[];
+  status: string;
+  portes: any[];
+  historiques: any[];
+  latitude: number; // Added latitude
+  longitude: number; // Added longitude
 }
 
-function ScrollBar({
-  className,
-  orientation = "vertical",
-  ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>) {
-  return (
-    <ScrollAreaPrimitive.ScrollAreaScrollbar
-      data-slot="scroll-area-scrollbar"
-      orientation={orientation}
-      className={cn(
-        "flex touch-none p-px transition-colors select-none",
-        orientation === "vertical" &&
-          "h-full w-2.5 border-l border-l-transparent",
-        orientation === "horizontal" &&
-          "h-2.5 flex-col border-t border-t-transparent",
-        className
-      )}
-      {...props}
-    >
-      <ScrollAreaPrimitive.ScrollAreaThumb
-        data-slot="scroll-area-thumb"
-        className="bg-border relative flex-1 rounded-full"
-      />
-    </ScrollAreaPrimitive.ScrollAreaScrollbar>
-  )
-}
-
-export { ScrollArea, ScrollBar }
-
-
-
-# --- components/ui-admin/button-variants.ts ---
-import { cva } from "class-variance-authority"
-
-export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-  {
-    variants: {
-      variant: {
-        default:
-          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-        outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
-        secondary:
-          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
-
-
-
-# --- pages/auth/Login.tsx ---
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui-admin/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
-
-const Login = () => {
-  const { login } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogin = (role: 'admin' | 'manager' | 'directeur' | 'backoffice' | 'commercial') => {
-    login(role);
-    navigate('/'); // On redirige vers la racine, qui s'occupera de dispatcher vers le bon dashboard
+export interface ImmeubleDetailsFromApi extends ImmeubleFromApi {
+  hasElevator: boolean;
+  digicode: string | null;
+  stats: {
+    contratsSignes: number;
+    rdvPris: number;
   };
+  nbPortesTotal: number;
+  prospectingMode: 'SOLO' | 'DUO';
+  portes: { id: string; numeroPorte: string; statut: string; passage: number; commentaire: string; nbPassages: number }[];
+}
 
+const getImmeubles = async (): Promise<ImmeubleFromApi[]> => {
+  const response = await axios.get(API_URL);
+  return response.data;
+};
+
+const getImmeubleDetails = async (id: string): Promise<ImmeubleDetailsFromApi> => {
+  const response = await axios.get(`${API_URL}/${id}/details`);
+  return response.data;
+};
+
+const createImmeuble = async (immeubleData: any) => {
+  const response = await axios.post(API_URL, immeubleData);
+  return response.data;
+};
+
+const updateImmeuble = async (id: string, immeubleData: any) => {
+  const response = await axios.patch(`${API_URL}/${id}`, immeubleData);
+  return response.data;
+};
+
+const deleteImmeuble = async (id: string) => {
+  const response = await axios.delete(`${API_URL}/${id}`);
+  return response.data;
+};
+
+export const immeubleService = {
+  getImmeubles,
+  getImmeubleDetails,
+  createImmeuble,
+  updateImmeuble,
+  deleteImmeuble,
+};
+
+
+
+# --- components/charts/GenericPieChart.tsx ---
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+
+interface ChartDataItem {
+  [key: string]: string | number;
+}
+
+interface GenericPieChartProps {
+  title: string;
+  data: ChartDataItem[];
+  dataKey: string;
+  nameKey: string;
+  colors: string[];
+}
+
+export const GenericPieChart = ({ title, data, dataKey, nameKey, colors }: GenericPieChartProps) => {
   return (
-    <div className="flex items-center justify-center h-screen bg-secondary">
-      <Card className="w-[400px]">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Finanssor</CardTitle>
-          <CardDescription>Veuillez vous connecter en choisissant un rôle.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <Button className="bg-green-600 text-white hover:bg-green-700" onClick={() => handleLogin('admin')}>Connexion Admin</Button>
-          <Button variant="outline" onClick={() => handleLogin('manager')}>Connexion Manager</Button>
-          <Button variant="outline" onClick={() => handleLogin('directeur')}>Connexion Directeur</Button>
-          <Button variant="outline" onClick={() => handleLogin('backoffice')}>Connexion Back-office</Button>
-          <Button variant="outline" onClick={() => handleLogin('commercial')}>Connexion Commercial</Button>
-        </CardContent>
-      </Card>
-    </div>
+    <Card className="h-full">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Tooltip
+              cursor={{ fill: 'hsl(var(--muted))' }}
+              contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))' }}
+            />
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={90}
+              fill="#8884d8"
+              paddingAngle={3}
+              dataKey={dataKey}
+              nameKey={nameKey}
+              label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+              labelLine={false}
+            >
+              {data.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+              ))}
+            </Pie>
+            <Legend iconSize={10} wrapperStyle={{ fontSize: '14px', paddingTop: '20px' }} />
+          </PieChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
   );
 };
 
-export default Login;
+
+# --- components/ui-admin/popover.tsx ---
+import * as React from "react"
+import * as PopoverPrimitive from "@radix-ui/react-popover"
+
+import { cn } from "@/lib/utils"
+
+function Popover({
+  ...props
+}: React.ComponentProps<typeof PopoverPrimitive.Root>) {
+  return <PopoverPrimitive.Root data-slot="popover" {...props} />
+}
+
+function PopoverTrigger({
+  ...props
+}: React.ComponentProps<typeof PopoverPrimitive.Trigger>) {
+  return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />
+}
+
+function PopoverContent({
+  className,
+  align = "center",
+  sideOffset = 4,
+  ...props
+}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+  return (
+    <PopoverPrimitive.Portal>
+      <PopoverPrimitive.Content
+        data-slot="popover-content"
+        align={align}
+        sideOffset={sideOffset}
+        className={cn(
+          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border p-4 shadow-md outline-hidden",
+          className
+        )}
+        {...props}
+      />
+    </PopoverPrimitive.Portal>
+  )
+}
+
+function PopoverAnchor({
+  ...props
+}: React.ComponentProps<typeof PopoverPrimitive.Anchor>) {
+  return <PopoverPrimitive.Anchor data-slot="popover-anchor" {...props} />
+}
+
+export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor }
+
+
+
+# --- components/ui-commercial/BrandLogo.tsx ---
+// src/components/ui-commercial/BrandLogo.tsx
+import { cn } from "@/lib/utils";
+
+interface BrandLogoProps {
+  className?: string;
+  showText?: boolean;
+  imageSize?: number;
+  variant?: 'full' | 'initials';
+}
+
+export const BrandLogo = ({
+  className,
+  showText = true,
+  imageSize = 32,
+
+}: BrandLogoProps) => {
+  
+  
+  const mainFontSize = imageSize;
+  const subFontSize = imageSize * 0.3;
+  const arcWidth = mainFontSize * 0.67;
+  const arcHeight = mainFontSize * 0.27;
+
+  return (
+    <div className={cn("flex flex-col items-center justify-center pt-[6px]", className)}>
+      <div className="relative flex items-center justify-center leading-none">
+        <h1 className="font-extrabold text-black" style={{ fontSize: mainFontSize, fontFamily: "Montserrat, sans-serif" }}>
+          Groupe
+        </h1>
+        <svg className="absolute" width={arcWidth} height={arcHeight} viewBox="0 0 100 50" preserveAspectRatio="none" style={{ top: -arcHeight * -0.3, left: -arcWidth * -0.16 }}>
+          <path d="M0,50 C30,0 70,0 100,50 L100,50 L0,50 Z" fill="hsl(var(--winvest-blue-moyen))" />
+        </svg>
+      </div>
+      {showText && (
+        <div className="flex items-center w-full mt-[4px]">
+          <span className="flex-grow h-px bg-black/70" />
+          <span className="mx-2 font-semibold text-black tracking-[0.25em]" style={{ fontSize: subFontSize, fontFamily: "Montserrat, sans-serif" }}>
+            FINANSSOR
+          </span>
+          <span className="flex-grow h-px bg-black/70" />
+        </div>
+      )}
+    </div>
+  );
+};
 
 
 # --- layout/LogoutButton.tsx ---
@@ -4932,55 +4960,57 @@ export function LogoutButton({ context = 'sidebar' }: LogoutButtonProps) {
 }
 
 
-# --- layout/CommercialSidebar.tsx ---
-// src/layout/CommercialSidebar.tsx
-import { Button } from '@/components/ui-admin/button';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { CommercialNavContent } from './CommercialNavContent';
-import logo from '@/assets/logo.png';
+# --- components/ui-admin/GenericTable.tsx ---
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui-admin/table';
 
-interface CommercialSidebarProps {
-  isCollapsed: boolean;
-  toggleSidebar: () => void;
+interface ChartDataItem {
+  [key: string]: string | number;
 }
 
-export const CommercialSidebar = ({ isCollapsed, toggleSidebar }: CommercialSidebarProps) => {
+interface Column {
+  key: string;
+  header: string;
+  className?: string;
+}
+
+interface GenericTableProps {
+  title: string;
+  description: string;
+  columns: Column[];
+  data: ChartDataItem[];
+}
+
+export const GenericTable = ({ title, description, columns, data }: GenericTableProps) => {
   return (
-    <aside
-      className={`hidden lg:flex flex-col bg-[#FAFAFA] transition-all duration-300 sticky top-0 h-screen ${
-        isCollapsed ? 'w-20' : 'w-64'
-      }`}
-    >
-      {/* HEADER (identique à AdminSidebar) */}
-      <div className="relative flex items-center h-20 transition-all duration-300 justify-center">
-        {!isCollapsed && (
-          <img
-            src={logo}
-            alt="Logo Groupe Finanssor"
-            className="h-30 w-auto object-contain -translate-x-6"
-          />
-        )}
-
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleSidebar}
-          className="absolute right-4"
-        >
-          {isCollapsed
-            ? <PanelLeftOpen className="h-5 w-5" />
-            : <PanelLeftClose className="h-5 w-5" />}
-        </Button>
-      </div>
-
-      {/* NAVIGATION */}
-      <div className="flex-1 py-4">
-        <CommercialNavContent isCollapsed={isCollapsed} />
-      </div>
-    </aside>
+    <Card className="h-full">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {columns.map(col => (
+                <TableHead key={col.key} className={col.className}>{col.header}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((row, rowIndex) => (
+              <TableRow key={rowIndex}>
+                {columns.map(col => (
+                  <TableCell key={col.key} className={`${col.className ?? ''} font-medium`}>{row[col.key]}</TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 };
-
 
 
 # --- services/porte.service.ts ---
@@ -5042,48 +5072,90 @@ export const porteService = {
 
 
 
-# --- pages/admin/Managers/managers-table/equipes-columns.tsx ---
-// frontend-shadcn/src/pages/admin/manager-details-table/equipes-columns.tsx
-"use client"
+# --- contexts/AuthContext.tsx ---
+// src/contexts/AuthContext.tsx
 
-import type { ColumnDef } from "@tanstack/react-table"
-import { Users, Flag } from "lucide-react"
-import type { Commercial } from '../../commerciaux/commerciaux-table/columns';
+import { createContext, useContext, useState } from 'react';
+import type { ReactNode } from 'react';
 
-export type EquipeDuManager = {
-  id: string
-  nom: string
-  nbCommerciaux: number
-  commerciaux: Commercial[];
+// Définir les types pour plus de sécurité
+type Role = 'admin' | 'manager' | 'directeur' | 'backoffice' | 'commercial';
+
+interface User {
+  id: string;
+  name: string;
+  role: Role;
+  email?: string;
 }
 
-const Header = ({ title }: { title: string }) => (
-  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
-)
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  login: (user: User) => void; // MODIFIÉ: Accepte un objet User
+  logout: () => void;
+}
 
-export const createEquipesColumns = (): ColumnDef<EquipeDuManager>[] => [
-  {
-    accessorKey: "nom",
-    header: () => <Header title="Nom de l'équipe" />,
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2 font-medium text-foreground">
-        <Flag className="h-4 w-4 text-muted-foreground" />
-        {row.getValue("nom")}
-      </div>
-    ),
-  },
-  {
-    accessorKey: "nbCommerciaux",
-    header: () => <div className="text-center"><Header title="Effectif" /></div>,
-    cell: ({ row }) => (
-      <div className="text-center flex items-center justify-center gap-2">
-        <Users className="h-4 w-4 text-muted-foreground" />
-        {row.getValue("nbCommerciaux")}
-      </div>
-    )
-  },
-  // La colonne "Actions" est supprimée. La navigation se fera au clic de la ligne.
-]
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+
+  // MODIFIÉ: La fonction de login met à jour avec l'objet utilisateur complet
+  const login = (userData: User) => {
+    setUser(userData);
+  };
+
+  const logout = () => {
+    setUser(null);
+  };
+
+  const value = { user, isAuthenticated: !!user, login, logout };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+// Hook personnalisé pour utiliser le contexte facilement
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+
+# --- components/ui-admin/checkbox.tsx ---
+import * as React from "react"
+import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
+import { CheckIcon } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+function Checkbox({
+  className,
+  ...props
+}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+  return (
+    <CheckboxPrimitive.Root
+      data-slot="checkbox"
+      className={cn(
+        "peer border-input dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 shrink-0 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
+      {...props}
+    >
+      <CheckboxPrimitive.Indicator
+        data-slot="checkbox-indicator"
+        className="flex items-center justify-center text-current transition-none"
+      >
+        <CheckIcon className="size-3.5" />
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Root>
+  )
+}
+
+export { Checkbox }
+
 
 
 # --- components/ui-admin/badge-variants.ts ---
@@ -5112,85 +5184,58 @@ export const badgeVariants = cva(
 
 
 
-# --- pages/admin/suivi/SuiviSidebar.tsx ---
-// src/pages/admin/suivi/SuiviSidebar.tsx
-import { AudioPlayer } from './AudioPlayer';
-import { HistoryList } from './HistoryList';
-import type { Commercial, Transcription } from './types';
+# --- components/ui-admin/avatar.tsx ---
+import * as React from "react"
+import * as AvatarPrimitive from "@radix-ui/react-avatar"
 
-interface SuiviSidebarProps {
-  activeCommercial: Commercial | null;
-  transcriptions: Transcription[];
-  commercialsMap: { [id: string]: { name: string; avatarFallback: string } };
-  onHistoryItemClick: (transcription: Transcription) => void;
-  liveText: string;
-  isProspecting: boolean;
-  audioChunks: Blob[]; // NOUVEAU
-}
+import { cn } from "@/lib/utils"
 
-export const SuiviSidebar = (props: SuiviSidebarProps) => {
+function Avatar({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Root>) {
   return (
-    <div className="bg-zinc-50 rounded-lg flex flex-col h-full gap-6 p-4 border border-zinc-200 shadow-sm">
-      <AudioPlayer 
-        activeCommercial={props.activeCommercial}
-        liveText={props.liveText}
-        isProspecting={props.isProspecting}
-        audioChunks={props.audioChunks} // Transmission des données audio
-      />
-      <HistoryList 
-        transcriptions={props.transcriptions} 
-        onHistoryItemClick={props.onHistoryItemClick}
-        commercials={props.commercialsMap}
-      />
-    </div>
-  );
-};
-
-
-# --- services/assignment-goals.service.ts ---
-import axios from 'axios';
-import { AssignmentType } from '@/types/enums';
-
-const API_URL = 'http://localhost:3000/assignment-goals';
-
-interface AssignZonePayload {
-  zoneId: string;
-  assigneeId: string;
-  assigneeType: AssignmentType;
+    <AvatarPrimitive.Root
+      data-slot="avatar"
+      className={cn(
+        "relative flex size-8 shrink-0 overflow-hidden rounded-full",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-interface SetMonthlyGoalPayload {
-  commercialId: string;
-  goal: number;
-  month: number;
-  year: number;
+function AvatarImage({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+  return (
+    <AvatarPrimitive.Image
+      data-slot="avatar-image"
+      className={cn("aspect-square size-full", className)}
+      {...props}
+    />
+  )
 }
 
-const assignZone = async (zoneId: string, assigneeId: string, assigneeType: AssignmentType) => {
-  const payload: AssignZonePayload = {
-    zoneId,
-    assigneeId,
-    assigneeType,
-  };
-  const response = await axios.post(`${API_URL}/assign-zone`, payload);
-  return response.data;
-};
+function AvatarFallback({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+  return (
+    <AvatarPrimitive.Fallback
+      data-slot="avatar-fallback"
+      className={cn(
+        "bg-muted flex size-full items-center justify-center rounded-full",
+        className
+      )}
+      {...props}
+    />
+  )
+}
 
-const setMonthlyGoal = async (commercialId: string, goal: number, month: number, year: number) => {
-  const payload: SetMonthlyGoalPayload = {
-    commercialId,
-    goal,
-    month,
-    year,
-  };
-  const response = await axios.post(`${API_URL}/set-monthly-goal`, payload);
-  return response.data;
-};
-
-export const assignmentGoalsService = {
-  assignZone,
-  setMonthlyGoal,
-};
+export { Avatar, AvatarImage, AvatarFallback }
 
 
 
@@ -5221,6 +5266,31 @@ export const DashboardSkeleton = () => {
     </div>
   );
 };
+
+
+# --- components/ui-admin/input.tsx ---
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  return (
+    <input
+      type={type}
+      data-slot="input"
+      className={cn(
+        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Input }
+
 
 
 # --- routes/RoleBasedRedirect.tsx ---
@@ -5255,14 +5325,14 @@ const RoleBasedRedirect = () => {
 export default RoleBasedRedirect;
 
 
-# --- layout/CommercialLayout.tsx ---
-// src/layout/CommercialLayout.tsx
+# --- layout/AdminLayout.tsx ---
+// src/layout/AdminLayout.tsx
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { CommercialSidebar } from './CommercialSidebar';
-import CommercialHeader from './CommercialHeader';
+import { AdminSidebar } from './AdminSidebar';
+import AdminHeader from './AdminHeader';
 
-const CommercialLayout = () => {
+const AdminLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const toggleSidebar = () => {
@@ -5271,9 +5341,9 @@ const CommercialLayout = () => {
 
   return (
     <div className="flex h-screen bg-muted/40">
-      <CommercialSidebar isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <CommercialHeader />
+      <AdminSidebar isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} />
+      <div className="flex-1 flex flex-col">
+        <AdminHeader />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
@@ -5282,164 +5352,163 @@ const CommercialLayout = () => {
   );
 };
 
-export default CommercialLayout;
+export default AdminLayout;
 
 
-# --- pages/admin/suivi/types.ts ---
-// src/pages/admin/suivi/types.ts
-
-// Type pour un commercial, peut être enrichi
-export interface Commercial {
-    id: string;
-    name: string;
-    avatarFallback: string;
-    position: [number, number]; // [latitude, longitude]
-    equipe: string;
-  }
-  
-  // Type pour une entrée de l'historique des transcriptions
-  export interface Transcription {
-    id: string;
-    commercialId: string;
-    commercialName: string;
-    date: Date;
-    snippet: string; // Un extrait de la transcription
-    fullText: string; // La transcription complète
-  }
-  
-  // Type pour une zone géographique
-  export interface Zone {
-    id: string;
-    name: string;
-    color: string;
-    latlng: [number, number];
-    radius: number;
-  }
-
-
-# --- App.css ---
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-
-
-
-# --- pages/admin/Dashboard/TableSkeleton.tsx ---
-// frontend-shadcn/src/pages/admin/TableSkeleton.tsx
-import { Skeleton } from "@/components/ui-admin/skeleton";
-import { Card, CardContent, CardHeader } from "@/components/ui-admin/card";
-
-export const TableSkeleton = () => (
-  <Card className="animate-in fade-in-0 duration-500">
-    <CardHeader>
-      <Skeleton className="h-6 w-1/2" />
-    </CardHeader>
-    <CardContent className="space-y-3">
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-10 w-full" />
-    </CardContent>
-  </Card>
-);
-
-
-# --- routes/PrivateRoute.tsx ---
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-
-const PrivateRoute = () => {
-  const { isAuthenticated } = useAuth();
-  // Si l'utilisateur est authentifié, on affiche le contenu de la route (via Outlet)
-  // Sinon, on le redirige vers la page de login
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
-};
-
-export default PrivateRoute;
-
-
-# --- main.tsx ---
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
-import { AuthProvider } from './contexts/AuthContext.tsx' // <-- Importer
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <AuthProvider> {/* <-- Envelopper App */}
-      <App />
-    </AuthProvider>
-  </React.StrictMode>,
-)
-
-
-# --- components/ui-admin/skeleton.tsx ---
+# --- components/ui-admin/button.tsx ---
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
+import { buttonVariants } from "./button-variants"
 
-function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  const Comp = asChild ? Slot : "button"
+
   return (
-    <div
-      className={cn("animate-pulse rounded-md bg-muted", className)}
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
   )
 }
 
-export { Skeleton }
+export { Button, buttonVariants }
 
 
-# --- lib/utils.ts ---
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+# --- components/ui-admin/label.tsx ---
+import * as React from "react"
+import * as LabelPrimitive from "@radix-ui/react-label"
+
+import { cn } from "@/lib/utils"
+
+function Label({
+  className,
+  ...props
+}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+  return (
+    <LabelPrimitive.Root
+      data-slot="label"
+      className={cn(
+        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
+export { Label }
 
 
-# --- types/assignment-type.ts ---
+
+# --- components/ui-admin/badge.tsx ---
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { type VariantProps } from "class-variance-authority"
+import { cn } from "@/lib/utils"
+import { badgeVariants } from "./badge-variants"
+
+function Badge({
+  className,
+  variant,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"span"> &
+  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+  const Comp = asChild ? Slot : "span"
+
+  return (
+    <Comp
+      data-slot="badge"
+      className={cn(badgeVariants({ variant }), className)}
+      {...props}
+    />
+  )
+}
+
+export { Badge }
+
+
+
+# --- types/enums.ts ---
+// frontend-shadcn/src/types/enums.ts
+
 export enum AssignmentType {
-  COMMERCIAL = 'COMMERCIAL',
+  EQUIPE = 'EQUIPE',
   MANAGER = 'MANAGER',
+  COMMERCIAL = 'COMMERCIAL',
 }
+
+export enum PorteStatus {
+  NON_VISITE = 'NON_VISITE',
+  VISITE = 'VISITE',
+  ABSENT = 'ABSENT',
+  REFUS = 'REFUS',
+  CURIEUX = 'CURIEUX',
+  CONTRAT_SIGNE = 'CONTRAT_SIGNE',
+}
+
+export enum ProspectingMode {
+  SOLO = 'SOLO',
+  DUO = 'DUO',
+}
+
+// AJOUT DE L'ENUM MANQUANT
+export enum PeriodType {
+  WEEKLY,
+  MONTHLY,
+  YEARLY,
+}
+
+
+# --- pages/backoffice/DashboardBackoffice.tsx ---
+// Fichier: src/pages/admin/DashboardAdmin.tsx
+const DashboardBackoffice = () => {
+    return (
+      <div className="p-8">
+          <h1 className="text-3xl font-bold">Tableau office - Admin</h1>
+      </div>
+    );
+  };
+  export default DashboardBackoffice;
+
+
+# --- pages/directeur/DashboardDirecteur.tsx ---
+// Fichier: src/pages/admin/DashboardAdmin.tsx
+const DashboardDirecteur = () => {
+    return (
+      <div className="p-8">
+          <h1 className="text-3xl font-bold">Tableau de Bord - Admin</h1>
+      </div>
+    );
+  };
+  export default DashboardDirecteur;
+
+
+# --- pages/manager/DashboardManager.tsx ---
+// Fichier: src/pages/admin/DashboardAdmin.tsx
+const DashboardManager = () => {
+    return (
+      <div className="p-8">
+          <h1 className="text-3xl font-bold">Tableau de Bord - Admin</h1>
+      </div>
+    );
+  };
+  export default DashboardManager;
+
+
+# --- vite-env.d.ts ---
+/// <reference types="vite/client" />
 

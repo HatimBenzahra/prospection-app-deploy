@@ -9,7 +9,7 @@ import RoleBasedRedirect from './routes/RoleBasedRedirect';
 import AdminLayout from './layout/AdminLayout';
 import CommercialLayout from './layout/CommercialLayout';
 import Login from './pages/auth/Login';
-import SelectCommercialPage from './pages/commercial/CommercialSelectionPage'; // <-- IMPORT NOUVEAU
+import SelectCommercialPage from './pages/auth/CommercialSelectionPage'; // <-- IMPORT NOUVEAU
 
 // --- Pages Admin ---
 // ... (imports admin inchangés) ...
@@ -29,9 +29,9 @@ import SuiviPage from './pages/admin/suivi/SuiviPage';
 import AssignmentGoalsPage from './pages/admin/assignment-goals/AssignmentGoalsPage';
 
 // --- Pages Commercial ---
-import CommercialDashboardPage from './pages/commercial/DashboardCommercial';
-import ProspectingSetupPage from './pages/commercial/ProspectingSetupPage'; 
-import ProspectingDoorsPage from './pages/commercial/ProspectingDoorsPage';
+import CommercialDashboardPage from './pages/commercial/dashboard/DashboardCommercial';
+import ProspectingSetupPage from './pages/commercial/prospection/ProspectingSetupPage'; 
+import ProspectingDoorsPage from './pages/commercial/prospection/ProspectingDoorsPage';
 
 const CommercialHistory = () => <div className="p-8"><h1 className="text-3xl font-bold">Historique de Prospection</h1></div>;
 const CommercialStats = () => <div className="p-8"><h1 className="text-3xl font-bold">Mes Statistiques</h1></div>;
@@ -43,6 +43,7 @@ import DashboardDirecteur from './pages/directeur/DashboardDirecteur';
 import DashboardBackoffice from './pages/backoffice/DashboardBackoffice';
 
 import { Toaster } from "sonner";
+import SelectBuildingPage from './pages/commercial/prospection/SelectBuildingPage';
 
 function App() {
   return (
@@ -84,7 +85,7 @@ function App() {
             <Route path="dashboard" element={<CommercialDashboardPage />} /> 
             
             {/* Flow de prospection */}
-            <Route path="prospecting" element={<SelectCommercialPage />} />
+            <Route path="prospecting" element={<SelectBuildingPage />} />
             <Route path="prospecting/setup/:buildingId" element={<ProspectingSetupPage />} />
             <Route path="prospecting/doors/:buildingId" element={<ProspectingDoorsPage />} />
 
