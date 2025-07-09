@@ -51,7 +51,7 @@ export const ImmeublesMap = (props: ImmeublesMapProps) => {
 
         if (immeubleToFocusId) {
             const immeuble = immeubles.find(i => i.id === immeubleToFocusId);
-            if (immeuble) {
+            if (immeuble && immeuble.latlng) {
                 setSelectedImmeuble(immeuble);
                 map.flyTo(immeuble.latlng, 17, { animate: true, duration: 1.5 });
             }
@@ -59,7 +59,7 @@ export const ImmeublesMap = (props: ImmeublesMapProps) => {
         } 
         else if (zoneToFocusId) {
             const zone = zones.find(z => z.id === zoneToFocusId);
-            if (zone) {
+            if (zone && zone.latlng) {
                 setSelectedImmeuble(null);
                 map.flyTo(zone.latlng, 14, { animate: true, duration: 1.5 });
             }
@@ -91,12 +91,15 @@ export const ImmeublesMap = (props: ImmeublesMapProps) => {
                 
                 <FeatureGroup ref={featureGroupRef}>
                     {zones.map(zone => (
+                        zone.latlng ? (
                         <Circle key={zone.id} center={zone.latlng} radius={zone.radius} pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.1, weight: 2 }}>
                              <Popup><b>Zone:</b> {zone.name}<br/><b>Assignée à:</b> {zone.assignedTo}</Popup>
                         </Circle>
+                        ) : null
                     ))}
                     {immeubles.map(immeuble => (
-                        <Marker key={immeuble.id} position={immeuble.latlng} icon={buildingIcon}>
+                        immeuble.latlng ? (
+                        <Marker key={immeuble.id} position={[immeuble.latlng[0], immeuble.latlng[1]]} icon={buildingIcon}>
                             <Popup>
                                 <div className="space-y-2">
                                     <p className="font-bold">{immeuble.adresse}</p>
@@ -107,10 +110,11 @@ export const ImmeublesMap = (props: ImmeublesMapProps) => {
                                 </div>
                             </Popup>
                         </Marker>
+                        ) : null
                     ))}
                 </FeatureGroup>
 
-                {selectedImmeuble && (
+                {selectedImmeuble && selectedImmeuble.latlng && (
                     <Marker position={selectedImmeuble.latlng} icon={focusIcon} zIndexOffset={1000}>
                         <Popup>
                             <p className="font-bold">Focus: {selectedImmeuble.adresse}</p>

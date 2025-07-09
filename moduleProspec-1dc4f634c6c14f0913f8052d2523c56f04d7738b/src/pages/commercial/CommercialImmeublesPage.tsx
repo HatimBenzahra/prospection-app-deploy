@@ -138,8 +138,12 @@ const CommercialImmeublesPage: React.FC = () => {
       }
       setIsModalOpen(false);
       fetchImmeubles();
-    } catch (error) {
-      toast.error('Une erreur est survenue lors de la sauvegarde.');
+    } catch (error: any) {
+      if (error.response && error.response.status === 404 && error.response.data.message.includes('No zone found')) {
+        toast.error('Vous devez avoir une zone assignée pour créer un immeuble. Veuillez contacter votre administrateur.');
+      } else {
+        toast.error('Une erreur est survenue lors de la sauvegarde.');
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -53,7 +53,7 @@ const ImmeublesPage = () => {
                     codePostal: imm.codePostal,
                     status: statusText,
                     nbPortes: portes.length,
-                    nbPortesProspectees: historiques.reduce((acc: number, h: { nbPortesVisitees: number }) => acc + h.nbPortesVisitees, 0),
+                    nbPortesProspectees: portes.filter(porte => porte.statut !== 'NON_VISITE').length,
                     prospectingMode: prospecteurs.length > 1 ? "Duo" : "Solo",
                     prospectors: prospecteurs.map((p: { id: string; prenom: string; nom: string; }) => ({
                         id: p.id,
@@ -63,13 +63,13 @@ const ImmeublesPage = () => {
                     dateVisite: historiques.length > 0 ? historiques[0].dateProspection : null,
                     zone: imm.zone?.nom || 'N/A',
                     zoneId: imm.zone?.id || '',
-                    latlng: [imm.latitude, imm.longitude],
+                    latlng: [imm.latitude || 0, imm.longitude || 0],
                 };
             });
             
             const formattedZones: Zone[] = zonesFromApi.map(z => ({
                 id: z.id, name: z.nom, assignedTo: 'N/A',
-                color: z.couleur || 'grey', latlng: [z.latitude, z.longitude],
+                color: z.couleur || 'grey', latlng: [z.latitude || 0, z.longitude || 0],
                 radius: z.rayonMetres, dateCreation: z.createdAt,
             }));
 

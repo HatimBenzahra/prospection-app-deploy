@@ -70,10 +70,14 @@ export class ImmeubleService {
       where: { commercialId: commercialId },
     });
 
+    if (!zone) {
+      throw new NotFoundException(`No zone found for commercial with ID ${commercialId}. An immeuble must be associated with a zone.`);
+    }
+
     return this.prisma.immeuble.create({
       data: {
         ...createDto,
-        zoneId: zone ? zone.id : null, // Set zoneId to null if no zone is found
+        zoneId: zone.id,
         prospectingMode: ProspectingMode.SOLO,
         status: ImmeubleStatus.A_VISITER,
         prospectors: {
