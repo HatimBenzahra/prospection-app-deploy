@@ -1,5 +1,5 @@
 // src/pages/commercial/ProspectingDoorsPage.tsx
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-admin/card';
 import { DataTable } from '@/components/data-table/DataTable';
@@ -38,6 +38,7 @@ const LoadingSkeleton = () => (
 
 const ProspectingDoorsPage = () => {
     const { buildingId } = useParams<{ buildingId: string }>();
+    console.log("ProspectingDoorsPage - buildingId:", buildingId);
     const navigate = useNavigate();
     const [building, setBuilding] = useState<ImmeubleDetailsFromApi | null>(null);
     const [portes, setPortes] = useState<Porte[]>([]);
@@ -48,43 +49,84 @@ const ProspectingDoorsPage = () => {
     const [saveError, setSaveError] = useState<string | null>(null);
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
+    // NEW: Calculate coverage statistics
+    const { visitedDoorsCount, coveragePercentage } = useMemo(() => {
+        if (!portes.length || !building) {
+            return { visitedDoorsCount: 0, coveragePercentage: 0 };
+        }
+
+        const visited = portes.filter(p => p.statut !== "NON_VISITE").length;
+        const total = building.nbPortesTotal;
+        const percentage = total > 0 ? (visited / total) * 100 : 0;
+
+        return {
+            visitedDoorsCount: visited,
+            coveragePercentage: parseFloat(percentage.toFixed(2)), // Format to 2 decimal places
+        };
+    }, [portes, building]); // Recalculate when portes or building changes
+
+    // NEW: Calculate if building is fully prospected
+    const isBuildingFullyProspected = useMemo(() => {
+        return coveragePercentage === 100;
+    }, [coveragePercentage]);
+
     useEffect(() => {
-        if (!buildingId) return;
+        console.log("useEffect triggered. buildingId:", buildingId); // New log
+        if (!buildingId) {
+            console.warn("buildingId is undefined or null. Cannot fetch building details."); // New log
+            setIsLoading(false);
+            return;
+        }
         immeubleService.getImmeubleDetails(buildingId).then(details => {
+            console.log("Immeuble details from API:", details);
             if (details) {
                 setBuilding(details);
-                const portesFromAPI = details.portes.map(p => ({
-                    id: p.id,
-                    numero: p.numeroPorte,
-                    statut: p.statut as PorteStatus,
-                    commentaire: p.commentaire || null,
-                    passage: p.passage,
-                }));
-                setPortes(portesFromAPI);
+                if (details.portes && details.portes.length > 0) { // Added check for portes array
+                    console.log("Details.portes from API:", details.portes);
+                    const portesFromAPI = details.portes.map(p => ({
+                        id: p.id,
+                        numero: p.numeroPorte,
+                        statut: p.statut as PorteStatus,
+                        commentaire: p.commentaire || null,
+                        passage: p.passage,
+                    }));
+                    setPortes(portesFromAPI);
+                } else {
+                    console.warn("No portes found for this building or details.portes is empty/null."); // New log
+                    setPortes([]); // Ensure portes is empty if no data
+                }
+            } else {
+                console.warn("Immeuble details object is null or undefined from API."); // New log
+                setBuilding(null); // Ensure building is null if no data
             }
             setIsLoading(false);
         }).catch(error => {
-            console.error("Erreur lors du chargement des détails de l'immeuble:", error);
+            console.error("Error loading immeuble details:", error);
             setIsLoading(false);
         });
     }, [buildingId]);
 
-    const handleEdit = (doorId: string) => {
+    const handleEdit = useCallback((doorId: string) => {
+        console.log("handleEdit called for doorId:", doorId);
         const doorToEdit = portes.find(p => p.id === doorId);
         if (doorToEdit) {
+            console.log("doorToEdit found:", doorToEdit);
             setEditingDoor(doorToEdit);
             setIsModalOpen(true);
+        } else {
+            console.log("doorToEdit not found for doorId:", doorId);
+            console.log("Current portes array:", portes);
         }
-    };
+    }, [portes]); // Dependency array: handleEdit depends on 'portes'
 
     const handleSaveDoor = async (updatedDoor: Porte) => {
         setIsSaving(true);
         setSaveError(null);
         try {
             await porteService.updatePorte(updatedDoor.id, {
-                statut: updatedDoor.statut,
+                statut: updatedDoor.statut, // Use 'statut' as per Porte type
                 commentaire: updatedDoor.commentaire,
-                passage: updatedDoor.passage,
+                passage: updatedDoor.passage, // Use 'passage' as per Porte type
             });
             setPortes(portes.map(p => p.id === updatedDoor.id ? updatedDoor : p));
             setIsModalOpen(false);
@@ -97,7 +139,7 @@ const ProspectingDoorsPage = () => {
         }
     };
 
-    const columns = useMemo(() => createDoorsColumns(handleEdit), []);
+    const columns = useMemo(() => createDoorsColumns(handleEdit, isBuildingFullyProspected), [handleEdit, isBuildingFullyProspected]); // Now depends on handleEdit
 
     if (isLoading) {
         return <LoadingSkeleton />;
@@ -129,6 +171,9 @@ const ProspectingDoorsPage = () => {
                     <CardDescription>
                         Voici la liste des {building.nbPortesTotal} portes à prospecter. Mettez à jour leur statut au fur et à mesure.
                     </CardDescription>
+                    <CardDescription className="mt-2 text-lg font-semibold">
+                        Couverture: {visitedDoorsCount} / {building.nbPortesTotal} portes visitées ({coveragePercentage}%)
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <DataTable
@@ -138,9 +183,6 @@ const ProspectingDoorsPage = () => {
                         filterColumnId="numero"
                         filterPlaceholder="Rechercher un n° de porte..."
                         isDeleteMode={false}
-                        onAddEntity={() => {}}
-                        onConfirmDelete={() => {}}
-                        onToggleDeleteMode={() => {}}
                         rowSelection={rowSelection}
                         setRowSelection={setRowSelection}
                     />

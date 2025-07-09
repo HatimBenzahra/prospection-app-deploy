@@ -25,14 +25,14 @@ export class ImmeubleService {
 
   findAll() {
     return this.prisma.immeuble.findMany({
-      include: { zone: true, prospectors: true },
+      include: { zone: true, prospectors: true, portes: true, historiques: true },
     });
   }
 
   findOne(id: string) {
     return this.prisma.immeuble.findUnique({
       where: { id },
-      include: { zone: true, prospectors: true, portes: true },
+      include: { zone: true, prospectors: true, portes: true, historiques: true },
     });
   }
 

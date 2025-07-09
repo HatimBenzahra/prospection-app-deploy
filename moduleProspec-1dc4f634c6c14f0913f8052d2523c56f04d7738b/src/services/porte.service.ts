@@ -5,7 +5,7 @@ const API_URL = 'http://localhost:3000/portes';
 export type PorteFromAPI = {
   id: string;
   numeroPorte: string;
-  status: string; // Assuming string for now, can be refined with an enum if available
+  statut: string; // Changed 'status' to 'statut'
   nbPassages: number;
   commentaire: string | null;
   immeubleId: string;
@@ -13,7 +13,7 @@ export type PorteFromAPI = {
 
 type CreatePortePayload = {
   numeroPorte: string;
-  status: string;
+  statut: string;
   nbPassages?: number;
   commentaire?: string;
   repassage?: boolean;

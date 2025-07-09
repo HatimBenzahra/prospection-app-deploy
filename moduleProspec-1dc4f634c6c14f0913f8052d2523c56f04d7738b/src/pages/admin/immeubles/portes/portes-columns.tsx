@@ -4,16 +4,19 @@
 
 import type { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui-admin/badge"
-import { ArrowUpDown, Hash, MessageSquare, Repeat } from "lucide-react"
+import { ArrowUpDown, Hash, MessageSquare, Repeat, Check, BellOff, User, Smile, Frown, Landmark, Eye } from "lucide-react"
 import { Button } from "@/components/ui-admin/button"
+import { cn } from "@/lib/utils"
 
 // --- 1. MISE À JOUR DU TYPE Porte avec les nouveaux statuts ---
+export type PorteStatus = "NON_VISITE" | "VISITE" | "ABSENT" | "REFUS" | "CURIEUX" | "RDV" | "CONTRAT_SIGNE";
+
 export type Porte = {
   id: string
   numeroPorte: string
-  statut: "Non visité" | "Visité" | "Absent" | "Refus" | "Curieux" | "Contrat signé"
+  statut: PorteStatus
   passage: number
-  commentaire: string
+  commentaire: string | null
 }
 
 const Header = ({ title }: { title: string }) => (
@@ -28,13 +31,14 @@ const SortableHeader = ({ title, column }: { title: string, column: any }) => (
 )
 
 // --- 2. MISE À JOUR de la configuration des couleurs des badges ---
-const statusConfig = {
-    "Non visité": "bg-gray-100 text-gray-800 border-gray-300",
-    "Visité": "bg-blue-100 text-blue-800 border-blue-300",
-    "Absent": "bg-yellow-100 text-yellow-800 border-yellow-300",
-    "Refus": "bg-red-100 text-red-800 border-red-300",
-    "Curieux": "bg-purple-100 text-purple-800 border-purple-300",
-    "Contrat signé": "bg-green-100 text-green-800 border-green-300",
+export const statusConfig: Record<PorteStatus, { className: string; icon: React.ElementType }> = {
+    "NON_VISITE": { className: "bg-gray-100 text-gray-800 border-gray-300", icon: BellOff },
+    "VISITE": { className: "bg-blue-100 text-blue-800 border-blue-300", icon: Eye },
+    "ABSENT": { className: "bg-yellow-100 text-yellow-800 border-yellow-300", icon: User },
+    "REFUS": { className: "bg-red-100 text-red-800 border-red-300", icon: Frown },
+    "CURIEUX": { className: "bg-purple-100 text-purple-800 border-purple-300", icon: Smile },
+    "RDV": { className: "bg-sky-100 text-sky-800 border-sky-300", icon: Check },
+    "CONTRAT_SIGNE": { className: "bg-emerald-100 text-emerald-800 border-emerald-300", icon: Landmark },
 };
 
 export const createPortesColumns = (): ColumnDef<Porte>[] => [
@@ -54,7 +58,8 @@ export const createPortesColumns = (): ColumnDef<Porte>[] => [
       header: ({ column }) => <SortableHeader title="Statut" column={column} />,
       cell: ({ row }) => {
         const statut = row.original.statut;
-        return <Badge variant="outline" className={statusConfig[statut]}>{statut}</Badge>
+        const config = statusConfig[statut];
+        return <Badge variant="outline" className={cn("font-medium", config.className)}><config.icon className="mr-1.5 h-3 w-3"/>{statut}</Badge>;
       }
     },
     {
@@ -64,10 +69,9 @@ export const createPortesColumns = (): ColumnDef<Porte>[] => [
         const { statut, passage } = row.original;
         
         // --- 3. MISE À JOUR de la logique de repassage ---
-        // Le repassage est applicable pour "Absent" et "Curieux".
-        const isRepassageApplicable = statut === 'Absent' || statut === 'Curieux';
+        const isRepassageApplicable = statut === 'ABSENT' || statut === 'CURIEUX' || statut === 'RDV' || passage > 0;
 
-        if (!isRepassageApplicable || passage === 0) {
+        if (!isRepassageApplicable) {
             return <span className="text-muted-foreground">-</span>;
         }
 

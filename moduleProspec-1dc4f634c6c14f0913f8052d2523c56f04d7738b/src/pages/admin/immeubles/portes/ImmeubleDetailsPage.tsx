@@ -6,6 +6,8 @@ import {
     ArrowLeft, Building, Users, Check, MoveUpRight, KeyRound 
 } from 'lucide-react';
 
+import { RefreshCw } from 'lucide-react';
+
 import { Button } from '@/components/ui-admin/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
 import { Skeleton } from '@/components/ui-admin/skeleton';
@@ -72,6 +74,18 @@ const ImmeubleDetailsPage = () => {
     const [immeuble, setImmeuble] = useState<ImmeubleDetails | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // NEW: Calculate building-specific stats from portes array
+    const buildingStats = useMemo(() => {
+        if (!immeuble || !immeuble.portes) {
+            return { contratsSignes: 0, rdvPris: 0 };
+        }
+
+        const contratsSignes = immeuble.portes.filter(p => p.statut === "CONTRAT_SIGNE").length;
+        const rdvPris = immeuble.portes.filter(p => p.statut === "RDV").length;
+
+        return { contratsSignes, rdvPris };
+    }, [immeuble]); // Recalculate when immeuble (and thus its portes) changes
+
     useEffect(() => {
         if (immeubleId) {
             fetchData(immeubleId);
@@ -97,20 +111,13 @@ const ImmeubleDetailsPage = () => {
                 digicode: detailsFromApi.digicode,
                 nbPortesTotal: detailsFromApi.nbPortesTotal,
                 portes: (detailsFromApi.portes || []).map(p => {
-                    let statusText: Porte['statut'] = 'Non visité';
-                    switch(p.statut) {
-                        case 'VISITE': statusText = 'Visité'; break;
-                        case 'ABSENT': statusText = 'Absent'; break;
-                        case 'REFUS': statusText = 'Refus'; break;
-                        case 'CURIEUX': statusText = 'Curieux'; break;
-                        case 'CONTRAT_SIGNE': statusText = 'Contrat signé'; break;
-                    }
+                    console.log("Raw p.statut from API:", p.statut);
                     return {
                         id: p.id,
                         numeroPorte: p.numeroPorte,
-                        statut: statusText,
+                        statut: p.statut, // Directly use status from API
                         passage: p.passage,
-                        commentaire: p.commentaire || '',
+                        commentaire: p.commentaire || null, // Map to null if empty
                     }
                 }),
                 stats: detailsFromApi.stats,
@@ -129,14 +136,14 @@ const ImmeubleDetailsPage = () => {
         const visitesMap = new Map(immeuble.portes.map(p => [p.numeroPorte, p]));
         const allPortes: Porte[] = [];
         for (let i = 1; i <= immeuble.nbPortesTotal; i++) {
-            const numeroPorteStr = String(i);
+            const numeroPorteStr = `Porte ${i}`; // Match API format
             if (immeuble.prospectingMode === 'DUO' && i % 2 !== 0) continue;
 
             const visiteExistante = visitesMap.get(numeroPorteStr);
             if (visiteExistante) {
                 allPortes.push({ ...visiteExistante });
             } else {
-                allPortes.push({ id: `porte-non-visitee-${i}`, numeroPorte: numeroPorteStr, statut: 'Non visité', passage: 0, commentaire: "" });
+                allPortes.push({ id: `porte-non-visitee-${i}`, numeroPorte: numeroPorteStr, statut: 'NON_VISITE', passage: 0, commentaire: "" });
             }
         }
         return allPortes;
@@ -169,14 +176,20 @@ const ImmeubleDetailsPage = () => {
         );
     }
 
-    const portesProspectees = immeuble.portes.length;
+    const portesProspectees = portesData.filter(p => p.statut !== "NON_VISITE").length;
     
     return (
         <div className="space-y-6">
-            <Button variant="outline" onClick={() => navigate(-1)}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Retour à la liste des immeubles
-            </Button>
+            <div className="flex justify-between items-center mb-4"> 
+                <Button variant="outline" onClick={() => navigate(-1)}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Retour à la liste des immeubles
+                </Button>
+                <Button variant="outline" onClick={() => fetchData(immeubleId)} disabled={loading}> 
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Actualiser les données
+                </Button>
+            </div>
             
             <Card>
                 <CardHeader>
@@ -188,8 +201,8 @@ const ImmeubleDetailsPage = () => {
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
                    <ProspectorBadge Icon={Users} label={immeuble.prospectingMode === 'DUO' ? "Duo de Prospection" : "Prospecteur"} prospectors={immeuble.prospectors} />
-                   <InfoBadge Icon={Check} label="Contrats Signés" value={immeuble.stats.contratsSignes} />
-                   <InfoBadge Icon={MoveUpRight} label="RDV Pris" value={immeuble.stats.rdvPris} />
+                   <InfoBadge Icon={Check} label="Contrats Signés" value={buildingStats.contratsSignes} />
+                   <InfoBadge Icon={MoveUpRight} label="RDV Pris" value={buildingStats.rdvPris} />
                    <InfoBadge Icon={KeyRound} label="Digicode" value={immeuble.digicode || "Aucun"} />
                 </CardContent>
             </Card>

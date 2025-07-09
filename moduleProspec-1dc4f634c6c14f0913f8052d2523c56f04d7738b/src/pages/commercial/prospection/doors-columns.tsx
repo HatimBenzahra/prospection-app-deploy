@@ -27,10 +27,13 @@ export const statusConfig: Record<PorteStatus, { className: string; icon: React.
     "CONTRAT_SIGNE": { className: "bg-emerald-100 text-emerald-800 border-emerald-300", icon: Landmark },
 };
 
-export const statusList = Object.keys(statusConfig) as PorteStatus[];
+export const statusList = (Object.keys(statusConfig) as PorteStatus[]).filter(
+  (status) => status !== "VISITE"
+);
 
 export const createDoorsColumns = (
-    onEdit: (porteId: string) => void
+    onEdit: (porteId: string) => void,
+    isBuildingFullyProspected: boolean
 ): ColumnDef<Porte>[] => [
     {
       accessorKey: "numero",
@@ -90,7 +93,7 @@ export const createDoorsColumns = (
         id: "actions",
         cell: ({ row }) => (
             <div className="text-right">
-                <Button variant="ghost" size="icon" onClick={() => onEdit(row.original.id)}>
+                <Button variant="ghost" size="icon" onClick={() => onEdit(row.original.id)} disabled={isBuildingFullyProspected}>
                     <Edit className="h-4 w-4" />
                 </Button>
             </div>
