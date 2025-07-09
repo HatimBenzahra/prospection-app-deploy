@@ -26,9 +26,7 @@ export class CreateCommercialImmeubleDto {
   @IsOptional()
   digicode?: string;
 
-  @IsString()
-  @IsNotEmpty()
-  commercialId: string;
+  
 
   @IsNumber()
   @IsOptional()
