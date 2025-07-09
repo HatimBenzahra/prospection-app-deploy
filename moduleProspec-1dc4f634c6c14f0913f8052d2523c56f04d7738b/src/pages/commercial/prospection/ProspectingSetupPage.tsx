@@ -13,6 +13,7 @@ import { prospectionService } from '@/services/prospection.service';
 import { immeubleService, type ImmeubleDetailsFromApi } from '@/services/immeuble.service';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui-admin/Modal';
+import axios from 'axios';
 
 type ProspectingMode = 'solo' | 'duo';
 
@@ -52,7 +53,13 @@ const ProspectingSetupPage = () => {
                 try {
                     const response = await prospectionService.getRequestStatus(sentRequestId);
                     console.log(`Polled status for ${sentRequestId}:`, response?.status);
-                    if (response && response.status !== 'PENDING') {
+
+                    if (!response) { // Request not found (e.g., deleted or already handled and removed)
+                        clearInterval(interval);
+                        setIsSendingInvitation(false);
+                        setSentRequestId(null);
+                        toast.info("L'invitation a été traitée ou n'existe plus.");
+                    } else if (response.status !== 'PENDING') {
                         clearInterval(interval);
                         setIsSendingInvitation(false);
                         setSentRequestId(null);
@@ -100,21 +107,38 @@ const ProspectingSetupPage = () => {
     };
 
     const handleStartDuo = async () => {
-        if (!user?.id || !buildingId || !selectedPartnerId) return;
+        // Validation améliorée pour des messages d'erreur plus spécifiques
+        if (!user || !user.id) {
+            toast.error("Votre ID utilisateur est manquant. Veuillez vous reconnecter.");
+            return;
+        }
+        if (!buildingId) {
+            toast.error("L'ID de l'immeuble est manquant dans l'URL. Veuillez vérifier l'adresse.");
+            return;
+        }
+        if (!selectedPartnerId) {
+            toast.error("Veuillez sélectionner un coéquipier pour le mode duo.");
+            return;
+        }
 
         console.log("Setting isSendingInvitation to true");
         setIsSendingInvitation(true);
         abortControllerRef.current = new AbortController();
 
         try {
-            await prospectionService.startProspection({
+            const duoDto = {
                 commercialId: user.id,
                 immeubleId: buildingId,
-                mode: 'DUO',
+                mode: 'DUO' as const, // Ajout de 'as const' pour une meilleure inférence de type
                 partnerId: selectedPartnerId,
-            }, abortControllerRef.current.signal);
+            };
+            // Le console.log que nous avons ajouté précédemment est toujours là pour une vérification visuelle
+            console.log("Sending duo prospection DTO:", duoDto);
+
+            const response = await prospectionService.startProspection(duoDto, abortControllerRef.current.signal);
+            setSentRequestId(response.requestId); // Capture l'ID de la requête
             toast.success("Invitation de prospection duo envoyée !");
-            // No navigation here, the loading modal will close
+            // Pas de navigation ici, la modale de chargement se fermera
         } catch (error: any) {
             if (error.name === 'AbortError') {
                 toast.info("Envoi de l'invitation annulé.");

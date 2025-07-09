@@ -1,6 +1,6 @@
 // src/layout/CommercialLayout.tsx
 import { useState, useEffect, useCallback } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { CommercialSidebar } from './CommercialSidebar';
 import CommercialHeader from './CommercialHeader';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +13,7 @@ const CommercialLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user } = useAuth();
   const [pendingRequest, setPendingRequest] = useState<any | null>(null); // Type this properly
+  const navigate = useNavigate();
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
@@ -22,6 +23,7 @@ const CommercialLayout = () => {
     if (user?.id) {
       try {
         const requests = await prospectionService.getPendingRequestsForCommercial(user.id);
+        console.log("Fetched pending requests:", requests);
         if (requests.length > 0) {
           setPendingRequest(requests[0]); // Display the first pending request
         } else {
@@ -43,13 +45,21 @@ const CommercialLayout = () => {
   const handleRequestResponse = async (accept: boolean) => {
     if (!pendingRequest) return;
     try {
-      await prospectionService.handleProspectionRequest({
+      const response = await prospectionService.handleProspectionRequest({
         requestId: pendingRequest.id,
         accept,
       });
       toast.success(accept ? "Demande acceptée !" : "Demande refusée.");
+      console.log("Pending request before nulling:", pendingRequest);
       setPendingRequest(null); // Close modal
-      // Optionally, navigate or refresh data if needed after accepting
+      console.log("Pending request after nulling:", pendingRequest);
+      // Force a re-fetch of pending requests immediately after handling
+      await fetchPendingRequests();
+      console.log("Pending request after re-fetch:", pendingRequest);
+      if (accept && response.immeubleId) {
+        // Redirect to doors page for the accepted immeuble
+        navigate(`/commercial/prospecting/doors/${response.immeubleId}`);
+      }
     } catch (error) {
       console.error("Error handling request:", error);
       toast.error("Erreur lors du traitement de la demande.");

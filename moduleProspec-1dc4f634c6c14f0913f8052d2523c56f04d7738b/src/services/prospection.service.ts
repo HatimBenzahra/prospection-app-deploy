@@ -50,9 +50,16 @@ const getPendingRequestsForCommercial = async (commercialId: string): Promise<Pe
   return response.data;
 };
 
+const getRequestStatus = async (requestId: string) => {
+  const response = await axios.get(`${API_URL}/requests/status/${requestId}`);
+  console.log(`Frontend getRequestStatus response data for ${requestId}:`, response.data);
+  return response.data;
+};
+
 export const prospectionService = {
   startProspection,
   handleProspectionRequest,
   getAllProspectionRequests,
   getPendingRequestsForCommercial,
+  getRequestStatus,
 };

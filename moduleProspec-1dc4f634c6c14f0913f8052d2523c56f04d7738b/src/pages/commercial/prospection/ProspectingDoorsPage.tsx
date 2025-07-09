@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui-admin/checkbox';
 import { immeubleService, type ImmeubleDetailsFromApi } from '@/services/immeuble.service';
 import { porteService } from '@/services/porte.service';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 const LoadingSkeleton = () => (
@@ -40,6 +41,7 @@ const ProspectingDoorsPage = () => {
     const { buildingId } = useParams<{ buildingId: string }>();
     console.log("ProspectingDoorsPage - buildingId:", buildingId);
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [building, setBuilding] = useState<ImmeubleDetailsFromApi | null>(null);
     const [portes, setPortes] = useState<Porte[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -77,13 +79,23 @@ const ProspectingDoorsPage = () => {
             setIsLoading(false);
             return;
         }
+        if (!user?.id) { // <-- ADD THIS CHECK
+            console.warn("User ID is not available. Cannot filter doors.");
+            setIsLoading(false);
+            return;
+        }
+
         immeubleService.getImmeubleDetails(buildingId).then(details => {
             console.log("Immeuble details from API:", details);
             if (details) {
                 setBuilding(details);
-                if (details.portes && details.portes.length > 0) { // Added check for portes array
+                if (details.portes && details.portes.length > 0) {
                     console.log("Details.portes from API:", details.portes);
-                    const portesFromAPI = details.portes.map(p => ({
+                    // Filter doors by the current user's ID before mapping
+                    const userPortes = details.portes.filter(p => p.assigneeId === user.id); // <-- ADD THIS FILTER
+                    console.log("Filtered portes for current user:", userPortes);
+
+                    const portesFromAPI = userPortes.map(p => ({
                         id: p.id,
                         numero: p.numeroPorte,
                         statut: p.statut as PorteStatus,
@@ -92,19 +104,19 @@ const ProspectingDoorsPage = () => {
                     }));
                     setPortes(portesFromAPI);
                 } else {
-                    console.warn("No portes found for this building or details.portes is empty/null."); // New log
-                    setPortes([]); // Ensure portes is empty if no data
+                    console.warn("No portes found for this building or details.portes is empty/null.");
+                    setPortes([]);
                 }
             } else {
-                console.warn("Immeuble details object is null or undefined from API."); // New log
-                setBuilding(null); // Ensure building is null if no data
+                console.warn("Immeuble details object is null or undefined from API.");
+                setBuilding(null);
             }
             setIsLoading(false);
         }).catch(error => {
             console.error("Error loading immeuble details:", error);
             setIsLoading(false);
         });
-    }, [buildingId]);
+    }, [buildingId, user?.id]);
 
     const handleEdit = useCallback((doorId: string) => {
         console.log("handleEdit called for doorId:", doorId);
