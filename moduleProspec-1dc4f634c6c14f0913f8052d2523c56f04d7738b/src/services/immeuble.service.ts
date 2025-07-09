@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API_URL = 'http://localhost:3000/admin/immeubles';
-const COMMERCIAL_API_URL = 'http://localhost:3000/commercial/immeubles';
+const COMMERCIAL_API_URL = 'http://localhost:3000/commercial';
 
 export interface ImmeubleFromApi {
   id: string;
@@ -60,27 +60,27 @@ const deleteImmeuble = async (id: string) => {
 
 // Commercial functions
 const createImmeubleForCommercial = async (immeubleData: any, commercialId: string) => {
-  const response = await axios.post(COMMERCIAL_API_URL, { ...immeubleData, commercialId });
+  const response = await axios.post(`${COMMERCIAL_API_URL}/${commercialId}/immeubles`, immeubleData);
   return response.data;
 };
 
 const getImmeublesForCommercial = async (commercialId: string): Promise<ImmeubleFromApi[]> => {
-  const response = await axios.get(`${COMMERCIAL_API_URL}/by-commercial/${commercialId}`);
+  const response = await axios.get(`${COMMERCIAL_API_URL}/${commercialId}/immeubles`);
   return response.data;
 };
 
 const getImmeubleByIdForCommercial = async (id: string, commercialId: string): Promise<ImmeubleDetailsFromApi> => {
-  const response = await axios.get(`${COMMERCIAL_API_URL}/${id}/for-commercial/${commercialId}`);
+  const response = await axios.get(`${COMMERCIAL_API_URL}/${commercialId}/immeubles/${id}`);
   return response.data;
 };
 
 const updateImmeubleForCommercial = async (id: string, immeubleData: any, commercialId: string) => {
-  const response = await axios.patch(`${COMMERCIAL_API_URL}/${id}/for-commercial/${commercialId}`, immeubleData);
+  const response = await axios.patch(`${COMMERCIAL_API_URL}/${commercialId}/immeubles/${id}`, immeubleData);
   return response.data;
 };
 
 const deleteImmeubleForCommercial = async (id: string, commercialId: string) => {
-  const response = await axios.delete(`${COMMERCIAL_API_URL}/${id}/for-commercial/${commercialId}`);
+  const response = await axios.delete(`${COMMERCIAL_API_URL}/${commercialId}/immeubles/${id}`);
   return response.data;
 };
 
