@@ -26,6 +26,15 @@ export class ProspectionService {
 
     if (mode === ProspectingMode.SOLO) {
       await this.generateAndAssignPortes(immeubleId, [commercialId], immeuble.nbPortesTotal);
+      // Connect the commercial to the immeuble as a prospector
+      await this.prisma.immeuble.update({
+        where: { id: immeubleId },
+        data: {
+          prospectors: {
+            connect: { id: commercialId },
+          },
+        },
+      });
       return { message: 'Solo prospection started and portes generated.' };
     } else if (mode === ProspectingMode.DUO) {
       if (!partnerId) {
@@ -80,6 +89,18 @@ export class ProspectionService {
         [request.requesterId, request.partnerId],
         request.immeuble.nbPortesTotal,
       );
+      // Connect both requester and partner to the immeuble as prospectors
+      await this.prisma.immeuble.update({
+        where: { id: request.immeubleId },
+        data: {
+          prospectors: {
+            connect: [
+              { id: request.requesterId },
+              { id: request.partnerId },
+            ],
+          },
+        },
+      });
       return { message: 'Prospection request accepted and portes generated.', immeubleId: request.immeubleId };
     } else {
       await this.prisma.prospectionRequest.update({
