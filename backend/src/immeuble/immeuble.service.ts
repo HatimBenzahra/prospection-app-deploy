@@ -132,7 +132,18 @@ export class ImmeubleService {
 
   async removeForCommercial(id: string, commercialId: string) {
     await this.findOneForCommercial(id, commercialId); // Authorization check
-    return this.prisma.immeuble.delete({ where: { id } });
+
+    return this.prisma.$transaction(async (prisma) => {
+      // First, delete all portes associated with the immeuble
+      await prisma.porte.deleteMany({
+        where: { immeubleId: id },
+      });
+
+      // Then, delete the immeuble itself
+      return prisma.immeuble.delete({
+        where: { id },
+      });
+    });
   }
 
   async getImmeubleDetails(immeubleId: string) {
