@@ -46,6 +46,7 @@ const ProspectingDoorsPage = () => {
     const [editingDoor, setEditingDoor] = useState<Porte | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
+    const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
     useEffect(() => {
         if (!buildingId) return;
@@ -58,7 +59,6 @@ const ProspectingDoorsPage = () => {
                     statut: p.statut as PorteStatus,
                     commentaire: p.commentaire || null,
                     passage: p.passage,
-                    nbPassages: p.nbPassages,
                 }));
                 setPortes(portesFromAPI);
             }
@@ -84,7 +84,7 @@ const ProspectingDoorsPage = () => {
             await porteService.updatePorte(updatedDoor.id, {
                 statut: updatedDoor.statut,
                 commentaire: updatedDoor.commentaire,
-                passage: updatedDoor.nbPassages,
+                passage: updatedDoor.passage,
             });
             setPortes(portes.map(p => p.id === updatedDoor.id ? updatedDoor : p));
             setIsModalOpen(false);
@@ -141,8 +141,8 @@ const ProspectingDoorsPage = () => {
                         onAddEntity={() => {}}
                         onConfirmDelete={() => {}}
                         onToggleDeleteMode={() => {}}
-                        rowSelection={{}}
-                        setRowSelection={() => {}}
+                        rowSelection={rowSelection}
+                        setRowSelection={setRowSelection}
                     />
                 </CardContent>
             </Card>
@@ -208,15 +208,15 @@ const ProspectingDoorsPage = () => {
                                 <Label htmlFor="repassage" className="font-medium">À repasser</Label>
                             </div>
                             <div className="grid grid-cols-2 items-center gap-2">
-                                <Label htmlFor="nbPassages" className="text-right">Passages</Label>
-                                <Input
-                                    id="nbPassages"
-                                    type="number"
-                                    min="0"
-                                    value={editingDoor.nbPassages}
-                                    onChange={(e) => setEditingDoor({ ...editingDoor, nbPassages: parseInt(e.target.value, 10) || 0 })}
-                                    className="w-full"
-                                />
+                                <Label htmlFor="passage" className="text-right">Passages</Label>
+                                    <Input
+                                        id="passage"
+                                        type="number"
+                                        min="0"
+                                        value={editingDoor.passage}
+                                        onChange={(e) => setEditingDoor({ ...editingDoor, passage: parseInt(e.target.value, 10) || 0 })}
+                                        className="w-full"
+                                    />
                             </div>
                         </div>
                     </div>

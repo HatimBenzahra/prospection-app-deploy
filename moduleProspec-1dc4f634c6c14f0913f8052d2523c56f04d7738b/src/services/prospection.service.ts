@@ -25,8 +25,8 @@ interface ProspectionRequest {
   createdAt: string;
 }
 
-const startProspection = async (dto: StartProspectionDto) => {
-  const response = await axios.post(`${API_URL}/start`, dto);
+const startProspection = async (dto: StartProspectionDto, signal?: AbortSignal) => {
+  const response = await axios.post(`${API_URL}/start`, dto, { signal });
   return response.data;
 };
 
@@ -40,8 +40,19 @@ const getAllProspectionRequests = async (): Promise<ProspectionRequest[]> => {
   return response.data;
 };
 
+interface PendingProspectionRequest extends ProspectionRequest {
+  immeuble: { adresse: string; ville: string; codePostal: string };
+  requester: { nom: string; prenom: string };
+}
+
+const getPendingRequestsForCommercial = async (commercialId: string): Promise<PendingProspectionRequest[]> => {
+  const response = await axios.get(`${API_URL}/requests/pending/${commercialId}`);
+  return response.data;
+};
+
 export const prospectionService = {
   startProspection,
   handleProspectionRequest,
   getAllProspectionRequests,
+  getPendingRequestsForCommercial,
 };

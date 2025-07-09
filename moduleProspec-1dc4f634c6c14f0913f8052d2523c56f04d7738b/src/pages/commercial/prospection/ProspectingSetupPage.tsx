@@ -1,34 +1,137 @@
 // src/pages/commercial/ProspectingSetupPage.tsx
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui-admin/card';
 import { Button } from '@/components/ui-admin/button';
-import { Input } from '@/components/ui-admin/input';
 import { Label } from '@/components/ui-admin/label';
-import { User, Users, ArrowRight, Send } from 'lucide-react';
+import { User, Users, ArrowRight, Send, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui-admin/select';
+import { useAuth } from '@/contexts/AuthContext';
+import { commercialService, type CommercialFromAPI } from '@/services/commercial.service';
+import { prospectionService } from '@/services/prospection.service';
+import { immeubleService, type ImmeubleDetailsFromApi } from '@/services/immeuble.service';
+import { toast } from 'sonner';
+import { Modal } from '@/components/ui-admin/Modal';
 
 type ProspectingMode = 'solo' | 'duo';
 
 const ProspectingSetupPage = () => {
     const { buildingId } = useParams<{ buildingId: string }>();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [mode, setMode] = useState<ProspectingMode | null>(null);
-    const [duoEmail, setDuoEmail] = useState('');
+    const [commercials, setCommercials] = useState<CommercialFromAPI[]>([]);
+    const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
+    const [isLoadingCommercials, setIsLoadingCommercials] = useState(true);
+    const [isSendingInvitation, setIsSendingInvitation] = useState(false);
+    const [sentRequestId, setSentRequestId] = useState<string | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
-    console.log(`ProspectingSetupPage loaded with buildingId: ${buildingId}`);
+    useEffect(() => {
+        const fetchCommercials = async () => {
+            try {
+                const data = await commercialService.getCommerciaux();
+                // Filter out the current user from the list of potential partners
+                setCommercials(data.filter(c => c.id !== user?.id));
+            } catch (error) {
+                toast.error("Erreur lors du chargement des commerciaux.");
+                console.error("Error fetching commercials:", error);
+            } finally {
+                setIsLoadingCommercials(false);
+            }
+        };
+        fetchCommercials();
+    }, [user]);
 
-    const handleStartSolo = () => {
-        console.log(`Navigating from ProspectingSetupPage with ID: ${buildingId}`);
-        console.log(`Démarrage en SOLO pour l'immeuble ${buildingId}`);
-        navigate(`/commercial/prospecting/doors/${buildingId}`);
+    useEffect(() => {
+        let interval: NodeJS.Timeout | undefined;
+        if (sentRequestId && isSendingInvitation) {
+            console.log(`Polling for request status for ID: ${sentRequestId}`);
+            interval = setInterval(async () => {
+                try {
+                    const response = await prospectionService.getRequestStatus(sentRequestId);
+                    console.log(`Polled status for ${sentRequestId}:`, response?.status);
+                    if (response && response.status !== 'PENDING') {
+                        clearInterval(interval);
+                        setIsSendingInvitation(false);
+                        setSentRequestId(null);
+                        if (response.status === 'ACCEPTED') {
+                            toast.success("Votre invitation a été acceptée ! Redirection vers la prospection...");
+                            navigate(`/commercial/prospecting/doors/${buildingId}`);
+                        } else if (response.status === 'REFUSED') {
+                            toast.info("Votre invitation a été refusée.");
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error polling request status:", error);
+                    clearInterval(interval);
+                    setIsSendingInvitation(false);
+                    setSentRequestId(null);
+                    toast.error("Erreur lors de la vérification du statut de l'invitation.");
+                }
+            }, 2000); // Poll every 2 seconds
+        }
+        return () => { if (interval) clearInterval(interval); };
+    }, [sentRequestId, isSendingInvitation, navigate, buildingId]);
+
+    const handleStartSolo = async () => {
+        if (!user?.id || !buildingId) return;
+        try {
+            const immeubleDetails = await immeubleService.getImmeubleDetails(buildingId);
+            if (immeubleDetails && immeubleDetails.portes && immeubleDetails.portes.length > 0) {
+                // Doors already exist, navigate directly to doors page
+                toast.info("Reprise de la prospection existante.");
+                navigate(`/commercial/prospecting/doors/${buildingId}`);
+            } else {
+                // No doors exist, proceed with starting new prospection
+                await prospectionService.startProspection({
+                    commercialId: user.id,
+                    immeubleId: buildingId,
+                    mode: 'SOLO',
+                });
+                toast.success("Prospection solo démarrée !");
+                navigate(`/commercial/prospecting/doors/${buildingId}`);
+            }
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Erreur lors du démarrage de la prospection solo.");
+            console.error("Error starting solo prospection:", error);
+        }
     };
 
-    const handleInviteDuo = () => {
-        if (duoEmail) {
-            console.log(`Invitation envoyée à ${duoEmail} pour l'immeuble ${buildingId}`);
-            alert(`Invitation envoyée à ${duoEmail} !`);
+    const handleStartDuo = async () => {
+        if (!user?.id || !buildingId || !selectedPartnerId) return;
+
+        console.log("Setting isSendingInvitation to true");
+        setIsSendingInvitation(true);
+        abortControllerRef.current = new AbortController();
+
+        try {
+            await prospectionService.startProspection({
+                commercialId: user.id,
+                immeubleId: buildingId,
+                mode: 'DUO',
+                partnerId: selectedPartnerId,
+            }, abortControllerRef.current.signal);
+            toast.success("Invitation de prospection duo envoyée !");
+            // No navigation here, the loading modal will close
+        } catch (error: any) {
+            if (error.name === 'AbortError') {
+                toast.info("Envoi de l'invitation annulé.");
+            } else {
+                toast.error(error.response?.data?.message || "Erreur lors de l'envoi de l'invitation duo.");
+                console.error("Error sending duo invitation:", error);
+            }
+        } finally {
+            abortControllerRef.current = null;
         }
+    };
+
+    const handleCancelInvitation = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        setIsSendingInvitation(false);
     };
 
     return (
@@ -71,24 +174,31 @@ const ProspectingSetupPage = () => {
 
                     {mode === 'duo' && (
                         <div className="space-y-2 animate-in fade-in-0">
-                            <Label htmlFor="duo-email">Email du coéquipier</Label>
-                            <div className="flex gap-2">
-                                <Input 
-                                    id="duo-email" 
-                                    type="email"
-                                    placeholder="nom.prenom@winvest.capital"
-                                    value={duoEmail}
-                                    onChange={(e) => setDuoEmail(e.target.value)}
-                                />
-                                <Button 
-                                    onClick={handleInviteDuo}
-                                    disabled={!duoEmail}
-                                    className="bg-green-600 text-white hover:bg-green-700"
-                                >
-                                    <Send className="mr-2 h-4 w-4" />
-                                    Inviter
-                                </Button>
-                            </div>
+                            <Label htmlFor="partner-select">Sélectionnez un coéquipier</Label>
+                            <Select
+                                onValueChange={setSelectedPartnerId}
+                                value={selectedPartnerId || ''}
+                                disabled={isLoadingCommercials}
+                            >
+                                <SelectTrigger id="partner-select">
+                                    <SelectValue placeholder="Sélectionner un commercial" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {commercials.map(commercial => (
+                                        <SelectItem key={commercial.id} value={commercial.id}>
+                                            {commercial.prenom} {commercial.nom}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Button 
+                                onClick={handleStartDuo}
+                                disabled={!selectedPartnerId}
+                                className="w-full bg-green-600 text-white hover:bg-green-700 mt-4"
+                            >
+                                <Send className="mr-2 h-4 w-4" />
+                                Envoyer l'invitation
+                            </Button>
                         </div>
                     )}
                 </CardContent>
@@ -104,6 +214,25 @@ const ProspectingSetupPage = () => {
                     </CardFooter>
                 )}
             </Card>
+
+            <Modal
+                isOpen={isSendingInvitation}
+                onClose={() => {}} // Prevent closing by clicking outside
+                title="Envoi de l'invitation..."
+                maxWidth="max-w-sm"
+            >
+                <div className="flex flex-col items-center justify-center py-4">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                    <p className="text-lg font-semibold mb-4">Envoi de l'invitation en cours...</p>
+                    <Button 
+                        variant="outline"
+                        onClick={handleCancelInvitation}
+                        disabled={!abortControllerRef.current} // Disable if no request is active
+                    >
+                        Annuler
+                    </Button>
+                </div>
+            </Modal>
         </div>
     );
 };

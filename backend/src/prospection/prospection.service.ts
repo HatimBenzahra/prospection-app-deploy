@@ -124,4 +124,24 @@ export class ProspectionService {
   async getAllProspectionRequests() {
     return this.prisma.prospectionRequest.findMany();
   }
+
+  async getPendingRequestsForCommercial(commercialId: string) {
+    return this.prisma.prospectionRequest.findMany({
+      where: {
+        partnerId: commercialId,
+        status: 'PENDING',
+      },
+      include: {
+        immeuble: { select: { adresse: true, ville: true, codePostal: true } },
+        requester: { select: { nom: true, prenom: true } },
+      },
+    });
+  }
+
+  async getRequestStatus(requestId: string) {
+    return this.prisma.prospectionRequest.findUnique({
+      where: { id: requestId },
+      select: { status: true },
+    });
+  }
 }

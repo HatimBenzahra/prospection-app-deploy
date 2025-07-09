@@ -15,7 +15,6 @@ export type Porte = {
   statut: PorteStatus;
   commentaire: string | null;
   passage: number;
-  nbPassages: number;
 };
 
 export const statusConfig: Record<PorteStatus, { className: string; icon: React.ElementType }> = {
@@ -54,10 +53,10 @@ export const createDoorsColumns = (
       }
     },
     {
-        accessorKey: "nbPassages",
+        accessorKey: "passage",
         header: "Passages",
         cell: ({ row }) => {
-            return <span>{row.original.nbPassages}</span>
+            return <span>{row.original.passage}</span>
         }
     },
     {
