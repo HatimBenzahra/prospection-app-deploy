@@ -44,6 +44,9 @@ model Commercial {
   historiques        HistoriqueProspection[]
   zones              Zone[]                  @relation("CommercialZones")
   immeubles          Immeuble[]              @relation("ImmeubleProspectors")
+  requesterRequests  ProspectionRequest[]    @relation("Requester")
+  partnerRequests    ProspectionRequest[]    @relation("Partner")
+  portes             Porte[]
 
   @@map("commerciaux")
 }
@@ -70,23 +73,25 @@ model Zone {
 }
 
 model Immeuble {
-  id                 String                  @id @default(uuid())
-  adresse            String
-  ville              String
-  codePostal         String
-  status             ImmeubleStatus          @default(A_VISITER)
-  nbPortesTotal      Int
-  prospectingMode    ProspectingMode
-  dateDerniereVisite DateTime?
-  zoneId             String?
-  latitude           Float?
-  longitude          Float?
-  hasElevator        Boolean
-  digicode           String?
-  historiques        HistoriqueProspection[]
-  zone               Zone?                   @relation(fields: [zoneId], references: [id])
-  portes             Porte[]
-  prospectors        Commercial[]            @relation("ImmeubleProspectors")
+  id                   String                  @id @default(uuid())
+  adresse              String
+  ville                String
+  codePostal           String
+  status               ImmeubleStatus          @default(A_VISITER)
+  nbPortesTotal        Int
+  prospectingMode      ProspectingMode
+  dateDerniereVisite   DateTime?
+  createdAt            DateTime @default(now())
+  zoneId               String?
+  latitude             Float?
+  longitude            Float?
+  hasElevator          Boolean
+  digicode             String?
+  historiques          HistoriqueProspection[]
+  zone                 Zone?                   @relation(fields: [zoneId], references: [id])
+  portes               Porte[]
+  prospectors          Commercial[]            @relation("ImmeubleProspectors")
+  prospectionRequests  ProspectionRequest[]
 
   @@map("immeubles")
 }
@@ -99,8 +104,24 @@ model Porte {
   commentaire String?
   immeubleId  String
   immeuble    Immeuble    @relation(fields: [immeubleId], references: [id])
+  assigneeId  String?
+  assignee    Commercial? @relation(fields: [assigneeId], references: [id])
 
   @@map("portes")
+}
+
+model ProspectionRequest {
+  id          String   @id @default(uuid())
+  immeubleId  String
+  requesterId String
+  partnerId   String
+  status      String   @default("PENDING") // PENDING, ACCEPTED, REFUSED
+  createdAt   DateTime @default(now())
+  immeuble    Immeuble @relation(fields: [immeubleId], references: [id])
+  requester   Commercial @relation("Requester", fields: [requesterId], references: [id])
+  partner     Commercial @relation("Partner", fields: [partnerId], references: [id])
+
+  @@map("prospection_requests")
 }
 
 model HistoriqueProspection {

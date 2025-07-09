@@ -10,6 +10,7 @@ import { ImmeubleModule } from './immeuble/immeuble.module';
 import { PorteModule } from './porte/porte.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { AssignmentGoalsModule } from './assignment-goals/assignment-goals.module';
+import { ProspectionModule } from './prospection/prospection.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AssignmentGoalsModule } from './assignment-goals/assignment-goals.modul
     PorteModule,
     StatisticsModule,
     AssignmentGoalsModule,
+    ProspectionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

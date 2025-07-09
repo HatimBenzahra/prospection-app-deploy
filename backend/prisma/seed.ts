@@ -240,41 +240,42 @@ async function main() {
   console.log(`Created immeuble: ${immeuble4.adresse}`);
 
   // --- Portes for Immeubles ---
-  const portesImmeuble1 = Array.from({ length: immeuble1.nbPortesTotal }, (_, i) => ({
-    numeroPorte: `Porte ${101 + i}`,
-    statut: PorteStatut.NON_VISITE,
-    passage: 0,
-    immeubleId: immeuble1.id,
-  }));
-  await prisma.porte.createMany({ data: portesImmeuble1, skipDuplicates: true });
-  console.log(`Created ${immeuble1.nbPortesTotal} portes for immeuble ${immeuble1.adresse}`);
+  // Commented out for prospection flow testing
+  // const portesImmeuble1 = Array.from({ length: immeuble1.nbPortesTotal }, (_, i) => ({
+  //   numeroPorte: `Porte ${101 + i}`,
+  //   statut: PorteStatut.NON_VISITE,
+  //   passage: 0,
+  //   immeubleId: immeuble1.id,
+  // }));
+  // await prisma.porte.createMany({ data: portesImmeuble1, skipDuplicates: true });
+  // console.log(`Created ${immeuble1.nbPortesTotal} portes for immeuble ${immeuble1.adresse}`);
 
-  const portesImmeuble2 = Array.from({ length: immeuble2.nbPortesTotal }, (_, i) => ({
-    numeroPorte: `Apt ${'A'.charCodeAt(0) + i}`,
-    statut: PorteStatut.NON_VISITE,
-    passage: 0,
-    immeubleId: immeuble2.id,
-  }));
-  await prisma.porte.createMany({ data: portesImmeuble2, skipDuplicates: true });
-  console.log(`Created ${immeuble2.nbPortesTotal} portes for immeuble ${immeuble2.adresse}`);
+  // const portesImmeuble2 = Array.from({ length: immeuble2.nbPortesTotal }, (_, i) => ({
+  //   numeroPorte: `Apt ${'A'.charCodeAt(0) + i}`,
+  //   statut: PorteStatut.NON_VISITE,
+  //   passage: 0,
+  //   immeubleId: immeuble2.id,
+  // }));
+  // await prisma.porte.createMany({ data: portesImmeuble2, skipDuplicates: true });
+  // console.log(`Created ${immeuble2.nbPortesTotal} portes for immeuble ${immeuble2.adresse}`);
 
-  const portesImmeuble3 = Array.from({ length: immeuble3.nbPortesTotal }, (_, i) => ({
-    numeroPorte: `Appt ${201 + i}`,
-    statut: PorteStatut.NON_VISITE,
-    passage: 0,
-    immeubleId: immeuble3.id,
-  }));
-  await prisma.porte.createMany({ data: portesImmeuble3, skipDuplicates: true });
-  console.log(`Created ${immeuble3.nbPortesTotal} portes for immeuble ${immeuble3.adresse}`);
+  // const portesImmeuble3 = Array.from({ length: immeuble3.nbPortesTotal }, (_, i) => ({
+  //   numeroPorte: `Appt ${201 + i}`,
+  //   statut: PorteStatut.NON_VISITE,
+  //   passage: 0,
+  //   immeubleId: immeuble3.id,
+  // }));
+  // await prisma.porte.createMany({ data: portesImmeuble3, skipDuplicates: true });
+  // console.log(`Created ${immeuble3.nbPortesTotal} portes for immeuble ${immeuble3.adresse}`);
 
-  const portesImmeuble4 = Array.from({ length: immeuble4.nbPortesTotal }, (_, i) => ({
-    numeroPorte: `Lot ${1 + i}`,
-    statut: PorteStatut.NON_VISITE,
-    passage: 0,
-    immeubleId: immeuble4.id,
-  }));
-  await prisma.porte.createMany({ data: portesImmeuble4, skipDuplicates: true });
-  console.log(`Created ${immeuble4.nbPortesTotal} portes for immeuble ${immeuble4.adresse}`);
+  // const portesImmeuble4 = Array.from({ length: immeuble4.nbPortesTotal }, (_, i) => ({
+  //   numeroPorte: `Lot ${1 + i}`,
+  //   statut: PorteStatut.NON_VISITE,
+  //   passage: 0,
+  //   immeubleId: immeuble4.id,
+  // }));
+  // await prisma.porte.createMany({ data: portesImmeuble4, skipDuplicates: true });
+  // console.log(`Created ${immeuble4.nbPortesTotal} portes for immeuble ${immeuble4.adresse}`);
 
   // --- HistoriqueProspection ---
   const today = new Date();
