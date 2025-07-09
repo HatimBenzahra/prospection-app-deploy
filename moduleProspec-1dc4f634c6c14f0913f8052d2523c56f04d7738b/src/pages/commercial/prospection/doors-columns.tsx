@@ -4,27 +4,28 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "@/components/ui-admin/button"
 import { Badge } from "@/components/ui-admin/badge"
-import { Edit, MessageSquare, Repeat, Hash, Check, BellOff, User, Smile, Frown, Landmark } from "lucide-react"
+import { Edit, MessageSquare, Repeat, Hash, Check, BellOff, User, Smile, Frown, Landmark, Eye } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export type PorteStatus = "Non visité" | "Absent" | "Refus" | "Curieux" | "RDV" | "Contrat";
+export type PorteStatus = "NON_VISITE" | "VISITE" | "ABSENT" | "REFUS" | "CURIEUX" | "RDV" | "CONTRAT_SIGNE";
 
 export type Porte = {
   id: string; 
   numero: string;
   statut: PorteStatus;
-  commentaire: string;
-  repassage: boolean;
+  commentaire: string | null;
+  passage: number;
   nbPassages: number;
 };
 
 export const statusConfig: Record<PorteStatus, { className: string; icon: React.ElementType }> = {
-    "Non visité": { className: "bg-gray-100 text-gray-800 border-gray-300", icon: BellOff },
-    "Absent": { className: "bg-yellow-100 text-yellow-800 border-yellow-300", icon: User },
-    "Curieux": { className: "bg-purple-100 text-purple-800 border-purple-300", icon: Smile },
-    "Refus": { className: "bg-red-100 text-red-800 border-red-300", icon: Frown },
+    "NON_VISITE": { className: "bg-gray-100 text-gray-800 border-gray-300", icon: BellOff },
+    "VISITE": { className: "bg-blue-100 text-blue-800 border-blue-300", icon: Eye },
+    "ABSENT": { className: "bg-yellow-100 text-yellow-800 border-yellow-300", icon: User },
+    "CURIEUX": { className: "bg-purple-100 text-purple-800 border-purple-300", icon: Smile },
+    "REFUS": { className: "bg-red-100 text-red-800 border-red-300", icon: Frown },
     "RDV": { className: "bg-sky-100 text-sky-800 border-sky-300", icon: Check },
-    "Contrat": { className: "bg-emerald-100 text-emerald-800 border-emerald-300", icon: Landmark },
+    "CONTRAT_SIGNE": { className: "bg-emerald-100 text-emerald-800 border-emerald-300", icon: Landmark },
 };
 
 export const statusList = Object.keys(statusConfig) as PorteStatus[];
@@ -63,7 +64,7 @@ export const createDoorsColumns = (
         accessorKey: "repassage",
         header: "Repassage",
         cell: ({ row }) => {
-            if (!row.original.repassage) return <span className="text-muted-foreground">-</span>;
+            if (row.original.passage === 0) return <span className="text-muted-foreground">-</span>;
             return (
                 <div className="flex items-center gap-2 text-yellow-600 font-semibold">
                     <Repeat className="h-4 w-4" />

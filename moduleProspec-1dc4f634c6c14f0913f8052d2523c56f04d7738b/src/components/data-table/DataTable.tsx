@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils"
 interface DataTableProps<TData extends { id: string }, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  fullData?: TData[]
   filterColumnId: string
   filterPlaceholder: string
   title: string
@@ -33,7 +34,8 @@ interface DataTableProps<TData extends { id: string }, TValue> {
 }
 
 export function DataTable<TData extends { id: string }, TValue>({
-  columns, data, filterColumnId, filterPlaceholder, title, rowLinkBasePath, onRowClick,
+  columns, data, fullData,
+  filterColumnId, filterPlaceholder, title, rowLinkBasePath, onRowClick,
   addEntityButtonText, onAddEntity,
   isDeleteMode, onToggleDeleteMode, onConfirmDelete,
   rowSelection, setRowSelection,
@@ -45,13 +47,36 @@ export function DataTable<TData extends { id: string }, TValue>({
   const [searchFocused, setSearchFocused] = React.useState(false)
   const navigate = useNavigate()
 
+  const filterValue = (columnFilters.find(f => f.id === filterColumnId)?.value as string) ?? "";
+
+  const tableData = React.useMemo(() => {
+    if (fullData && filterValue) {
+        return fullData.filter(row => 
+            String(row[filterColumnId as keyof TData])
+                .toLowerCase()
+                .includes(filterValue.toLowerCase())
+        );
+    }
+    return data;
+  }, [data, fullData, filterValue, filterColumnId]);
+
   const table = useReactTable({
-    data, columns, onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters, onRowSelectionChange: setRowSelection,
-    getCoreRowModel: getCoreRowModel(), getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(),
-    state: { sorting, columnFilters, rowSelection },
-  })
+    data: tableData,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onRowSelectionChange: setRowSelection,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    state: {
+        sorting,
+        columnFilters,
+        rowSelection,
+    },
+    manualFiltering: !!fullData, // Tell the table we're handling filtering manually if fullData is provided
+  });
 
   const selectedRowsData = table.getFilteredSelectedRowModel().rows.map(row => row.original)
   const areRowsClickable = (onRowClick || rowLinkBasePath) && !isDeleteMode
@@ -86,8 +111,8 @@ export function DataTable<TData extends { id: string }, TValue>({
             )} />
             <Input
               placeholder={filterPlaceholder}
-              value={(table.getColumn(filterColumnId)?.getFilterValue() as string) ?? ""}
-              onChange={e=>table.getColumn(filterColumnId)?.setFilterValue(e.target.value)}
+              value={filterValue}
+              onChange={e => table.getColumn(filterColumnId)?.setFilterValue(e.target.value)}
               className="pl-10 w-full min-w-[280px] md:min-w-[320px]"
               onFocus={()=>setSearchFocused(true)}
               onBlur={()=>setSearchFocused(false)}

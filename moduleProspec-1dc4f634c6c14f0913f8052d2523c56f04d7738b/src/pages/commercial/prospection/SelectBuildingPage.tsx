@@ -1,33 +1,20 @@
 // src/pages/commercial/SelectBuildingPage.tsx
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DataTable } from '@/components/data-table/DataTable';
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table';
 import { Button } from '@/components/ui-admin/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-admin/card';
-import { ArrowRight, Building} from 'lucide-react';
+import { ArrowRight, Building } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-
-// Type pour les données de la table
-export type BuildingData = {
-  id: string;
-  adresse: string;
-  ville: string;
-  codePostal: string;
-  nbPortes: number;
-  dateAjout: Date;
-};
-
-// Données simulées pour les immeubles
-const MOCK_BUILDINGS: BuildingData[] = [
-  { id: 'imm-1', adresse: '10 Rue de la Paix', ville: 'Paris', codePostal: '75002', nbPortes: 25, dateAjout: new Date('2025-06-30') },
-  { id: 'imm-2', adresse: '25 Bd des Capucines', ville: 'Paris', codePostal: '75009', nbPortes: 40, dateAjout: new Date('2025-06-28') },
-  { id: 'imm-3', adresse: '15 Av. des Champs-Élysées', ville: 'Paris', codePostal: '75008', nbPortes: 60, dateAjout: new Date('2025-06-25') },
-];
+import { useAuth } from '@/contexts/AuthContext';
+import { immeubleService, type ImmeubleFromApi } from '@/services/immeuble.service';
+import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui-admin/skeleton';
 
 // Création des colonnes pour la DataTable
-const createBuildingColumns = (setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>): ColumnDef<BuildingData>[] => [
+const createBuildingColumns = (setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>): ColumnDef<ImmeubleFromApi>[] => [
   {
     id: 'select',
     header: () => null,
@@ -52,40 +39,91 @@ const createBuildingColumns = (setRowSelection: React.Dispatch<React.SetStateAct
     ),
   },
   {
-    accessorKey: 'nbPortes',
+    accessorKey: 'nbPortesTotal',
     header: () => <div className="text-center">Portes</div>,
-    cell: ({ row }) => <div className="text-center">{row.original.nbPortes}</div>,
+    cell: ({ row }) => <div className="text-center">{row.original.nbPortesTotal}</div>,
   },
   {
-    accessorKey: 'dateAjout',
+    accessorKey: 'createdAt',
     header: () => <div className="text-right">Ajouté le</div>,
     cell: ({ row }) => (
       <div className="text-right text-muted-foreground">
-        {format(row.original.dateAjout, "d MMM yyyy", { locale: fr })}
+        {format(new Date(row.original.createdAt), "d MMM yyyy", { locale: fr })}
       </div>
     ),
   },
 ];
 
+const PageSkeleton = () => (
+    <Card className="max-w-4xl mx-auto">
+        <CardHeader>
+            <CardTitle className="text-2xl flex items-center gap-3">
+                <Building className="h-6 w-6 text-primary"/>
+                Étape 1 : Sélection de l'immeuble
+            </CardTitle>
+            <CardDescription>
+                Choisissez l'immeuble que vous souhaitez prospecter. Les plus récents apparaissent en premier.
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+            </div>
+        </CardContent>
+    </Card>
+);
+
 const SelectBuildingPage = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const [allImmeubles, setAllImmeubles] = useState<ImmeubleFromApi[]>([]);
+    const [loading, setLoading] = useState(true);
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
     
-    const sortedBuildings = useMemo(() => 
-        [...MOCK_BUILDINGS].sort((a, b) => b.dateAjout.getTime() - a.dateAjout.getTime()), 
-        []
-    );
+    const fetchImmeubles = useCallback(async () => {
+        if (!user?.id) return;
+        try {
+            setLoading(true);
+            const data = await immeubleService.getImmeublesForCommercial(user.id);
+            const sortedData = data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            setAllImmeubles(sortedData);
+        } catch (err) {
+            toast.error('Impossible de charger les immeubles.');
+        } finally {
+            setLoading(false);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        fetchImmeubles();
+    }, [fetchImmeubles]);
 
     const columns = useMemo(() => createBuildingColumns(setRowSelection), []);
 
-    const selectedBuildingId = Object.keys(rowSelection).length > 0 ? sortedBuildings[parseInt(Object.keys(rowSelection)[0])].id : undefined;
+    const displayedImmeubles = useMemo(() => allImmeubles.slice(0, 3), [allImmeubles]);
+
+    const selectedBuildingId = useMemo(() => {
+        const selectedRowId = Object.keys(rowSelection)[0];
+        if (selectedRowId) {
+            const selectedRow = allImmeubles.find(imm => imm.id === displayedImmeubles[parseInt(selectedRowId, 10)]?.id);
+            return selectedRow?.id;
+        }
+        return undefined;
+    }, [rowSelection, allImmeubles, displayedImmeubles]);
+
 
     const handleNext = () => {
         if (selectedBuildingId) {
-            console.log(`Navigating from SelectBuildingPage with ID: ${selectedBuildingId}`);
             navigate(`/commercial/prospecting/setup/${selectedBuildingId}`);
         }
     };
+
+    if (loading) {
+        return <div className="container mx-auto py-8 p-4"><PageSkeleton /></div>;
+    }
 
     return (
         <div className="container mx-auto py-8 p-4">
@@ -96,14 +134,14 @@ const SelectBuildingPage = () => {
                         Étape 1 : Sélection de l'immeuble
                     </CardTitle>
                     <CardDescription>
-                        Choisissez l'immeuble que vous souhaitez prospecter. Les plus récents apparaissent en premier.
+                        Choisissez l'immeuble que vous souhaitez prospecter. Les 3 plus récents sont affichés. Utilisez la recherche pour en trouver d'autres.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <DataTable
                         title="Immeubles"
                         columns={columns}
-                        data={sortedBuildings}
+                        data={displayedImmeubles}
                         filterColumnId="adresse"
                         filterPlaceholder="Rechercher une adresse..."
                         rowSelection={rowSelection}
@@ -112,6 +150,7 @@ const SelectBuildingPage = () => {
                         onAddEntity={() => {}}
                         onConfirmDelete={() => {}}
                         onToggleDeleteMode={() => {}}
+                        fullData={allImmeubles}
                     />
                     <div className="flex justify-end mt-6">
                         <Button onClick={handleNext} disabled={!selectedBuildingId} className="bg-green-600 hover:bg-green-700 text-white">

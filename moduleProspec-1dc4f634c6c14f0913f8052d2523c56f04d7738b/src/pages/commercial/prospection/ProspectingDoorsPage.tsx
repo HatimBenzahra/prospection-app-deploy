@@ -5,10 +5,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { DataTable } from '@/components/data-table/DataTable';
 import { createDoorsColumns, type Porte, statusConfig, statusList, type PorteStatus } from './doors-columns';
 import { ArrowLeft, Building } from 'lucide-react';
+import { Modal } from '@/components/ui-admin/Modal';
 import { Input } from '@/components/ui-admin/input';
 import { Button } from '@/components/ui-admin/button';
 import { Skeleton } from '@/components/ui-admin/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui-admin/dialog';
 import { Label } from '@/components/ui-admin/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui-admin/select';
 import { Checkbox } from '@/components/ui-admin/checkbox';
@@ -56,8 +56,7 @@ const ProspectingDoorsPage = () => {
                     id: p.id,
                     numero: p.numeroPorte,
                     statut: p.statut as PorteStatus,
-                    commentaire: p.commentaire || "",
-                    repassage: p.passage > 0, // Ou une autre logique si nécessaire
+                    commentaire: p.commentaire || null,
                     passage: p.passage,
                     nbPassages: p.nbPassages,
                 }));
@@ -83,10 +82,9 @@ const ProspectingDoorsPage = () => {
         setSaveError(null);
         try {
             await porteService.updatePorte(updatedDoor.id, {
-                status: updatedDoor.statut,
+                statut: updatedDoor.statut,
                 commentaire: updatedDoor.commentaire,
-                nbPassages: updatedDoor.nbPassages,
-                repassage: updatedDoor.repassage,
+                passage: updatedDoor.nbPassages,
             });
             setPortes(portes.map(p => p.id === updatedDoor.id ? updatedDoor : p));
             setIsModalOpen(false);
@@ -150,91 +148,86 @@ const ProspectingDoorsPage = () => {
             </Card>
 
             {editingDoor && (
-                <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                    <DialogContent className="sm:max-w-lg bg-white">
-                        <DialogHeader>
-                            <DialogTitle>Éditer la Porte n°{editingDoor.numero}</DialogTitle>
-                            <CardDescription>
-                                Mettez à jour les informations de cette porte.
-                            </CardDescription>
-                        </DialogHeader>
-                        <div className="grid gap-6 py-4">
-                            <div className="grid grid-cols-1 gap-3">
-                                <Label htmlFor="statut">Statut</Label>
-                                <Select
-                                    value={editingDoor.statut}
-                                    onValueChange={(value) => setEditingDoor({ ...editingDoor, statut: value as PorteStatus })}
-                                >
-                                    <SelectTrigger id="statut">
-                                        <SelectValue>
-                                            {editingDoor.statut ? (
+                <Modal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    title={`Éditer la Porte n°${editingDoor.numero}`}
+                    maxWidth="sm:max-w-lg"
+                >
+                    <div className="grid gap-6 py-4">
+                        <div className="grid grid-cols-1 gap-3">
+                            <Label htmlFor="statut">Statut</Label>
+                            <Select
+                                value={editingDoor.statut}
+                                onValueChange={(value) => setEditingDoor({ ...editingDoor, statut: value as PorteStatus })}
+                            >
+                                <SelectTrigger id="statut">
+                                    <SelectValue>
+                                        {editingDoor.statut ? (
+                                            <div className="flex items-center gap-2">
+                                                <span className={cn("h-2 w-2 rounded-full", statusConfig[editingDoor.statut]?.className)} />
+                                                <span>{editingDoor.statut}</span>
+                                            </div>
+                                        ) : (
+                                            "Sélectionner un statut"
+                                        )}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent position="popper">
+                                    {statusList.map((status) => {
+                                        const config = statusConfig[status];
+                                        const Icon = config.icon;
+                                        return (
+                                            <SelectItem key={status} value={status}>
                                                 <div className="flex items-center gap-2">
-                                                    <span className={cn("h-2 w-2 rounded-full", statusConfig[editingDoor.statut]?.className)} />
-                                                    <span>{editingDoor.statut}</span>
+                                                    <Icon className={cn("h-4 w-4", config.className)} />
+                                                    <span>{status}</span>
                                                 </div>
-                                            ) : (
-                                                "Sélectionner un statut"
-                                            )}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent position="popper">
-                                        {statusList.map((status) => {
-                                            const config = statusConfig[status];
-                                            const Icon = config.icon;
-                                            return (
-                                                <SelectItem key={status} value={status}>
-                                                    <div className="flex items-center gap-2">
-                                                        <Icon className={cn("h-4 w-4", config.className)} />
-                                                        <span>{status}</span>
-                                                    </div>
-                                                </SelectItem>
-                                            );
-                                        })}
-                                    </SelectContent>
-                                </Select>
+                                            </SelectItem>
+                                        );
+                                    })}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3">
+                            <Label htmlFor="commentaire">Commentaire</Label>
+                            <Input
+                                id="commentaire"
+                                value={editingDoor.commentaire}
+                                onChange={(e) => setEditingDoor({ ...editingDoor, commentaire: e.target.value })}
+                                placeholder="Ajouter un commentaire..."
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="repassage"
+                                    checked={editingDoor.passage > 0} // Derived from passage
+                                    onCheckedChange={(checked) => setEditingDoor({ ...editingDoor, passage: checked ? 1 : 0 })} // Update passage based on checkbox
+                                />
+                                <Label htmlFor="repassage" className="font-medium">À repasser</Label>
                             </div>
-                            <div className="grid grid-cols-1 gap-3">
-                                <Label htmlFor="commentaire">Commentaire</Label>
+                            <div className="grid grid-cols-2 items-center gap-2">
+                                <Label htmlFor="nbPassages" className="text-right">Passages</Label>
                                 <Input
-                                    id="commentaire"
-                                    value={editingDoor.commentaire}
-                                    onChange={(e) => setEditingDoor({ ...editingDoor, commentaire: e.target.value })}
-                                    placeholder="Ajouter un commentaire..."
+                                    id="nbPassages"
+                                    type="number"
+                                    min="0"
+                                    value={editingDoor.nbPassages}
+                                    onChange={(e) => setEditingDoor({ ...editingDoor, nbPassages: parseInt(e.target.value, 10) || 0 })}
+                                    className="w-full"
                                 />
                             </div>
-                            <div className="grid grid-cols-2 items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="repassage"
-                                        checked={editingDoor.repassage}
-                                        onCheckedChange={(checked) => setEditingDoor({ ...editingDoor, repassage: checked as boolean })}
-                                    />
-                                    <Label htmlFor="repassage" className="font-medium">À repasser</Label>
-                                </div>
-                                <div className="grid grid-cols-2 items-center gap-2">
-                                    <Label htmlFor="nbPassages" className="text-right">Passages</Label>
-                                    <Input
-                                        id="nbPassages"
-                                        type="number"
-                                        min="0"
-                                        value={editingDoor.nbPassages}
-                                        onChange={(e) => setEditingDoor({ ...editingDoor, nbPassages: parseInt(e.target.value, 10) || 0 })}
-                                        className="w-full"
-                                    />
-                                </div>
-                            </div>
                         </div>
-                        <DialogFooter>
-                            <DialogClose asChild>
-                                <Button type="button" variant="secondary" className="bg-gray-200 text-black hover:bg-gray-300">Annuler</Button>
-                            </DialogClose>
-                            <Button type="submit" onClick={() => handleSaveDoor(editingDoor)} className="bg-green-600 text-white hover:bg-green-700" disabled={isSaving}>
-                                {isSaving ? "Enregistrement..." : "Enregistrer"}
-                            </Button>
-                        </DialogFooter>
-                        {saveError && <p className="text-red-500 text-sm mt-2">{saveError}</p>}
-                    </DialogContent>
-                </Dialog>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6">
+                        <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>Annuler</Button>
+                        <Button type="submit" onClick={() => handleSaveDoor(editingDoor)} className="bg-green-600 text-white hover:bg-green-700" disabled={isSaving}>
+                            {isSaving ? "Enregistrement..." : "Enregistrer"}
+                        </Button>
+                    </div>
+                    {saveError && <p className="text-red-500 text-sm mt-2">{saveError}</p>}
+                </Modal>
             )}
         </div>
     );

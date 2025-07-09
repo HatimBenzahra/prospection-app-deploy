@@ -7,9 +7,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  maxWidth?: string; // New prop for max-width
 }
 
-export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
+export const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-6xl" }: ModalProps) => {
   if (!isOpen) {
     return null;
   }
@@ -20,7 +21,7 @@ export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
       onClick={onClose}
     >
       <div
-        className="relative bg-white rounded-lg shadow-xl w-full max-w-6xl animate-in zoom-in-95"
+        className={`relative bg-white rounded-lg shadow-xl w-full ${maxWidth} animate-in zoom-in-95`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4">

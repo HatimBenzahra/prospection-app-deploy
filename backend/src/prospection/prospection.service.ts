@@ -8,29 +8,6 @@ import { PorteStatut, ProspectingMode } from '@prisma/client';
 export class ProspectionService {
   constructor(private prisma: PrismaService) {}
 
-  async getLatestImmeubles(commercialId: string) {
-    // Fetch the last 3 immeubles added by this commercial
-    const immeubles = await this.prisma.immeuble.findMany({
-      where: {
-        prospectors: {
-          some: {
-            id: commercialId,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: 3,
-      include: {
-        portes: true, // Include portes to check if they are already generated
-      },
-    });
-
-    // Filter out immeubles that already have portes generated
-    return immeubles.filter(immeuble => immeuble.portes.length === 0);
-  }
-
   async startProspection(dto: StartProspectionDto) {
     const { commercialId, immeubleId, mode, partnerId } = dto;
 

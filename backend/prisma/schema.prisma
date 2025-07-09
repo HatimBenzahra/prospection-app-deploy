@@ -159,6 +159,7 @@ enum PorteStatut {
   ABSENT
   REFUS
   CURIEUX
+  RDV
   CONTRAT_SIGNE
 }
 
