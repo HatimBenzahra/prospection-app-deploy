@@ -6,15 +6,23 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { ImmeubleService } from './immeuble.service';
 import { CreateImmeubleDto } from './dto/create-immeuble.dto';
 import { UpdateImmeubleDto } from './dto/update-immeuble.dto';
 import { CreateCommercialImmeubleDto } from './dto/create-commercial-immeuble.dto';
 import { UpdateCommercialImmeubleDto } from './dto/update-commercial-immeuble.dto';
+import { Request as ExpressRequest } from 'express';
+
+interface AuthenticatedRequest extends ExpressRequest {
+  user: any; // or a more specific type if you know it
+}
 
 // Admin Controller
 @Controller('admin/immeubles')
+// @UseGuards(AuthGuard('jwt-admin')) // Protect all routes in this controller for admins
 export class ImmeubleController {
   constructor(private readonly immeubleService: ImmeubleService) {}
 
@@ -58,32 +66,36 @@ export class CommercialImmeubleController {
   constructor(private readonly immeubleService: ImmeubleService) {}
 
   @Post()
-  create(@Body() createDto: CreateCommercialImmeubleDto) {
-    const { commercialId, ...rest } = createDto;
-    return this.immeubleService.createForCommercial(rest, commercialId);
+  create(@Body() createDto: CreateCommercialImmeubleDto, @Request() req: AuthenticatedRequest) {
+    const commercialId = req.user.id; // Assuming user ID is on the request
+    return this.immeubleService.createForCommercial(createDto, commercialId);
   }
 
-  @Get('by-commercial/:commercialId')
-  findAll(@Param('commercialId') commercialId: string) {
+  @Get()
+  findAll(@Request() req: AuthenticatedRequest) {
+    const commercialId = req.user.id;
     return this.immeubleService.findAllForCommercial(commercialId);
   }
 
-  @Get(':id/for-commercial/:commercialId')
-  findOne(@Param('id') id: string, @Param('commercialId') commercialId: string) {
+  @Get(':id')
+  findOne(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    const commercialId = req.user.id;
     return this.immeubleService.findOneForCommercial(id, commercialId);
   }
 
-  @Patch(':id/for-commercial/:commercialId')
+  @Patch(':id')
   update(
     @Param('id') id: string,
-    @Param('commercialId') commercialId: string,
     @Body() updateDto: UpdateCommercialImmeubleDto,
+    @Request() req: AuthenticatedRequest,
   ) {
+    const commercialId = req.user.id;
     return this.immeubleService.updateForCommercial(id, updateDto, commercialId);
   }
 
-  @Delete(':id/for-commercial/:commercialId')
-  remove(@Param('id') id: string, @Param('commercialId') commercialId: string) {
+  @Delete(':id')
+  remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    const commercialId = req.user.id;
     return this.immeubleService.removeForCommercial(id, commercialId);
   }
 }

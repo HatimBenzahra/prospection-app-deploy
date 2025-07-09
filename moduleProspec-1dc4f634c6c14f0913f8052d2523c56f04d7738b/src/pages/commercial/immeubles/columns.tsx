@@ -1,7 +1,7 @@
 "use client"
 
 import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, Edit, Trash2 } from "lucide-react"
+import { ArrowUpDown, Edit } from "lucide-react"
 import { Button } from "@/components/ui-admin/button"
 import { Checkbox } from "@/components/ui-admin/checkbox"
 import { Badge } from "@/components/ui-admin/badge"

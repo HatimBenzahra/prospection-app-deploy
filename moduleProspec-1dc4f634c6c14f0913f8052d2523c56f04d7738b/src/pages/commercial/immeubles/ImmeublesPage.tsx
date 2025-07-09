@@ -8,30 +8,48 @@ import { Checkbox } from "@/components/ui-admin/checkbox";
 import { toast } from 'sonner';
 import type { RowSelectionState } from "@tanstack/react-table";
 import { Building2 } from "lucide-react";
-import { immeubleService, type ImmeubleFormData } from "@/services/immeuble.service";
+import { immeubleService } from "@/services/immeuble.service";
 import { createImmeublesColumns, type ImmeubleCommercial } from './columns';
+import { useAuth } from "@/contexts/AuthContext";
+
+// Define a more specific type for the form data
+interface ImmeubleFormData {
+  adresse: string;
+  ville: string;
+  codePostal: string;
+  nbPortesTotal: number;
+  nom: string;
+  hasElevator: boolean;
+  digicode: string | null;
+}
+
+type ImmeubleCommercialExtended = ImmeubleCommercial & {
+  ville?: string;
+  codePostal?: string;
+  nbPortesTotal?: number;
+  hasElevator?: boolean;
+  digicode?: string | null;
+};
 
 const ImmeublesPage = () => {
-  const [data, setData] = useState<ImmeubleCommercial[]>([]);
+  const { user } = useAuth();
+  const [data, setData] = useState<ImmeubleCommercialExtended[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingImmeuble, setEditingImmeuble] = useState<ImmeubleCommercial | null>(null);
+  const [editingImmeuble, setEditingImmeuble] = useState<ImmeubleCommercialExtended | null>(null);
   const [formData, setFormData] = useState<ImmeubleFormData>({
     adresse: '', ville: '', codePostal: '', nbPortesTotal: 0, nom: '', hasElevator: false, digicode: ''
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const fetchData = async () => {
+    if (!user) return;
     setLoading(true);
     try {
-      const immeublesFromApi = await immeubleService.getMyImmeubles();
-      setData(immeublesFromApi);
+      const immeublesFromApi = await immeubleService.getImmeublesForCommercial(user.id);
+      setData(immeublesFromApi as ImmeubleCommercialExtended[]);
     } catch (error) {
       toast.error("Erreur lors de la récupération de vos immeubles.");
       console.error(error);
@@ -40,23 +58,26 @@ const ImmeublesPage = () => {
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, [user]);
+
   const openAddModal = () => {
     setEditingImmeuble(null);
-    setFormData({ adresse: '', ville: 'Lyon', codePostal: '6900', nbPortesTotal: 10, nom: '', hasElevator: false, digicode: '' });
+    setFormData({ adresse: '', ville: 'Lyon', codePostal: '69000', nbPortesTotal: 10, nom: '', hasElevator: false, digicode: '' });
     setIsModalOpen(true);
   };
 
-  const openEditModal = (immeuble: ImmeubleCommercial) => {
+  const openEditModal = (immeuble: ImmeubleCommercialExtended) => {
     setEditingImmeuble(immeuble);
     setFormData({
       adresse: immeuble.adresse,
       nom: immeuble.nom || '',
-      // Vous devrez peut-être récupérer ces infos de l'API si elles ne sont pas dans la table
-      ville: 'Lyon',
-      codePostal: '69000',
-      nbPortesTotal: 10, // Exemple, à récupérer de l'API
-      hasElevator: false,
-      digicode: '',
+      ville: immeuble.ville || 'Lyon',
+      codePostal: immeuble.codePostal || '69000',
+      nbPortesTotal: immeuble.nbPortesTotal || 10,
+      hasElevator: immeuble.hasElevator || false,
+      digicode: immeuble.digicode || '',
     });
     setIsModalOpen(true);
   };
@@ -67,12 +88,16 @@ const ImmeublesPage = () => {
   };
 
   const handleSave = async () => {
+    if (!user) {
+      toast.error("Vous devez être connecté pour effectuer cette action.");
+      return;
+    }
     try {
       if (editingImmeuble) {
-        await immeubleService.updateMyImmeuble(editingImmeuble.id, formData);
+        await immeubleService.updateImmeubleForCommercial(editingImmeuble.id, formData, user.id);
         toast.success("Immeuble mis à jour avec succès !");
       } else {
-        await immeubleService.createMyImmeuble(formData);
+        await immeubleService.createImmeubleForCommercial(formData, user.id);
         toast.success("Immeuble ajouté avec succès !");
       }
       setIsModalOpen(false);
@@ -84,10 +109,18 @@ const ImmeublesPage = () => {
   };
 
   const handleDelete = async () => {
+    if (!user) {
+      toast.error("Vous devez être connecté pour effectuer cette action.");
+      return;
+    }
     const itemsToDelete = Object.keys(rowSelection);
     if (itemsToDelete.length === 0) return;
     
-    toast.promise(Promise.all(itemsToDelete.map(id => immeubleService.deleteMyImmeuble(data[parseInt(id)].id))), {
+    const promises = itemsToDelete.map(index => 
+      immeubleService.deleteImmeubleForCommercial(data[parseInt(index)].id, user.id)
+    );
+
+    toast.promise(Promise.all(promises), {
       loading: 'Suppression en cours...',
       success: () => {
         setIsDeleteMode(false);
@@ -140,7 +173,7 @@ const ImmeublesPage = () => {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
               <Label htmlFor="nom" className="text-right sm:text-left">Nom/Réf.</Label>
-              <Input id="nom" value={formData.nom} onChange={handleInputChange} className="col-span-3" placeholder="Ex: Résidence Le Parc"/>
+              <Input id="nom" value={formData.nom || ''} onChange={handleInputChange} className="col-span-3" placeholder="Ex: Résidence Le Parc"/>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
               <Label htmlFor="adresse" className="text-right sm:text-left">Adresse</Label>
@@ -153,7 +186,7 @@ const ImmeublesPage = () => {
             </div>
              <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
               <Label htmlFor="digicode" className="text-right sm:text-left">Digicode</Label>
-              <Input id="digicode" value={formData.digicode} onChange={handleInputChange} className="col-span-3" />
+              <Input id="digicode" value={formData.digicode || ''} onChange={handleInputChange} className="col-span-3" />
             </div>
              <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
                <Label htmlFor="hasElevator" className="text-right sm:text-left">Ascenseur</Label>
@@ -166,7 +199,7 @@ const ImmeublesPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 

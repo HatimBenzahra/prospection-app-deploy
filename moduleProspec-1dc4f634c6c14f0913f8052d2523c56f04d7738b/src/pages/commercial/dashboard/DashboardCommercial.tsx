@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { statisticsService } from '@/services/statistics.service';
 import { assignmentGoalsService } from '@/services/assignment-goals.service';
 import { Button } from '@/components/ui-admin/button';
+import { useNavigate } from 'react-router-dom';
 
 // --- Composants UI ---
 import StatCard from '@/components/ui-admin/StatCard';
@@ -61,6 +62,7 @@ const CommercialDashboardPage = () => {
     const [assignedZone, setAssignedZone] = useState<ZoneData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -135,7 +137,6 @@ const CommercialDashboardPage = () => {
                         description="Progression de votre objectif de contrats mensuel."
                         value={currentStats.contratsSignes || 0}
                         total={currentStats.objectifMensuel || 0}
-                        className="flex-grow"
                     />
                     <Card className="flex-grow flex flex-col">
                         <CardHeader className="pb-4">
@@ -143,7 +144,7 @@ const CommercialDashboardPage = () => {
                         </CardHeader>
                         <CardContent className="flex-grow flex flex-col sm:flex-row items-center justify-center gap-4">
                             <Button
-                                variant="unstyled"
+                                variant="ghost"
                                 className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition"
                                 onClick={() => navigate('/commercial/prospecting')}
                             >
@@ -151,7 +152,7 @@ const CommercialDashboardPage = () => {
                                 <span className="text-base font-medium">Prospection</span>
                             </Button>
                             <Button
-                                variant="unstyled"
+                                variant="ghost"
                                 className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-green-500 text-white hover:bg-green-600 transition"
                                 onClick={() => navigate('/commercial/dashboard')}
                             >
@@ -159,7 +160,7 @@ const CommercialDashboardPage = () => {
                                 <span className="text-base font-medium">Statistiques</span>
                             </Button>
                             <Button
-                                variant="unstyled"
+                                variant="ghost"
                                 className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-purple-500 text-white hover:bg-purple-600 transition"
                                 onClick={() => navigate('/commercial/immeubles')}
                             >
