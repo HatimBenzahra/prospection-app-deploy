@@ -88,7 +88,7 @@ const SelectBuildingPage = () => {
     };
 
     return (
-        <div className="container mx-auto py-8">
+        <div className="container mx-auto py-8 p-4">
             <Card className="max-w-4xl mx-auto">
                 <CardHeader>
                     <CardTitle className="text-2xl flex items-center gap-3">

@@ -167,36 +167,35 @@ const CommercialImmeublesPage: React.FC = () => {
   if (error) return <div className="text-red-500 p-4">{error}</div>;
 
   return (
-    <div className="container mx-auto py-10">
-      <Card>
+    <div className="py-10 p-4">
+      <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Mes Immeubles</CardTitle>
           <Button onClick={() => handleOpenModal()} className="bg-black text-white hover:bg-gray-800"><PlusCircle className="mr-2 h-4 w-4" /> Ajouter un immeuble</Button>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {immeubles.map((immeuble) => (
-              <Card key={immeuble.id} className="flex flex-col border-border bg-card text-card-foreground shadow-sm">
-                <CardHeader className="flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-lg">{immeuble.adresse}</CardTitle>
+              <Card key={immeuble.id} className="flex flex-col h-full border-border bg-card text-card-foreground shadow-sm min-w-0 flex-shrink-0">
+                <CardHeader className="flex-row items-center justify-between pb-2 min-w-0">
+                  <CardTitle className="text-lg break-words">{immeuble.adresse}</CardTitle>
                   <Building className="h-6 w-6 text-muted-foreground" />
                 </CardHeader>
-                <CardContent className="flex-grow text-muted-foreground">
-                  <CardDescription className="text-sm">
+                <CardContent className="text-muted-foreground">
+                  <CardDescription className="text-sm break-words w-full">
                     {immeuble.ville}, {immeuble.codePostal}
                   </CardDescription>
-                  <div className="mt-2 text-sm">
-                    <p><strong>Statut:</strong> <span className="font-medium text-foreground">{immeuble.status}</span></p>
-                    <p><strong>Zone:</strong> <span className="font-medium text-foreground">{immeuble.zone?.nom ?? 'N/A'}</span></p>
-                    <p><strong>Portes:</strong> <span className="font-medium text-foreground">{immeuble.nbPortesTotal}</span></p>
-                    <p><strong>Ascenseur:</strong> <span className="font-medium text-foreground">{immeuble.hasElevator ? 'Oui' : 'Non'}</span></p>
-                    {immeuble.digicode && <p><strong>Digicode:</strong> <span className="font-medium text-foreground">{immeuble.digicode}</span></p>}
-                    
+                  <div className="mt-2 text-sm break-words w-full">
+                    <p className="min-w-0"><strong>Statut:</strong> <span className="font-medium text-foreground break-words">{immeuble.status}</span></p>
+                    <p className="min-w-0"><strong>Zone:</strong> <span className="font-medium text-foreground break-words">{immeuble.zone?.nom ?? 'N/A'}</span></p>
+                    <p className="min-w-0"><strong>Portes:</strong> <span className="font-medium text-foreground break-words">{immeuble.nbPortesTotal}</span></p>
+                    <p className="min-w-0"><strong>Ascenseur:</strong> <span className="font-medium text-foreground break-words">{immeuble.hasElevator ? 'Oui' : 'Non'}</span></p>
+                    {immeuble.digicode && <p className="min-w-0"><strong>Digicode:</strong> <span className="font-medium text-foreground break-words">{immeuble.digicode}</span></p>}
                   </div>
                 </CardContent>
-                <div className="flex justify-end p-4 pt-0 space-x-2">
-                  <Button className="bg-black text-white hover:bg-gray-800" size="sm" onClick={() => handleOpenModal(immeuble)}><Edit className="h-4 w-4 mr-2" />Modifier</Button>
-                  <Button className="bg-black text-white hover:bg-gray-800" size="sm" onClick={() => handleDelete(immeuble.id)}><Trash2 className="h-4 w-4 mr-2" />Supprimer</Button>
+                <div className="flex flex-col sm:flex-row justify-end items-end p-4 pt-0 gap-2">
+                  <Button className="bg-black text-white hover:bg-gray-800 w-full sm:w-auto" size="sm" onClick={() => handleOpenModal(immeuble)}><Edit className="h-4 w-4 mr-2" />Modifier</Button>
+                  <Button className="bg-black text-white hover:bg-gray-800 w-full sm:w-auto" size="sm" onClick={() => handleDelete(immeuble.id)}><Trash2 className="h-4 w-4 mr-2" />Supprimer</Button>
                 </div>
               </Card>
             ))}
@@ -210,7 +209,7 @@ const CommercialImmeublesPage: React.FC = () => {
       </Card>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="bg-white">
+        <DialogContent className="sm:max-w-lg bg-white">
           <DialogHeader>
             <DialogTitle>{editingImmeuble ? 'Modifier' : 'Ajouter'} un immeuble</DialogTitle>
             <DialogDescription>Renseignez les informations de l'immeuble. La latitude et longitude sont calculées automatiquement.</DialogDescription>

@@ -33,16 +33,16 @@ interface ZoneFocusMapProps {
 export const ZoneFocusMap = ({ zone, immeubles }: ZoneFocusMapProps) => {
   return (
     // --- MODIFICATION ICI ---
-    <div className="relative z-10 h-full w-full rounded-lg overflow-hidden border-2 border-[hsl(var(--winvest-blue-clair))]">
+    <div className="relative z-10 h-full min-h-[500px] w-full rounded-lg overflow-hidden border-2 border-[hsl(var(--winvest-blue-clair))]">
         <MapContainer 
             center={zone.latlng} 
             zoom={14} 
             style={{ height: '100%', width: '100%' }}
-            dragging={false}
-            zoomControl={false}
-            scrollWheelZoom={false}
-            doubleClickZoom={false}
-            touchZoom={false}
+            dragging={true}
+            zoomControl={true}
+            scrollWheelZoom={true}
+            doubleClickZoom={true}
+            touchZoom={true}
         >
             <TileLayer
                 attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

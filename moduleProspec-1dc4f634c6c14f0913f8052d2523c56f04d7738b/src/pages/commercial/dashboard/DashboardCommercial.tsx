@@ -1,14 +1,13 @@
-// src/pages/commercial/DashboardCommercial.tsx (MODIFIÉ)
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { statisticsService } from '@/services/statistics.service';
 import { assignmentGoalsService } from '@/services/assignment-goals.service';
+import { Button } from '@/components/ui-admin/button';
 
 // --- Composants UI ---
 import StatCard from '@/components/ui-admin/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
-import { CheckCircle, DoorOpen, MapPin, ZapOff, Percent } from 'lucide-react';
+import { CheckCircle, DoorOpen, MapPin, ZapOff, Percent, BarChart, Building } from 'lucide-react';
 import { GenericLineChart } from '@/components/charts/GenericLineChart';
 import { ZoneFocusMap } from './ZoneFocusMap';
 import { GoalProgressCard } from '@/components/ui-commercial/GoalProgressCard';
@@ -47,11 +46,13 @@ const NoZoneAssigned = () => (
             <CardTitle>Aucune zone assignée</CardTitle>
         </CardHeader>
         <CardContent>
-            <p className="text-muted-foreground">Aucune zone de prospection ne vous est actuellement assignée pour ce mois. <br /> Veuillez contacter votre manager.</p>
+            <p className="text-muted-foreground">
+                Aucune zone de prospection ne vous est actuellement assignée pour ce mois.<br />
+                Veuillez contacter votre manager.
+            </p>
         </CardContent>
     </Card>
 );
-
 
 const CommercialDashboardPage = () => {
     const { user } = useAuth();
@@ -80,7 +81,6 @@ const CommercialDashboardPage = () => {
                 ]);
                 setStats(statsData);
                 setHistory(historyData);
-                // On prend la première zone assignée pour l'affichage
                 setAssignedZone(zonesData.length > 0 ? zonesData[0] : null);
             } catch (err) {
                 console.error('Erreur lors du chargement des données du commercial:', err);
@@ -93,20 +93,22 @@ const CommercialDashboardPage = () => {
         fetchData();
     }, [user]);
 
-    const activitePortesData = history.map((item: any) => ({
-        name: new Date(item.dateProspection).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
-        "Portes Visitées": item.nbPortesVisitees,
-        "RDV Pris": item.nbRdvPris,
-        "Contrats Signés": item.nbContratsSignes,
-    })).reverse();
-    
+    const activitePortesData = history
+        .map((item: any) => ({
+            name: new Date(item.dateProspection).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
+            'Portes Visitées': item.nbPortesVisitees,
+            'RDV Pris': item.nbRdvPris,
+            'Contrats Signés': item.nbContratsSignes,
+        }))
+        .reverse();
+
     if (loading) return <DashboardSkeleton />;
     if (error) return <div className="text-center py-8 text-red-500">{error}</div>;
 
     const currentStats = stats?.kpis || {};
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 max-w-7xl mx-auto p-4">
             <div>
                 <h1 className="text-3xl font-bold">Tableau de Bord</h1>
                 <p className="text-muted-foreground">Bienvenue, {user?.name} ! Voici un résumé de votre activité.</p>
@@ -114,28 +116,61 @@ const CommercialDashboardPage = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {assignedZone ? (
-                    <ZoneFocusMap 
+                    <ZoneFocusMap
                         zone={{
                             nom: assignedZone.nom,
                             latlng: [assignedZone.latitude, assignedZone.longitude],
                             radius: assignedZone.rayonMetres,
-                            color: assignedZone.couleur
+                            color: assignedZone.couleur,
                         }}
-                        // Pour l'instant, pas d'immeubles sur cette carte simplifiée
                         immeubles={[]}
                     />
                 ) : (
                     <NoZoneAssigned />
                 )}
-                
-                <GoalProgressCard
-                    title="Objectif du Mois"
-                    description="Progression de votre objectif de contrats mensuel."
-                    value={currentStats.contratsSignes || 0}
-                    total={currentStats.objectifMensuel || 0}
-                />
+
+                <div className="flex flex-col h-full gap-6">
+                    <GoalProgressCard
+                        title="Objectif du Mois"
+                        description="Progression de votre objectif de contrats mensuel."
+                        value={currentStats.contratsSignes || 0}
+                        total={currentStats.objectifMensuel || 0}
+                        className="flex-grow"
+                    />
+                    <Card className="flex-grow flex flex-col">
+                        <CardHeader className="pb-4">
+                            <CardTitle>Accès Rapide</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-grow flex flex-col sm:flex-row items-center justify-center gap-4">
+                            <Button
+                                variant="unstyled"
+                                className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition"
+                                onClick={() => navigate('/commercial/prospecting')}
+                            >
+                                <MapPin className="h-6 w-6" />
+                                <span className="text-base font-medium">Prospection</span>
+                            </Button>
+                            <Button
+                                variant="unstyled"
+                                className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-green-500 text-white hover:bg-green-600 transition"
+                                onClick={() => navigate('/commercial/dashboard')}
+                            >
+                                <BarChart className="h-6 w-6" />
+                                <span className="text-base font-medium">Statistiques</span>
+                            </Button>
+                            <Button
+                                variant="unstyled"
+                                className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-purple-500 text-white hover:bg-purple-600 transition"
+                                onClick={() => navigate('/commercial/immeubles')}
+                            >
+                                <Building className="h-6 w-6" />
+                                <span className="text-base font-medium">Immeubles</span>
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
-            
+
             <div className="space-y-4">
                 <h2 className="text-2xl font-semibold">Vos Performances Clés</h2>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -145,15 +180,15 @@ const CommercialDashboardPage = () => {
                     <StatCard title="Taux de Conversion" value={currentStats.tauxDeConversion || 0} Icon={Percent} color="text-violet-500" suffix="%" />
                 </div>
             </div>
-            
-            <GenericLineChart 
+
+            <GenericLineChart
                 title="Activité de Prospection"
-                data={activitePortesData} 
-                xAxisDataKey="name" 
+                data={activitePortesData}
+                xAxisDataKey="name"
                 lines={[
-                    { dataKey: 'Portes Visitées', name: "Portes", stroke: 'hsl(var(--winvest-blue-profond))' },
-                    { dataKey: 'RDV Pris', name: "RDV", stroke: 'hsl(var(--winvest-blue-moyen))' },
-                    { dataKey: 'Contrats Signés', name: "Contrats", stroke: 'hsl(var(--emerald-500))' }
+                    { dataKey: 'Portes Visitées', name: 'Portes', stroke: 'hsl(var(--winvest-blue-profond))' },
+                    { dataKey: 'RDV Pris', name: 'RDV', stroke: 'hsl(var(--winvest-blue-moyen))' },
+                    { dataKey: 'Contrats Signés', name: 'Contrats', stroke: 'hsl(var(--emerald-500))' },
                 ]}
             />
         </div>

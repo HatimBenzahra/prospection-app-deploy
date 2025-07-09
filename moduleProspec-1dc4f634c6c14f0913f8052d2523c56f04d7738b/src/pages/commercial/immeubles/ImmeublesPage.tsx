@@ -106,7 +106,7 @@ const ImmeublesPage = () => {
   if (loading) return <div>Chargement...</div>;
 
   return (
-    <>
+    <div className="space-y-8 max-w-7xl mx-auto p-4">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
@@ -138,25 +138,25 @@ const ImmeublesPage = () => {
             <DialogTitle>{editingImmeuble ? "Modifier l'immeuble" : "Ajouter un immeuble"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="nom" className="text-right">Nom/Réf.</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+              <Label htmlFor="nom" className="text-right sm:text-left">Nom/Réf.</Label>
               <Input id="nom" value={formData.nom} onChange={handleInputChange} className="col-span-3" placeholder="Ex: Résidence Le Parc"/>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="adresse" className="text-right">Adresse</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+              <Label htmlFor="adresse" className="text-right sm:text-left">Adresse</Label>
               <Input id="adresse" value={formData.adresse} onChange={handleInputChange} className="col-span-3" required />
             </div>
             {/* Ajoutez les autres champs ici : ville, codePostal, nbPortesTotal, etc. */}
-             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="nbPortesTotal" className="text-right">Portes</Label>
+             <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+              <Label htmlFor="nbPortesTotal" className="text-right sm:text-left">Portes</Label>
               <Input id="nbPortesTotal" type="number" value={formData.nbPortesTotal} onChange={handleInputChange} className="col-span-3" />
             </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="digicode" className="text-right">Digicode</Label>
+             <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+              <Label htmlFor="digicode" className="text-right sm:text-left">Digicode</Label>
               <Input id="digicode" value={formData.digicode} onChange={handleInputChange} className="col-span-3" />
             </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-               <Label htmlFor="hasElevator" className="text-right">Ascenseur</Label>
+             <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+               <Label htmlFor="hasElevator" className="text-right sm:text-left">Ascenseur</Label>
               <Checkbox id="hasElevator" checked={formData.hasElevator} onCheckedChange={(checked) => setFormData(p => ({...p, hasElevator: checked as boolean}))} />
             </div>
           </div>

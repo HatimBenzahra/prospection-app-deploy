@@ -118,7 +118,7 @@ const ProspectingDoorsPage = () => {
     }
 
     return (
-        <div className="container mx-auto py-8">
+        <div className="container mx-auto py-8 p-4">
             <Button variant="outline" onClick={() => navigate(`/commercial/prospecting/setup/${buildingId}`)} className="mb-4">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Retour au choix du mode
             </Button>
@@ -151,7 +151,7 @@ const ProspectingDoorsPage = () => {
 
             {editingDoor && (
                 <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                    <DialogContent className="sm:max-w-[425px] bg-white">
+                    <DialogContent className="sm:max-w-lg bg-white">
                         <DialogHeader>
                             <DialogTitle>Éditer la Porte n°{editingDoor.numero}</DialogTitle>
                             <CardDescription>
