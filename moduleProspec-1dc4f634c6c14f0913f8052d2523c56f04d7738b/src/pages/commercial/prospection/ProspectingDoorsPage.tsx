@@ -10,8 +10,6 @@ import { Input } from '@/components/ui-admin/input';
 import { Button } from '@/components/ui-admin/button';
 import { Skeleton } from '@/components/ui-admin/skeleton';
 import { Label } from '@/components/ui-admin/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui-admin/select';
-import { Checkbox } from '@/components/ui-admin/checkbox';
 import { immeubleService, type ImmeubleDetailsFromApi } from '@/services/immeuble.service';
 import { porteService } from '@/services/porte.service';
 import { cn } from '@/lib/utils';
