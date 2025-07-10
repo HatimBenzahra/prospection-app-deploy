@@ -37,8 +37,9 @@ const PageSkeleton = () => (
 );
 
 const buildingStatusMap: { [key: string]: { label: string; className: string } } = {
-    NON_COMMENCE: { label: "Non commencé", className: "bg-gray-100 text-gray-800" },
-    EN_COURS: { label: "En cours", className: "bg-[hsl(var(--winvest-blue-moyen))] text-white" }, // Using winvest-blue-moyen
+    NON_CONFIGURE: { label: "Non configuré", className: "bg-gray-200 text-gray-700" },
+    NON_COMMENCE: { label: "Non commencé", className: "bg-yellow-100 text-yellow-800" },
+    EN_COURS: { label: "En cours", className: "bg-[hsl(var(--winvest-blue-moyen))] text-white" },
 };
 
 const SelectBuildingPage = () => {
@@ -78,7 +79,10 @@ const SelectBuildingPage = () => {
     }, [allImmeubles, searchTerm]);
 
     const getProspectingStatus = (immeuble: ImmeubleFromApi) => {
-        const configuredDoors = immeuble.portes?.filter(porte => porte.statut !== 'NON_VISITE').length || 0;
+        if (!immeuble.portes || immeuble.portes.length === 0) {
+            return buildingStatusMap.NON_CONFIGURE;
+        }
+        const configuredDoors = immeuble.portes.filter(porte => porte.statut !== 'NON_VISITE').length || 0;
         if (configuredDoors > 0) {
             return {
                 label: `Commencé (${configuredDoors}/${immeuble.nbPortesTotal})`,
@@ -94,10 +98,10 @@ const SelectBuildingPage = () => {
             const selectedBuilding = allImmeubles.find(b => b.id === selectedBuildingId);
             if (selectedBuilding && selectedBuilding.prospectingMode && selectedBuilding.portes && selectedBuilding.portes.length > 0) {
                 // If already configured, go directly to doors page
-                navigate(`/commercial/prospection/doors/${selectedBuildingId}`);
+                navigate(`doors/${selectedBuildingId}`);
             } else {
                 // Otherwise, go to setup page
-                navigate(`/commercial/prospection/setup/${selectedBuildingId}`);
+                navigate(`setup/${selectedBuildingId}`);
             }
         }
     };
@@ -107,8 +111,8 @@ const SelectBuildingPage = () => {
     }
 
     return (
-        <div className="container mx-auto py-8 p-4 min-h-screen flex items-center justify-center">
-            <Card className="w-full md:max-w-4xl mx-auto shadow-lg rounded-lg">
+        <div className="container mx-auto min-h-screen relative">
+            <Card className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full md:max-w-4xl shadow-lg rounded-lg">
                 <CardHeader>
                     <CardTitle className="text-2xl flex items-center gap-3">
                         <Building className="h-6 w-6 text-primary"/>
