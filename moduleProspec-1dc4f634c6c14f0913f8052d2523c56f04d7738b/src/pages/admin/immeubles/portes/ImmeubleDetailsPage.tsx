@@ -12,7 +12,7 @@ import { Button } from '@/components/ui-admin/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
 import { Skeleton } from '@/components/ui-admin/skeleton';
 import { DataTable } from '@/components/data-table/DataTable';
-import type { Porte } from './portes-columns';
+import type { Porte, PorteStatus } from './portes-columns.tsx';
 import { createPortesColumns } from './portes-columns';
 import { GenericRadialBarChart } from '@/components/ui-admin/GenericRadialBarChart';
 import { immeubleService } from '@/services/immeuble.service';
@@ -115,9 +115,10 @@ const ImmeubleDetailsPage = () => {
                     return {
                         id: p.id,
                         numeroPorte: p.numeroPorte,
-                        statut: p.statut, // Directly use status from API
+                        statut: p.statut as PorteStatus, // Explicitly cast to PorteStatus
                         passage: p.passage,
-                        commentaire: p.commentaire || null, // Map to null if empty
+                        commentaire: p.commentaire || null,
+                        assigneeId: p.assigneeId || null, // Ensure assigneeId is included
                     }
                 }),
                 stats: detailsFromApi.stats,
@@ -148,7 +149,7 @@ const ImmeubleDetailsPage = () => {
         return allPortes;
     }, [immeuble]);
 
-    const portesColumns = useMemo(() => createPortesColumns(immeuble?.prospectors || []), [immeuble?.prospectors]);
+        const portesColumns = useMemo(() => createPortesColumns(immeuble?.prospectors || []), [immeuble?.prospectors]);
 
     if (loading) {
         return (

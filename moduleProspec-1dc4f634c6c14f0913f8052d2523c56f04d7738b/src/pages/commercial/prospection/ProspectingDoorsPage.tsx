@@ -136,14 +136,20 @@ const ProspectingDoorsPage = () => {
         setSaveError(null);
         console.log("Attempting to save door:", updatedDoor);
         console.log("Door ID:", updatedDoor.id);
+
+        let newPassage = updatedDoor.passage;
+        if (updatedDoor.statut === 'ABSENT' || updatedDoor.statut === 'CURIEUX' || updatedDoor.statut === 'RDV') {
+            newPassage = Math.min(updatedDoor.passage + 1, 3); // Increment up to max 3
+        }
+
         try {
             await porteService.updatePorte(updatedDoor.id, {
                 statut: updatedDoor.statut, // Use 'statut' as per Porte type
                 commentaire: updatedDoor.commentaire || '', // Ensure it's a string
-                passage: updatedDoor.passage || 0, // Ensure it's a number
+                passage: newPassage, // Use the calculated newPassage
                 assigneeId: user.id, // Include the commercial's ID
             });
-            setPortes(portes.map(p => p.id === updatedDoor.id ? updatedDoor : p));
+            setPortes(portes.map(p => p.id === updatedDoor.id ? { ...updatedDoor, passage: newPassage } : p));
             setIsModalOpen(false);
             setEditingDoor(null);
         } catch (error) {
@@ -262,18 +268,24 @@ const ProspectingDoorsPage = () => {
                                     checked={editingDoor.passage > 0} // Derived from passage
                                     onCheckedChange={(checked) => setEditingDoor({ ...editingDoor, passage: checked ? 1 : 0 })} // Update passage based on checkbox
                                 />
-                                <Label htmlFor="repassage" className="font-medium">À repasser</Label>
+                                <Label htmlFor="repassage" className="font-medium">
+                                    {editingDoor.passage >= 3 ? "Non intéressé" : "À repasser"}
+                                </Label>
                             </div>
                             <div className="grid grid-cols-2 items-center gap-2">
                                 <Label htmlFor="passage" className="text-right">Passages</Label>
-                                    <Input
-                                        id="passage"
-                                        type="number"
-                                        min="0"
-                                        value={editingDoor.passage}
-                                        onChange={(e) => setEditingDoor({ ...editingDoor, passage: parseInt(e.target.value, 10) || 0 })}
-                                        className="w-full"
-                                    />
+                                    {editingDoor.passage >= 3 ? (
+                                        <span className="text-red-500 font-semibold">Non intéressé</span>
+                                    ) : (
+                                        <Input
+                                            id="passage"
+                                            type="number"
+                                            min="0"
+                                            value={editingDoor.passage}
+                                            onChange={(e) => setEditingDoor({ ...editingDoor, passage: parseInt(e.target.value, 10) || 0 })}
+                                            className="w-full"
+                                        />
+                                    )}
                             </div>
                         </div>
                     </div>

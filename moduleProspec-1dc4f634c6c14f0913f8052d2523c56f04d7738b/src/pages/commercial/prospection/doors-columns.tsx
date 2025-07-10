@@ -66,13 +66,31 @@ export const createDoorsColumns = (
         accessorKey: "repassage",
         header: "Repassage",
         cell: ({ row }) => {
-            if (row.original.passage === 0) return <span className="text-muted-foreground">-</span>;
-            return (
-                <div className="flex items-center gap-2 text-yellow-600 font-semibold">
-                    <Repeat className="h-4 w-4" />
-                    <span>À revoir</span>
-                </div>
-            )
+            const { statut, passage } = row.original;
+
+            // Define statuses where repassage is not applicable
+            const noRepassageStatuses: PorteStatus[] = ["NON_VISITE", "VISITE", "CONTRAT_SIGNE", "REFUS"];
+
+            if (noRepassageStatuses.includes(statut)) {
+                return <span className="text-muted-foreground">-</span>;
+            }
+
+            // For statuses that might require repassage
+            if (passage < 3) {
+                return (
+                    <div className="flex items-center gap-2 text-yellow-600 font-semibold">
+                        <Repeat className="h-4 w-4" />
+                        <span>À revoir</span>
+                    </div>
+                );
+            } else { // passage >= 3
+                return (
+                    <div className="flex items-center gap-2 text-red-600 font-semibold">
+                        <Repeat className="h-4 w-4" />
+                        <span>Non intéressé</span>
+                    </div>
+                );
+            }
         }
     },
     {
