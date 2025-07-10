@@ -151,16 +151,20 @@ const SelectBuildingPage = () => {
                                                             {immeuble.adresse}, {immeuble.ville}
                                                         </span>
                                                         <span className="text-sm text-muted-foreground flex items-center gap-1">
-                                                            <CalendarIcon className="h-4 w-4" />
-                                                            {format(new Date(immeuble.createdAt), "d MMM yyyy", { locale: fr })}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between mt-1">
-                                                        <p className="text-sm text-muted-foreground">{immeuble.nbPortesTotal} portes</p>
-                                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${prospectingStatus.className}`}>
-                                                            {prospectingStatus.label}
-                                                        </span>
-                                                    </div>
+                                                                    <CalendarIcon className="h-4 w-4" />
+                                                                    {format(new Date(immeuble.createdAt), "d MMM yyyy", { locale: fr })}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between mt-1">
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    {immeuble.prospectingMode === 'DUO' 
+                                                                        ? `${Math.ceil(immeuble.nbPortesTotal / 2)} / ${immeuble.nbPortesTotal} portes (Duo)`
+                                                                        : `${immeuble.nbPortesTotal} portes (Solo)`}
+                                                                </p>
+                                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${prospectingStatus.className}`}>
+                                                                    {prospectingStatus.label}
+                                                                </span>
+                                                            </div>
                                                 </Label>
                                             </div>
                                         </div>

@@ -19,6 +19,7 @@ export interface ImmeubleFromApi {
   hasElevator: boolean;
   digicode: string | null;
   createdAt: string;
+  prospectingMode: 'SOLO' | 'DUO'; // Added prospectingMode
 }
 
 export interface ImmeubleDetailsFromApi extends ImmeubleFromApi {
