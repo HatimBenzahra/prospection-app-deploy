@@ -12,6 +12,7 @@ import type { DateRange } from 'react-day-picker';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { Button } from '@/components/ui-admin/button';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 
 interface HistoryEntry {
   id: string;
@@ -149,9 +150,16 @@ const HistoriquePage = () => {
       {filteredHistory.length === 0 ? (
         <div className="text-center text-gray-500 py-10">Aucun historique de prospection ne correspond à vos filtres.</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-1 gap-6 py-6">
-          {filteredHistory.map((item) => (
-            <Card key={item.id} className="flex flex-col">
+        <div className="flex flex-col items-center gap-6 py-6">
+          {filteredHistory.map((item, index) => (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+              className="w-full"
+            >
+              <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle className="flex items-center text-lg">
                   <Building className="mr-2 h-5 w-5" />
@@ -195,6 +203,7 @@ const HistoriquePage = () => {
                 )}
               </CardContent>
             </Card>
+            </motion.div>
           ))}
         </div>
       )}
