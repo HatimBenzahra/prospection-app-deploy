@@ -2,6 +2,8 @@
 import { MapContainer, TileLayer, Circle, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useMemo } from 'react';
+import { MapPin } from 'lucide-react';
 
 // Patch pour les icônes Leaflet
 // @ts-ignore
@@ -23,17 +25,19 @@ interface ZoneFocusMapProps {
     radius: number;
     color: string;
   };
-  immeubles: {
-    id: string;
-    adresse: string;
-    latlng: [number, number];
-  }[];
+  immeubles: ImmeubleFromApi[];
 }
 
 export const ZoneFocusMap = ({ zone, immeubles }: ZoneFocusMapProps) => {
+  const googleMapsLink = useMemo(() => {
+    const [lat, lng] = zone.latlng;
+    const zoneName = encodeURIComponent(zone.nom);
+    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=${zoneName}`;
+  }, [zone]);
+
   return (
     // --- MODIFICATION ICI ---
-    <div className="relative z-10 h-full min-h-[500px] w-full rounded-lg overflow-hidden border-2 border-[hsl(var(--winvest-blue-clair))]">
+    <div className="relative z-10 h-full min-h-[500px] w-full rounded-lg overflow-hidden border-2 border-[hsl(var(--winvest-blue-clair))] flex flex-col">
         <MapContainer 
             center={zone.latlng} 
             zoom={14} 
@@ -57,11 +61,27 @@ export const ZoneFocusMap = ({ zone, immeubles }: ZoneFocusMapProps) => {
             </Circle>
 
             {immeubles.map(imm => (
-                <Marker key={imm.id} position={imm.latlng} icon={buildingIcon}>
+                <Marker key={imm.id} position={[imm.latitude, imm.longitude]} icon={buildingIcon}>
                     <Popup>{imm.adresse}</Popup>
                 </Marker>
             ))}
         </MapContainer>
+        <div className="p-4 bg-white border-t border-gray-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary" />
+                <p className="text-sm font-medium text-gray-700">
+                    Centre de la zone : <strong>{zone.nom}</strong>
+                </p>
+            </div>
+            <a 
+                href={googleMapsLink} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+                Y aller
+            </a>
+        </div>
     </div>
   );
 };

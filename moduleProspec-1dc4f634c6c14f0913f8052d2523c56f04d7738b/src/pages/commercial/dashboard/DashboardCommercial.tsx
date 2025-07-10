@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { statisticsService } from '@/services/statistics.service';
 import { assignmentGoalsService } from '@/services/assignment-goals.service';
+import { immeubleService, type ImmeubleFromApi } from '@/services/immeuble.service';
 import { Button } from '@/components/ui-admin/button';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 // --- Composants UI ---
 import StatCard from '@/components/ui-admin/StatCard';
@@ -41,15 +43,15 @@ const DashboardSkeleton = () => (
 
 // --- Composant pour Zone non assignée ---
 const NoZoneAssigned = () => (
-    <Card className="h-full flex flex-col items-center justify-center text-center">
-        <CardHeader>
-            <ZapOff className="mx-auto h-16 w-16 text-muted-foreground" />
-            <CardTitle>Aucune zone assignée</CardTitle>
+    <Card className="h-full flex flex-col items-center justify-center text-center p-6 shadow-lg rounded-lg border-dashed border-2 border-gray-300 bg-gray-50">
+        <CardHeader className="pb-4">
+            <ZapOff className="mx-auto h-16 w-16 text-gray-400" />
+            <CardTitle className="text-2xl font-semibold text-gray-700">Aucune zone assignée</CardTitle>
         </CardHeader>
-        <CardContent>
-            <p className="text-muted-foreground">
+        <CardContent className="px-4 pb-4">
+            <p className="text-gray-500 leading-relaxed">
                 Aucune zone de prospection ne vous est actuellement assignée pour ce mois.<br />
-                Veuillez contacter votre manager.
+                Veuillez contacter votre manager pour obtenir une affectation.
             </p>
         </CardContent>
     </Card>
@@ -60,6 +62,7 @@ const CommercialDashboardPage = () => {
     const [stats, setStats] = useState<any>(null);
     const [history, setHistory] = useState<any[]>([]);
     const [assignedZone, setAssignedZone] = useState<ZoneData | null>(null);
+    const [immeubles, setImmeubles] = useState<ImmeubleFromApi[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
@@ -76,14 +79,16 @@ const CommercialDashboardPage = () => {
             setError(null);
 
             try {
-                const [statsData, historyData, zonesData] = await Promise.all([
+                const [statsData, historyData, zonesData, immeublesData] = await Promise.all([
                     statisticsService.getStatsForCommercial(user.id),
                     statisticsService.getCommercialHistory(user.id),
                     assignmentGoalsService.getAssignedZonesForCommercial(user.id),
+                    immeubleService.getImmeublesForCommercial(user.id),
                 ]);
                 setStats(statsData);
                 setHistory(historyData);
                 setAssignedZone(zonesData.length > 0 ? zonesData[0] : null);
+                setImmeubles(immeublesData);
             } catch (err) {
                 console.error('Erreur lors du chargement des données du commercial:', err);
                 setError('Erreur lors du chargement de vos données.');
@@ -110,10 +115,20 @@ const CommercialDashboardPage = () => {
     const currentStats = stats?.kpis || {};
 
     return (
-        <div className="space-y-8 max-w-7xl mx-auto p-4">
-            <div>
-                <h1 className="text-3xl font-bold">Tableau de Bord</h1>
-                <p className="text-muted-foreground">Bienvenue, {user?.name} ! Voici un résumé de votre activité.</p>
+        <motion.div 
+            className="space-y-8 max-w-7xl mx-auto p-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+        >
+            <div className="text-center mb-8">
+                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-800 flex items-center justify-center gap-4">
+                    <BarChart className="h-10 w-10 text-primary"/>
+                    Tableau de Bord
+                </h1>
+                <p className="mt-3 text-lg text-gray-600 max-w-2xl mx-auto">
+                    Bienvenue, {user?.name} ! Voici un résumé de votre activité et vos objectifs.
+                </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -125,7 +140,7 @@ const CommercialDashboardPage = () => {
                             radius: assignedZone.rayonMetres,
                             color: assignedZone.couleur,
                         }}
-                        immeubles={[]}
+                        immeubles={immeubles}
                     />
                 ) : (
                     <NoZoneAssigned />
@@ -143,37 +158,46 @@ const CommercialDashboardPage = () => {
                             <CardTitle>Accès Rapide</CardTitle>
                         </CardHeader>
                         <CardContent className="flex-grow flex flex-col sm:flex-row items-center justify-center gap-4">
-                            <Button
-                                variant="ghost"
-                                className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition"
-                                onClick={() => navigate('/commercial/prospecting')}
-                            >
-                                <MapPin className="h-6 w-6" />
-                                <span className="text-base font-medium">Prospection</span>
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-green-500 text-white hover:bg-green-600 transition"
-                                onClick={() => navigate('/commercial/dashboard')}
-                            >
-                                <BarChart className="h-6 w-6" />
-                                <span className="text-base font-medium">Statistiques</span>
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-purple-500 text-white hover:bg-purple-600 transition"
-                                onClick={() => navigate('/commercial/immeubles')}
-                            >
-                                <Building className="h-6 w-6" />
-                                <span className="text-base font-medium">Immeubles</span>
-                            </Button>
+                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-[hsl(var(--winvest-blue-moyen))] text-white hover:bg-blue-700 transition"
+                                    onClick={() => navigate('/commercial/prospection')}
+                                >
+                                    <MapPin className="h-6 w-6" />
+                                    <span className="text-base font-medium">Prospection</span>
+                                </Button>
+                            </motion.div>
+                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-[hsl(var(--winvest-blue-moyen))] text-white hover:bg-blue-700 transition"
+                                    onClick={() => navigate('/commercial/historique')}
+                                >
+                                    <BarChart className="h-6 w-6" />
+                                    <span className="text-base font-medium">Historique</span>
+                                </Button>
+                            </motion.div>
+                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                <Button
+                                    variant="ghost"
+                                    className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-[hsl(var(--winvest-blue-moyen))] text-white hover:bg-blue-700 transition"
+                                    onClick={() => navigate('/commercial/immeubles')}
+                                >
+                                    <Building className="h-6 w-6" />
+                                    <span className="text-base font-medium">Immeubles</span>
+                                </Button>
+                            </motion.div>
                         </CardContent>
                     </Card>
                 </div>
             </div>
 
             <div className="space-y-4">
-                <h2 className="text-2xl font-semibold">Vos Performances Clés</h2>
+                <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                    <BarChart className="h-7 w-7 text-primary" />
+                    Vos Performances Clés
+                </h2>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <StatCard title="Immeubles Visitées" value={currentStats.immeublesVisites || 0} Icon={MapPin} color="text-blue-500" />
                     <StatCard title="Portes Visitées" value={currentStats.portesVisitees || 0} Icon={DoorOpen} color="text-orange-500" />
@@ -192,7 +216,7 @@ const CommercialDashboardPage = () => {
                     { dataKey: 'Contrats Signés', name: 'Contrats', stroke: 'hsl(var(--emerald-500))' },
                 ]}
             />
-        </div>
+        </motion.div>
     );
 };
 
