@@ -134,6 +134,7 @@ model HistoriqueProspection {
   nbRdvPris        Int
   nbRefus          Int
   nbAbsents        Int
+  nbCurieux        Int
   commentaire      String?
   commercial       Commercial @relation(fields: [commercialId], references: [id])
   immeuble         Immeuble   @relation(fields: [immeubleId], references: [id])

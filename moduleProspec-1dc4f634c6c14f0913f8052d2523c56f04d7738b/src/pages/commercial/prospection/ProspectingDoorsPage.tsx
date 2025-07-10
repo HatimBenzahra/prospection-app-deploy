@@ -134,11 +134,13 @@ const ProspectingDoorsPage = () => {
     const handleSaveDoor = async (updatedDoor: Porte) => {
         setIsSaving(true);
         setSaveError(null);
+        console.log("Attempting to save door:", updatedDoor);
+        console.log("Door ID:", updatedDoor.id);
         try {
             await porteService.updatePorte(updatedDoor.id, {
                 statut: updatedDoor.statut, // Use 'statut' as per Porte type
-                commentaire: updatedDoor.commentaire,
-                passage: updatedDoor.passage, // Use 'passage' as per Porte type
+                commentaire: updatedDoor.commentaire || '', // Ensure it's a string
+                passage: updatedDoor.passage || 0, // Ensure it's a number
                 assigneeId: user.id, // Include the commercial's ID
             });
             setPortes(portes.map(p => p.id === updatedDoor.id ? updatedDoor : p));

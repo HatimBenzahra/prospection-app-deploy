@@ -24,6 +24,7 @@ interface HistoryEntry {
   nbRdvPris: number;
   nbRefus: number;
   nbAbsents: number;
+  nbCurieux: number; // Added nbCurieux
   commentaire: string;
   tauxCouverture: number;
   immeuble: { zoneId: string | null };
@@ -157,9 +158,10 @@ const HistoriquePage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
+              whileHover={{ scale: 1.02, boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.1)" }}
               className="w-full"
             >
-              <Card className="flex flex-col">
+              <Card className="flex flex-col p-3">
               <CardHeader>
                 <CardTitle className="flex items-center text-lg">
                   <Building className="mr-2 h-5 w-5" />
@@ -170,7 +172,7 @@ const HistoriquePage = () => {
                   {new Date(item.dateProspection).toLocaleDateString()}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4 text-sm flex-grow">
+              <CardContent className="grid grid-cols-2 gap-2 text-sm flex-grow">
                 <div className="flex items-center">
                   <DoorOpen className="mr-2 h-4 w-4 text-blue-500" />
                   <span>Portes visitées: <strong>{item.nbPortesVisitees}</strong></span>
@@ -194,6 +196,10 @@ const HistoriquePage = () => {
                 <div className="flex items-center">
                   <XCircle className="mr-2 h-4 w-4 text-red-500" />
                   <span>Refus: <strong>{item.nbRefus}</strong></span>
+                </div>
+                <div className="flex items-center">
+                  <MessageSquare className="mr-2 h-4 w-4 text-purple-500" />
+                  <span>Curieux: <strong>{item.nbCurieux}</strong></span>
                 </div>
                 {item.commentaire && (
                   <div className="col-span-2 flex items-start mt-2">

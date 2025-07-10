@@ -137,19 +137,18 @@ const ImmeubleDetailsPage = () => {
         const allPortes: Porte[] = [];
         for (let i = 1; i <= immeuble.nbPortesTotal; i++) {
             const numeroPorteStr = `Porte ${i}`; // Match API format
-            if (immeuble.prospectingMode === 'DUO' && i % 2 !== 0) continue;
 
             const visiteExistante = visitesMap.get(numeroPorteStr);
             if (visiteExistante) {
-                allPortes.push({ ...visiteExistante });
+                allPortes.push({ ...visiteExistante, assigneeId: visiteExistante.assigneeId || null });
             } else {
-                allPortes.push({ id: `porte-non-visitee-${i}`, numeroPorte: numeroPorteStr, statut: 'NON_VISITE', passage: 0, commentaire: "" });
+                allPortes.push({ id: `porte-non-visitee-${i}`, numeroPorte: numeroPorteStr, statut: 'NON_VISITE', passage: 0, commentaire: "", assigneeId: null });
             }
         }
         return allPortes;
     }, [immeuble]);
 
-    const portesColumns = useMemo(() => createPortesColumns(), []);
+    const portesColumns = useMemo(() => createPortesColumns(immeuble?.prospectors || []), [immeuble?.prospectors]);
 
     if (loading) {
         return (

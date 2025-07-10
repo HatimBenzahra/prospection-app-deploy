@@ -52,6 +52,7 @@ export class PorteService {
         let nbRdvPris = 0;
         let nbRefus = 0;
         let nbAbsents = 0;
+        let nbCurieux = 0; // Added nbCurieux
 
         // Determine changes based on new status
         if (updatedPorte.statut === PorteStatut.VISITE) {
@@ -67,6 +68,9 @@ export class PorteService {
           nbPortesVisitees = 1;
         } else if (updatedPorte.statut === PorteStatut.ABSENT) {
           nbAbsents = 1;
+          nbPortesVisitees = 1;
+        } else if (updatedPorte.statut === PorteStatut.CURIEUX) { // Handle CURIEUX
+          nbCurieux = 1;
           nbPortesVisitees = 1;
         }
 
@@ -88,6 +92,7 @@ export class PorteService {
               nbRdvPris: existingHistorique.nbRdvPris + nbRdvPris,
               nbRefus: existingHistorique.nbRefus + nbRefus,
               nbAbsents: existingHistorique.nbAbsents + nbAbsents,
+              nbCurieux: existingHistorique.nbCurieux + nbCurieux, // Added nbCurieux
             },
           });
         } else {
@@ -101,6 +106,7 @@ export class PorteService {
               nbRdvPris,
               nbRefus,
               nbAbsents,
+              nbCurieux, // Added nbCurieux
               commentaire: updatePorteDto.commentaire || null,
             },
           });

@@ -40,6 +40,7 @@ export class StatisticsService {
       nbRdvPris: entry.nbRdvPris,
       nbRefus: entry.nbRefus,
       nbAbsents: entry.nbAbsents,
+      nbCurieux: entry.nbCurieux, // Include nbCurieux here
       commentaire: entry.commentaire,
       // Calculate tauxCouverture based on nbPortesVisitees and immeuble.nbPortesTotal
       tauxCouverture:

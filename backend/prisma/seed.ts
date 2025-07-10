@@ -290,14 +290,14 @@ async function main() {
         dateProspection: new Date(date.setDate(1)),
         commercialId: commercialAlice.id,
         immeubleId: immeuble1.id,
-        nbPortesVisitees: 3 + i, nbContratsSignes: 1 + i, nbRdvPris: 1, nbRefus: 0, nbAbsents: 1,
+        nbPortesVisitees: 3 + i, nbContratsSignes: 1 + i, nbRdvPris: 1, nbRefus: 0, nbAbsents: 1, nbCurieux: 0,
         commentaire: `Visite mois ${i}, 1 contrat.`,
       },
       {
         dateProspection: new Date(date.setDate(5)),
         commercialId: commercialAlice.id,
         immeubleId: immeuble1.id,
-        nbPortesVisitees: 2 + i, nbContratsSignes: 0, nbRdvPris: 1, nbRefus: 1, nbAbsents: 0,
+        nbPortesVisitees: 2 + i, nbContratsSignes: 0, nbRdvPris: 1, nbRefus: 1, nbAbsents: 0, nbCurieux: 0,
         commentaire: `Suivi mois ${i}, 1 RDV pris.`,
       },
       // Bob - Immeuble 2
@@ -305,7 +305,7 @@ async function main() {
         dateProspection: new Date(date.setDate(2)),
         commercialId: commercialBob.id,
         immeubleId: immeuble2.id,
-        nbPortesVisitees: 4 + i, nbContratsSignes: 2 + i, nbRdvPris: 0, nbRefus: 1, nbAbsents: 1,
+        nbPortesVisitees: 4 + i, nbContratsSignes: 2 + i, nbRdvPris: 0, nbRefus: 1, nbAbsents: 1, nbCurieux: 0,
         commentaire: `Bonne journée mois ${i}, 2 contrats.`,
       },
       // Charlie - Immeuble 3
@@ -313,7 +313,7 @@ async function main() {
         dateProspection: new Date(date.setDate(3)),
         commercialId: commercialCharlie.id,
         immeubleId: immeuble3.id,
-        nbPortesVisitees: 5 + i, nbContratsSignes: 1 + i, nbRdvPris: 2, nbRefus: 1, nbAbsents: 1,
+        nbPortesVisitees: 5 + i, nbContratsSignes: 1 + i, nbRdvPris: 2, nbRefus: 1, nbAbsents: 1, nbCurieux: 0,
         commentaire: `Nouveau secteur mois ${i}, 1 contrat et 2 RDV.`,
       },
       // Diana - Immeuble 4
@@ -321,7 +321,7 @@ async function main() {
         dateProspection: new Date(date.setDate(4)),
         commercialId: commercialDiana.id,
         immeubleId: immeuble4.id,
-        nbPortesVisitees: 3 + i, nbContratsSignes: 1 + i, nbRdvPris: 0, nbRefus: 0, nbAbsents: 2,
+        nbPortesVisitees: 3 + i, nbContratsSignes: 1 + i, nbRdvPris: 0, nbRefus: 0, nbAbsents: 2, nbCurieux: 0,
         commentaire: `Bonne prise de contact mois ${i}.`,
       }
     );
