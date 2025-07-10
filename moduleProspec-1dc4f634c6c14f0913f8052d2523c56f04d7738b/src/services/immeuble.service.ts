@@ -11,13 +11,14 @@ export interface ImmeubleFromApi {
   zone: { id: string; nom: string };
   prospectors: { id: string; prenom: string; nom: string }[];
   status: string;
-  portes: any[];
+  portes: { id: string; numeroPorte: string; statut: string; }[]; // Added statut to Porte
   historiques: any[];
   latitude: number;
   longitude: number;
   nbPortesTotal: number;
   hasElevator: boolean;
   digicode: string | null;
+  createdAt: string;
 }
 
 export interface ImmeubleDetailsFromApi extends ImmeubleFromApi {

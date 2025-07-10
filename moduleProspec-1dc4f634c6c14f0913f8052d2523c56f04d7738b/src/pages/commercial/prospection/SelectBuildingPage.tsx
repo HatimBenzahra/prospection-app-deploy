@@ -1,58 +1,17 @@
-// src/pages/commercial/SelectBuildingPage.tsx
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DataTable } from '@/components/data-table/DataTable';
-import type { ColumnDef, RowSelectionState } from '@tanstack/react-table';
 import { Button } from '@/components/ui-admin/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-admin/card';
-import { ArrowRight, Building } from 'lucide-react';
+import { ArrowRight, Building, MapPin, Calendar as CalendarIcon, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { immeubleService, type ImmeubleFromApi } from '@/services/immeuble.service';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui-admin/skeleton';
-
-// Création des colonnes pour la DataTable
-const createBuildingColumns = (setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>): ColumnDef<ImmeubleFromApi>[] => [
-  {
-    id: 'select',
-    header: () => null,
-    cell: ({ row }) => (
-      <input
-        type="radio"
-        name="select-building"
-        checked={row.getIsSelected()}
-        onChange={() => setRowSelection({ [row.id]: true })}
-        className="h-4 w-4 accent-primary"
-      />
-    ),
-  },
-  {
-    accessorKey: 'adresse',
-    header: 'Adresse',
-    cell: ({ row }) => (
-      <div>
-        <div className="font-bold">{row.original.adresse}</div>
-        <div className="text-sm text-muted-foreground">{`${row.original.codePostal} ${row.original.ville}`}</div>
-      </div>
-    ),
-  },
-  {
-    accessorKey: 'nbPortesTotal',
-    header: () => <div className="text-center">Portes</div>,
-    cell: ({ row }) => <div className="text-center">{row.original.nbPortesTotal}</div>,
-  },
-  {
-    accessorKey: 'createdAt',
-    header: () => <div className="text-right">Ajouté le</div>,
-    cell: ({ row }) => (
-      <div className="text-right text-muted-foreground">
-        {format(new Date(row.original.createdAt), "d MMM yyyy", { locale: fr })}
-      </div>
-    ),
-  },
-];
+import { RadioGroup, RadioGroupItem } from '@/components/ui-admin/radio-group';
+import { Label } from '@/components/ui-admin/label';
+import { Input } from '@/components/ui-admin/input';
 
 const PageSkeleton = () => (
     <Card className="max-w-4xl mx-auto">
@@ -76,12 +35,18 @@ const PageSkeleton = () => (
     </Card>
 );
 
+const buildingStatusMap: { [key: string]: { label: string; className: string } } = {
+    NON_COMMENCE: { label: "Non commencé", className: "bg-gray-100 text-gray-800" },
+    EN_COURS: { label: "En cours", className: "bg-blue-100 text-blue-800" },
+};
+
 const SelectBuildingPage = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [allImmeubles, setAllImmeubles] = useState<ImmeubleFromApi[]>([]);
     const [loading, setLoading] = useState(true);
-    const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+    const [selectedBuildingId, setSelectedBuildingId] = useState<string | undefined>(undefined);
+    const [searchTerm, setSearchTerm] = useState<string>('');
     
     const fetchImmeubles = useCallback(async () => {
         if (!user?.id) return;
@@ -101,19 +66,27 @@ const SelectBuildingPage = () => {
         fetchImmeubles();
     }, [fetchImmeubles]);
 
-    const columns = useMemo(() => createBuildingColumns(setRowSelection), []);
+    const displayedImmeubles = useMemo(() => {
+        const filtered = allImmeubles.filter(immeuble => 
+            immeuble.adresse.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            immeuble.ville.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            immeuble.codePostal.toLowerCase().includes(searchTerm.toLowerCase())
+        );
 
-    const displayedImmeubles = useMemo(() => allImmeubles.slice(0, 3), [allImmeubles]);
+        return searchTerm ? filtered : filtered.slice(0, 3);
+    }, [allImmeubles, searchTerm]);
 
-    const selectedBuildingId = useMemo(() => {
-        const selectedRowId = Object.keys(rowSelection)[0];
-        if (selectedRowId) {
-            const selectedRow = allImmeubles.find(imm => imm.id === displayedImmeubles[parseInt(selectedRowId, 10)]?.id);
-            return selectedRow?.id;
+    const getProspectingStatus = (immeuble: ImmeubleFromApi) => {
+        const configuredDoors = immeuble.portes?.filter(porte => porte.statut !== 'NON_VISITE').length || 0;
+        if (configuredDoors > 0) {
+            return {
+                label: `Commencé (${configuredDoors}/${immeuble.nbPortesTotal})`,
+                className: buildingStatusMap.EN_COURS.className
+            };
+        } else {
+            return buildingStatusMap.NON_COMMENCE;
         }
-        return undefined;
-    }, [rowSelection, allImmeubles, displayedImmeubles]);
-
+    };
 
     const handleNext = () => {
         if (selectedBuildingId) {
@@ -138,20 +111,57 @@ const SelectBuildingPage = () => {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <DataTable
-                        title="Immeubles"
-                        columns={columns}
-                        data={displayedImmeubles}
-                        filterColumnId="adresse"
-                        filterPlaceholder="Rechercher une adresse..."
-                        rowSelection={rowSelection}
-                        setRowSelection={setRowSelection}
-                        isDeleteMode={false}
-                        onAddEntity={() => {}}
-                        onConfirmDelete={() => {}}
-                        onToggleDeleteMode={() => {}}
-                        fullData={allImmeubles}
-                    />
+                    <div className="relative mb-4">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Rechercher par adresse, ville ou code postal..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-9"
+                        />
+                    </div>
+                    {displayedImmeubles.length === 0 && searchTerm !== '' ? (
+                        <p className="text-center text-muted-foreground">Aucun immeuble trouvé pour votre recherche.</p>
+                    ) : displayedImmeubles.length === 0 ? (
+                        <p className="text-center text-muted-foreground">Aucun immeuble disponible pour la prospection.</p>
+                    ) : (
+                        <RadioGroup onValueChange={setSelectedBuildingId} value={selectedBuildingId} className="grid grid-cols-1 gap-4">
+                            {displayedImmeubles.map((immeuble) => {
+                                const prospectingStatus = getProspectingStatus(immeuble);
+                                return (
+                                    <Card 
+                                        key={immeuble.id} 
+                                        className={`relative p-4 cursor-pointer hover:bg-gray-50 transition-colors duration-200 ${selectedBuildingId === immeuble.id ? 'border-2 border-primary shadow-md' : ''}`}
+                                        onClick={() => setSelectedBuildingId(immeuble.id)}
+                                    >
+                                        <div className="flex items-start space-x-4">
+                                            <RadioGroupItem value={immeuble.id} id={immeuble.id} className="mt-1" />
+                                            <div className="flex-1">
+                                                <Label htmlFor={immeuble.id} className="grid gap-1.5 font-medium leading-none cursor-pointer">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-lg font-semibold flex items-center gap-2">
+                                                            <MapPin className="h-5 w-5 text-muted-foreground" />
+                                                            {immeuble.adresse}, {immeuble.ville}
+                                                        </span>
+                                                        <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                                            <CalendarIcon className="h-4 w-4" />
+                                                            {format(new Date(immeuble.createdAt), "d MMM yyyy", { locale: fr })}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between mt-1">
+                                                        <p className="text-sm text-muted-foreground">{immeuble.nbPortesTotal} portes</p>
+                                                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${prospectingStatus.className}`}>
+                                                            {prospectingStatus.label}
+                                                        </span>
+                                                    </div>
+                                                </Label>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                );
+                            })}
+                        </RadioGroup>
+                    )}
                     <div className="flex justify-end mt-6">
                         <Button onClick={handleNext} disabled={!selectedBuildingId} className="bg-green-600 hover:bg-green-700 text-white">
                             Suivant <ArrowRight className="ml-2 h-4 w-4" />

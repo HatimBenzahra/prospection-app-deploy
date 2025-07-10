@@ -119,6 +119,7 @@ export class ImmeubleService {
       include: {
         zone: true,
         prospectors: true,
+        portes: true, // Include portes here
       },
     });
   }
