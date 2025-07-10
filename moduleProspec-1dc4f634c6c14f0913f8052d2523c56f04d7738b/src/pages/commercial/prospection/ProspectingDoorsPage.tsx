@@ -139,6 +139,7 @@ const ProspectingDoorsPage = () => {
                 statut: updatedDoor.statut, // Use 'statut' as per Porte type
                 commentaire: updatedDoor.commentaire,
                 passage: updatedDoor.passage, // Use 'passage' as per Porte type
+                assigneeId: user.id, // Include the commercial's ID
             });
             setPortes(portes.map(p => p.id === updatedDoor.id ? updatedDoor : p));
             setIsModalOpen(false);
