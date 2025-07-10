@@ -59,7 +59,7 @@ const ProspectingDoorsPage = () => {
         }
 
         if (showRepassageOnly) {
-            filtered = filtered.filter(porte => porte.statut === 'CURIEUX' || (porte.passage > 0 && porte.passage < 3));
+            filtered = filtered.filter(porte => (['ABSENT', 'RDV', 'CURIEUX'].includes(porte.statut) && porte.passage < 3));
         }
 
         return filtered;
