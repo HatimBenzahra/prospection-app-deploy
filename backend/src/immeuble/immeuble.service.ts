@@ -52,8 +52,28 @@ export class ImmeubleService {
     });
   }
 
-  remove(id: string) {
-    return this.prisma.immeuble.delete({ where: { id } });
+  async remove(id: string) {
+    return this.prisma.$transaction(async (prisma) => {
+      // First, delete all portes associated with the immeuble
+      await prisma.porte.deleteMany({
+        where: { immeubleId: id },
+      });
+
+      // Delete all historiques associated with the immeuble
+      await prisma.historiqueProspection.deleteMany({
+        where: { immeubleId: id },
+      });
+
+      // Delete all prospection requests associated with the immeuble
+      await prisma.prospectionRequest.deleteMany({
+        where: { immeubleId: id },
+      });
+
+      // Then, delete the immeuble itself
+      return prisma.immeuble.delete({
+        where: { id },
+      });
+    });
   }
 
   // Commercial methods
