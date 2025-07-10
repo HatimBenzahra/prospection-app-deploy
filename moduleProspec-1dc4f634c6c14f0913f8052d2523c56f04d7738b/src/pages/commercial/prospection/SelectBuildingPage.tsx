@@ -12,9 +12,10 @@ import { Skeleton } from '@/components/ui-admin/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui-admin/radio-group';
 import { Label } from '@/components/ui-admin/label';
 import { Input } from '@/components/ui-admin/input';
+import { motion } from 'framer-motion';
 
 const PageSkeleton = () => (
-    <Card className="max-w-4xl mx-auto">
+    <Card className="w-full md:max-w-4xl mx-auto">
         <CardHeader>
             <CardTitle className="text-2xl flex items-center gap-3">
                 <Building className="h-6 w-6 text-primary"/>
@@ -37,7 +38,7 @@ const PageSkeleton = () => (
 
 const buildingStatusMap: { [key: string]: { label: string; className: string } } = {
     NON_COMMENCE: { label: "Non commencé", className: "bg-gray-100 text-gray-800" },
-    EN_COURS: { label: "En cours", className: "bg-blue-100 text-blue-800" },
+    EN_COURS: { label: "En cours", className: "bg-[hsl(var(--winvest-blue-moyen))] text-white" }, // Using winvest-blue-moyen
 };
 
 const SelectBuildingPage = () => {
@@ -93,10 +94,10 @@ const SelectBuildingPage = () => {
             const selectedBuilding = allImmeubles.find(b => b.id === selectedBuildingId);
             if (selectedBuilding && selectedBuilding.prospectingMode && selectedBuilding.portes && selectedBuilding.portes.length > 0) {
                 // If already configured, go directly to doors page
-                navigate(`/commercial/prospecting/doors/${selectedBuildingId}`);
+                navigate(`/commercial/prospection/doors/${selectedBuildingId}`);
             } else {
                 // Otherwise, go to setup page
-                navigate(`/commercial/prospecting/setup/${selectedBuildingId}`);
+                navigate(`/commercial/prospection/setup/${selectedBuildingId}`);
             }
         }
     };
@@ -106,15 +107,15 @@ const SelectBuildingPage = () => {
     }
 
     return (
-        <div className="container mx-auto py-8 p-4">
-            <Card className="max-w-4xl mx-auto">
+        <div className="container mx-auto py-8 p-4 min-h-screen flex items-center justify-center">
+            <Card className="w-full md:max-w-4xl mx-auto shadow-lg rounded-lg">
                 <CardHeader>
                     <CardTitle className="text-2xl flex items-center gap-3">
                         <Building className="h-6 w-6 text-primary"/>
                         Étape 1 : Sélection de l'immeuble
                     </CardTitle>
                     <CardDescription>
-                        Choisissez l'immeuble que vous souhaitez prospecter. Les 3 plus récents sont affichés. Utilisez la recherche pour en trouver d'autres.
+                        Choisissez l'immeuble que you souhaitez prospecter. Les 3 plus récents sont affichés. Utilisez la recherche pour en trouver d'autres.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -133,42 +134,48 @@ const SelectBuildingPage = () => {
                         <p className="text-center text-muted-foreground">Aucun immeuble disponible pour la prospection.</p>
                     ) : (
                         <RadioGroup onValueChange={setSelectedBuildingId} value={selectedBuildingId} className="grid grid-cols-1 gap-4">
-                            {displayedImmeubles.map((immeuble) => {
+                            {displayedImmeubles.map((immeuble, index) => {
                                 const prospectingStatus = getProspectingStatus(immeuble);
                                 return (
-                                    <Card 
-                                        key={immeuble.id} 
-                                        className={`relative p-4 cursor-pointer hover:bg-gray-50 transition-colors duration-200 ${selectedBuildingId === immeuble.id ? 'border-2 border-primary shadow-md' : ''}`}
-                                        onClick={() => setSelectedBuildingId(immeuble.id)}
+                                    <motion.div
+                                        key={immeuble.id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3, delay: index * 0.05 }}
                                     >
-                                        <div className="flex items-start space-x-4">
-                                            <RadioGroupItem value={immeuble.id} id={immeuble.id} className="mt-1" />
-                                            <div className="flex-1">
-                                                <Label htmlFor={immeuble.id} className="grid gap-1.5 font-medium leading-none cursor-pointer">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-lg font-semibold flex items-center gap-2">
-                                                            <MapPin className="h-5 w-5 text-muted-foreground" />
-                                                            {immeuble.adresse}, {immeuble.ville}
-                                                        </span>
-                                                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                                                                    <CalendarIcon className="h-4 w-4" />
-                                                                    {format(new Date(immeuble.createdAt), "d MMM yyyy", { locale: fr })}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center justify-between mt-1">
-                                                                <p className="text-sm text-muted-foreground">
-                                                                    {immeuble.prospectingMode === 'DUO' 
-                                                                        ? `${Math.ceil(immeuble.nbPortesTotal / 2)} / ${immeuble.nbPortesTotal} portes (Duo)`
-                                                                        : `${immeuble.nbPortesTotal} portes (Solo)`}
-                                                                </p>
-                                                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${prospectingStatus.className}`}>
-                                                                    {prospectingStatus.label}
-                                                                </span>
-                                                            </div>
-                                                </Label>
+                                        <Card 
+                                            className={`relative p-4 cursor-pointer bg-card border shadow-sm transition-all duration-200 ${selectedBuildingId === immeuble.id ? 'border-2 border-[hsl(var(--winvest-blue-moyen))] shadow-lg scale-[1.01] bg-[hsl(var(--winvest-blue-moyen))]/5' : 'hover:shadow-md hover:scale-[1.01]'}`}
+                                            onClick={() => setSelectedBuildingId(immeuble.id)}
+                                        >
+                                            <div className="flex items-start space-x-4">
+                                                <RadioGroupItem value={immeuble.id} id={immeuble.id} className="mt-1" />
+                                                <div className="flex-1">
+                                                    <Label htmlFor={immeuble.id} className="grid gap-1.5 font-medium leading-none cursor-pointer">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-lg font-semibold flex items-center gap-2">
+                                                                <MapPin className="h-5 w-5 text-muted-foreground" />
+                                                                {immeuble.adresse}, {immeuble.ville}
+                                                            </span>
+                                                            <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                                                        <CalendarIcon className="h-4 w-4" />
+                                                                        {format(new Date(immeuble.createdAt), "d MMM yyyy", { locale: fr })}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center justify-between mt-1">
+                                                                    <p className="text-sm text-muted-foreground">
+                                                                        {immeuble.prospectingMode === 'DUO' 
+                                                                            ? `${Math.ceil(immeuble.nbPortesTotal / 2)} / ${immeuble.nbPortesTotal} portes (Duo)`
+                                                                            : `${immeuble.nbPortesTotal} portes (Solo)`}
+                                                                    </p>
+                                                                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${prospectingStatus.className}`}>
+                                                                        {prospectingStatus.label}
+                                                                    </span>
+                                                                </div>
+                                                    </Label>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </Card>
+                                        </Card>
+                                    </motion.div>
                                 );
                             })}
                         </RadioGroup>
