@@ -285,12 +285,20 @@ const ProspectingDoorsPage = () => {
                                                         <p className="italic">Aucun commentaire</p>
                                                     </div>
                                                 )}
-                                                <div className="flex items-center gap-2.5">
-                                                    <Repeat className="h-4 w-4" />
-                                                    <span>
-                                                        {porte.passage >= 3 ? "Non intéressé (3+ passages)" : porte.passage > 0 ? `À repasser (passage n°${porte.passage})` : "Premier passage"}
-                                                    </span>
-                                                </div>
+                                                {(['ABSENT', 'RDV', 'CURIEUX'].includes(porte.statut) && porte.passage > 0) && (
+                                                    <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/40">
+                                                        <div className="flex items-center gap-2">
+                                                            <Repeat className="h-5 w-5 text-muted-foreground" />
+                                                            <span className="font-medium text-sm">Passage</span>
+                                                        </div>
+                                                        <span className={cn(
+                                                            "font-bold text-lg",
+                                                            porte.passage >= 3 ? "text-red-500" : "text-primary"
+                                                        )}>
+                                                            {porte.passage >= 3 ? "Stop" : `${porte.passage}${porte.passage === 1 ? 'er' : 'ème'}`}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </CardContent>
                                             <CardFooter>
                                                 <Button 
