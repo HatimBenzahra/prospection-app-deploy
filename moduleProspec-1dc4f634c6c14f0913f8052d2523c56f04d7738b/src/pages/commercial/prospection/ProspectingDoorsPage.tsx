@@ -215,7 +215,7 @@ const ProspectingDoorsPage = () => {
                                     )}
                                 >
                                     <config.icon className="h-3.5 w-3.5" />
-                                    {status}
+                                    {config.label}
                                 </button>
                             )
                         })}
@@ -269,7 +269,7 @@ const ProspectingDoorsPage = () => {
                                                         )}
                                                     >
                                                         <StatusIcon className="h-3.5 w-3.5" />
-                                                        {porte.statut}
+                                                        {config.label}
                                                     </span>
                                                 </CardTitle>
                                             </CardHeader>
@@ -322,56 +322,46 @@ const ProspectingDoorsPage = () => {
                     isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
                     title={`Éditer la Porte n°${editingDoor.numero}`}
-                    maxWidth="sm:max-w-2xl"
+                    maxWidth="sm:max-w-3xl"
                 >
-                    <div className="py-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="grid grid-cols-1 gap-3">
-                                <Label htmlFor="statut">Statut</Label>
-                                <Select
-                                    value={editingDoor.statut}
-                                    onValueChange={(value) => setEditingDoor({ ...editingDoor, statut: value as PorteStatus })}
-                                >
-                                    <SelectTrigger id="statut">
-                                        <SelectValue>
-                                            {editingDoor.statut ? (
-                                                <div className="flex items-center gap-2">
-                                                    <span className={cn("h-2 w-2 rounded-full", statusConfig[editingDoor.statut]?.className)} />
-                                                    <span>{editingDoor.statut}</span>
-                                                </div>
-                                            ) : (
-                                                "Sélectionner un statut"
+                    <div className="py-4 space-y-6">
+                        <div className="grid grid-cols-1 gap-3">
+                            <Label>Statut</Label>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                {statusList.map((status) => {
+                                    const config = statusConfig[status];
+                                    const isSelected = editingDoor.statut === status;
+                                    return (
+                                        <button
+                                            key={status}
+                                            type="button"
+                                            onClick={() => setEditingDoor({ ...editingDoor, statut: status })}
+                                            className={cn(
+                                                "w-full py-3 px-2 text-sm font-semibold rounded-md flex items-center justify-center gap-2 transition-all duration-200 ease-in-out border",
+                                                isSelected
+                                                    ? `${config.buttonClassName} text-white shadow-lg ring-2 ring-offset-2 ring-blue-500`
+                                                    : `${config.badgeClassName} hover:shadow-md hover:brightness-105`
                                             )}
-                                        </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent position="popper">
-                                        {statusList.map((status) => {
-                                            const config = statusConfig[status];
-                                            const Icon = config.icon;
-                                            return (
-                                                <SelectItem key={status} value={status}>
-                                                    <div className="flex items-center gap-2">
-                                                        <Icon className={cn("h-4 w-4", config.className)} />
-                                                        <span>{status}</span>
-                                                    </div>
-                                                </SelectItem>
-                                            );
-                                        })}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid grid-cols-1 gap-3">
-                                <Label htmlFor="commentaire">Commentaire</Label>
-                                <Input
-                                    id="commentaire"
-                                    value={editingDoor.commentaire || ''}
-                                    onChange={(e) => setEditingDoor({ ...editingDoor, commentaire: e.target.value })}
-                                    placeholder="Ajouter un commentaire..."
-                                />
+                                        >
+                                            <config.icon className="h-4 w-4" />
+                                            <span>{config.label}</span>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
-                        <div className="mt-6 flex items-center justify-between rounded-lg border p-3">
+                        <div className="grid grid-cols-1 gap-3">
+                            <Label htmlFor="commentaire">Commentaire</Label>
+                            <Input
+                                id="commentaire"
+                                value={editingDoor.commentaire || ''}
+                                onChange={(e) => setEditingDoor({ ...editingDoor, commentaire: e.target.value })}
+                                placeholder="Ajouter un commentaire..."
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-lg border p-3">
                             <div className="flex items-center gap-2">
                                 <Repeat className="h-5 w-5 text-muted-foreground" />
                                 <span className="font-medium">Prochain Passage</span>

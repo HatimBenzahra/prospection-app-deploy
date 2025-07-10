@@ -22,48 +22,56 @@ export const statusConfig: Record<PorteStatus, {
     icon: React.ElementType;
     badgeClassName: string;
     buttonClassName: string;
+    label: string;
 }> = {
     "NON_VISITE": { 
         className: "text-gray-800", 
         icon: BellOff,
         badgeClassName: "bg-gray-200 text-gray-800 border border-gray-300",
-        buttonClassName: "bg-gray-500 hover:bg-gray-600"
+        buttonClassName: "bg-gray-500 hover:bg-gray-600",
+        label: "Non visité"
     },
     "VISITE": { 
         className: "text-blue-800", 
         icon: Eye,
         badgeClassName: "bg-blue-100 text-blue-800 border border-blue-300",
-        buttonClassName: "bg-blue-500 hover:bg-blue-600"
+        buttonClassName: "bg-blue-500 hover:bg-blue-600",
+        label: "Visité"
     },
     "ABSENT": { 
         className: "text-yellow-800", 
         icon: User,
         badgeClassName: "bg-yellow-100 text-yellow-800 border border-yellow-300",
-        buttonClassName: "bg-yellow-500 hover:bg-yellow-600"
+        buttonClassName: "bg-yellow-500 hover:bg-yellow-600",
+        label: "Absent"
     },
     "CURIEUX": { 
         className: "text-purple-800", 
         icon: Smile,
         badgeClassName: "bg-purple-100 text-purple-800 border border-purple-300",
-        buttonClassName: "bg-purple-500 hover:bg-purple-600"
+        buttonClassName: "bg-purple-500 hover:bg-purple-600",
+        label: "Curieux"
     },
     "REFUS": { 
         className: "text-red-800", 
         icon: Frown,
         badgeClassName: "bg-red-100 text-red-800 border border-red-300",
-        buttonClassName: "bg-red-500 hover:bg-red-600"
+        buttonClassName: "bg-red-500 hover:bg-red-600",
+        label: "Refus"
     },
     "RDV": { 
         className: "text-sky-800", 
         icon: Check,
         badgeClassName: "bg-sky-100 text-sky-800 border border-sky-300",
-        buttonClassName: "bg-sky-500 hover:bg-sky-600"
+        buttonClassName: "bg-sky-500 hover:bg-sky-600",
+        label: "RDV"
     },
     "CONTRAT_SIGNE": { 
         className: "text-emerald-800", 
         icon: Landmark,
         badgeClassName: "bg-emerald-400 text-white border border-emerald-500",
-        buttonClassName: "bg-emerald-500 hover:bg-emerald-600"
+        buttonClassName: "bg-emerald-500 hover:bg-emerald-600",
+        label: "Signé"
     },
 };
 
