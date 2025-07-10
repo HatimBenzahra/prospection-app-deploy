@@ -59,7 +59,7 @@ const ProspectingDoorsPage = () => {
         }
 
         if (showRepassageOnly) {
-            filtered = filtered.filter(porte => porte.passage > 0 && porte.passage < 3);
+            filtered = filtered.filter(porte => porte.statut === 'CURIEUX' || (porte.passage > 0 && porte.passage < 3));
         }
 
         return filtered;
@@ -322,83 +322,73 @@ const ProspectingDoorsPage = () => {
                     isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
                     title={`Éditer la Porte n°${editingDoor.numero}`}
-                    maxWidth="sm:max-w-lg"
+                    maxWidth="sm:max-w-2xl"
                 >
-                    <div className="grid gap-6 py-4">
-                        <div className="grid grid-cols-1 gap-3">
-                            <Label htmlFor="statut">Statut</Label>
-                            <Select
-                                value={editingDoor.statut}
-                                onValueChange={(value) => setEditingDoor({ ...editingDoor, statut: value as PorteStatus })}
-                            >
-                                <SelectTrigger id="statut">
-                                    <SelectValue>
-                                        {editingDoor.statut ? (
-                                            <div className="flex items-center gap-2">
-                                                <span className={cn("h-2 w-2 rounded-full", statusConfig[editingDoor.statut]?.className)} />
-                                                <span>{editingDoor.statut}</span>
-                                            </div>
-                                        ) : (
-                                            "Sélectionner un statut"
-                                        )}
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent position="popper">
-                                    {statusList.map((status) => {
-                                        const config = statusConfig[status];
-                                        const Icon = config.icon;
-                                        return (
-                                            <SelectItem key={status} value={status}>
+                    <div className="py-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 gap-3">
+                                <Label htmlFor="statut">Statut</Label>
+                                <Select
+                                    value={editingDoor.statut}
+                                    onValueChange={(value) => setEditingDoor({ ...editingDoor, statut: value as PorteStatus })}
+                                >
+                                    <SelectTrigger id="statut">
+                                        <SelectValue>
+                                            {editingDoor.statut ? (
                                                 <div className="flex items-center gap-2">
-                                                    <Icon className={cn("h-4 w-4", config.className)} />
-                                                    <span>{status}</span>
+                                                    <span className={cn("h-2 w-2 rounded-full", statusConfig[editingDoor.statut]?.className)} />
+                                                    <span>{editingDoor.statut}</span>
                                                 </div>
-                                            </SelectItem>
-                                        );
-                                    })}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3">
-                            <Label htmlFor="commentaire">Commentaire</Label>
-                            <Input
-                                id="commentaire"
-                                value={editingDoor.commentaire || ''}
-                                onChange={(e) => setEditingDoor({ ...editingDoor, commentaire: e.target.value })}
-                                placeholder="Ajouter un commentaire..."
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 items-center gap-4">
-                            <div className="flex items-center gap-2">
-                                <Checkbox
-                                    id="repassage"
-                                    checked={editingDoor.passage > 0}
-                                    onCheckedChange={(checked) => setEditingDoor({ ...editingDoor, passage: checked ? 1 : 0 })}
+                                            ) : (
+                                                "Sélectionner un statut"
+                                            )}
+                                        </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent position="popper">
+                                        {statusList.map((status) => {
+                                            const config = statusConfig[status];
+                                            const Icon = config.icon;
+                                            return (
+                                                <SelectItem key={status} value={status}>
+                                                    <div className="flex items-center gap-2">
+                                                        <Icon className={cn("h-4 w-4", config.className)} />
+                                                        <span>{status}</span>
+                                                    </div>
+                                                </SelectItem>
+                                            );
+                                        })}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid grid-cols-1 gap-3">
+                                <Label htmlFor="commentaire">Commentaire</Label>
+                                <Input
+                                    id="commentaire"
+                                    value={editingDoor.commentaire || ''}
+                                    onChange={(e) => setEditingDoor({ ...editingDoor, commentaire: e.target.value })}
+                                    placeholder="Ajouter un commentaire..."
                                 />
-                                <Label htmlFor="repassage" className="font-medium">
-                                    {editingDoor.passage >= 3 ? "Non intéressé" : "À repasser"}
-                                </Label>
                             </div>
-                            <div className="grid grid-cols-2 items-center gap-2">
-                                <Label htmlFor="passage" className="text-right">Passages</Label>
-                                    {editingDoor.passage >= 3 ? (
-                                        <span className="text-red-500 font-semibold">Non intéressé</span>
-                                    ) : (
-                                        <Input
-                                            id="passage"
-                                            type="number"
-                                            min="0"
-                                            value={editingDoor.passage}
-                                            onChange={(e) => setEditingDoor({ ...editingDoor, passage: parseInt(e.target.value, 10) || 0 })}
-                                            className="w-full"
-                                        />
-                                    )}
+                        </div>
+
+                        <div className="mt-6 flex items-center justify-between rounded-lg border p-3">
+                            <div className="flex items-center gap-2">
+                                <Repeat className="h-5 w-5 text-muted-foreground" />
+                                <span className="font-medium">Prochain Passage</span>
                             </div>
+                            <span className="font-bold text-lg">
+                                {editingDoor.passage >= 3 ? "Non" : editingDoor.passage + 1}
+                            </span>
                         </div>
                     </div>
                     <div className="flex justify-end gap-2 mt-6">
                         <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>Annuler</Button>
-                        <Button type="submit" onClick={() => handleSaveDoor(editingDoor)} className="bg-green-600 text-white hover:bg-green-700" disabled={isSaving}>
+                        <Button 
+                            type="submit" 
+                            onClick={() => handleSaveDoor(editingDoor)} 
+                            className="bg-green-600 text-white hover:bg-green-700"
+                            disabled={isSaving}
+                        >
                             {isSaving ? "Enregistrement..." : "Enregistrer"}
                         </Button>
                     </div>
