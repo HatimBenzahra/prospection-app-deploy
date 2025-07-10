@@ -32,7 +32,7 @@ import AssignmentGoalsPage from './pages/admin/assignment-goals/AssignmentGoalsP
 import CommercialDashboardPage from './pages/commercial/dashboard/DashboardCommercial';
 import ProspectingSetupPage from './pages/commercial/prospection/ProspectingSetupPage'; 
 import ProspectingDoorsPage from './pages/commercial/prospection/ProspectingDoorsPage';
-import CommercialImmeublesPage from './pages/commercial/CommercialImmeublesPage'; // Import the new page
+import CommercialImmeublesPage from './pages/commercial/immeubles/CommercialImmeublesPage'; // Import the new page
 
 
 
