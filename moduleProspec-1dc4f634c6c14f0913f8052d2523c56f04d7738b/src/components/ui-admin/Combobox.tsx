@@ -38,7 +38,7 @@ export function Combobox({ options, value, onChange, placeholder = "Sélectionne
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between h-8"
+          className="w-full justify-between h-11 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200"
         >
           {value
             ? options.find((option) => option.value === value)?.label

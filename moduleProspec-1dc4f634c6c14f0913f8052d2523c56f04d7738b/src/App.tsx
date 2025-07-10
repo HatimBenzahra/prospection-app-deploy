@@ -10,7 +10,7 @@ import AdminLayout from './layout/AdminLayout';
 import CommercialLayout from './layout/CommercialLayout';
 import Login from './pages/auth/Login';
 import SelectCommercialPage from './pages/auth/CommercialSelectionPage'; // <-- IMPORT NOUVEAU
-
+import HistoriquePage from './pages/commercial/Historique';
 // --- Pages Admin ---
 // ... (imports admin inchangés) ...
 import DashboardAdmin from './pages/admin/Dashboard/DashboardAdmin';
@@ -34,9 +34,7 @@ import ProspectingSetupPage from './pages/commercial/prospection/ProspectingSetu
 import ProspectingDoorsPage from './pages/commercial/prospection/ProspectingDoorsPage';
 import CommercialImmeublesPage from './pages/commercial/CommercialImmeublesPage'; // Import the new page
 
-const CommercialHistory = () => <div className="p-8"><h1 className="text-3xl font-bold">Historique de Prospection</h1></div>;
-const CommercialStats = () => <div className="p-8"><h1 className="text-3xl font-bold">Mes Statistiques</h1></div>;
-const CommercialProfile = () => <div className="p-8"><h1 className="text-3xl font-bold">Mon Profil</h1></div>;
+
 
 // --- Pages des autres Rôles (pour l'exemple) ---
 import DashboardManager from './pages/manager/DashboardManager';
@@ -92,9 +90,7 @@ function App() {
             <Route path="prospecting/doors/:buildingId" element={<ProspectingDoorsPage />} />
 
             {/* Autres pages du commercial */}
-            <Route path="history" element={<CommercialHistory />} />
-            <Route path="stats" element={<CommercialStats />} />
-            <Route path="profile" element={<CommercialProfile />} />
+            <Route path="history" element={<HistoriquePage />} />
           </Route>
             
           {/* Routes pour les autres rôles */}
