@@ -17,14 +17,54 @@ export type Porte = {
   passage: number;
 };
 
-export const statusConfig: Record<PorteStatus, { className: string; icon: React.ElementType }> = {
-    "NON_VISITE": { className: "bg-gray-100 text-gray-800 border-gray-300", icon: BellOff },
-    "VISITE": { className: "bg-blue-100 text-blue-800 border-blue-300", icon: Eye },
-    "ABSENT": { className: "bg-yellow-100 text-yellow-800 border-yellow-300", icon: User },
-    "CURIEUX": { className: "bg-purple-100 text-purple-800 border-purple-300", icon: Smile },
-    "REFUS": { className: "bg-red-100 text-red-800 border-red-300", icon: Frown },
-    "RDV": { className: "bg-sky-100 text-sky-800 border-sky-300", icon: Check },
-    "CONTRAT_SIGNE": { className: "bg-emerald-100 text-emerald-800 border-emerald-300", icon: Landmark },
+export const statusConfig: Record<PorteStatus, { 
+    className: string; 
+    icon: React.ElementType;
+    badgeClassName: string;
+    buttonClassName: string;
+}> = {
+    "NON_VISITE": { 
+        className: "text-gray-800", 
+        icon: BellOff,
+        badgeClassName: "bg-gray-200 text-gray-800 border border-gray-300",
+        buttonClassName: "bg-gray-500 hover:bg-gray-600"
+    },
+    "VISITE": { 
+        className: "text-blue-800", 
+        icon: Eye,
+        badgeClassName: "bg-blue-100 text-blue-800 border border-blue-300",
+        buttonClassName: "bg-blue-500 hover:bg-blue-600"
+    },
+    "ABSENT": { 
+        className: "text-yellow-800", 
+        icon: User,
+        badgeClassName: "bg-yellow-100 text-yellow-800 border border-yellow-300",
+        buttonClassName: "bg-yellow-500 hover:bg-yellow-600"
+    },
+    "CURIEUX": { 
+        className: "text-purple-800", 
+        icon: Smile,
+        badgeClassName: "bg-purple-100 text-purple-800 border border-purple-300",
+        buttonClassName: "bg-purple-500 hover:bg-purple-600"
+    },
+    "REFUS": { 
+        className: "text-red-800", 
+        icon: Frown,
+        badgeClassName: "bg-red-100 text-red-800 border border-red-300",
+        buttonClassName: "bg-red-500 hover:bg-red-600"
+    },
+    "RDV": { 
+        className: "text-sky-800", 
+        icon: Check,
+        badgeClassName: "bg-sky-100 text-sky-800 border border-sky-300",
+        buttonClassName: "bg-sky-500 hover:bg-sky-600"
+    },
+    "CONTRAT_SIGNE": { 
+        className: "text-emerald-800", 
+        icon: Landmark,
+        badgeClassName: "bg-emerald-400 text-white border border-emerald-500",
+        buttonClassName: "bg-emerald-500 hover:bg-emerald-600"
+    },
 };
 
 export const statusList = (Object.keys(statusConfig) as PorteStatus[]).filter(
@@ -52,7 +92,7 @@ export const createDoorsColumns = (
       cell: ({ row }) => {
         const statut = row.original.statut;
         const config = statusConfig[statut];
-        return <Badge variant="outline" className={cn("font-medium", config.className)}><config.icon className="mr-1.5 h-3 w-3"/>{statut}</Badge>;
+        return <Badge variant="outline" className={cn("font-medium", config.badgeClassName)}><config.icon className="mr-1.5 h-3 w-3"/>{statut}</Badge>;
       }
     },
     {

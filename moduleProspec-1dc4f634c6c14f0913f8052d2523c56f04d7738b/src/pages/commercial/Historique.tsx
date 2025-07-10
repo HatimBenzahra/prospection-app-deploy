@@ -201,12 +201,7 @@ const HistoriquePage = () => {
                   <MessageSquare className="mr-2 h-4 w-4 text-purple-500" />
                   <span>Curieux: <strong>{item.nbCurieux}</strong></span>
                 </div>
-                {item.commentaire && (
-                  <div className="col-span-2 flex items-start mt-2">
-                    <MessageSquare className="mr-2 h-4 w-4 text-gray-400 flex-shrink-0" />
-                    <p className="text-xs text-gray-600 italic">{item.commentaire}</p>
-                  </div>
-                )}
+                
               </CardContent>
             </Card>
             </motion.div>
