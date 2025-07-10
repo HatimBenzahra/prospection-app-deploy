@@ -90,7 +90,14 @@ const SelectBuildingPage = () => {
 
     const handleNext = () => {
         if (selectedBuildingId) {
-            navigate(`/commercial/prospecting/setup/${selectedBuildingId}`);
+            const selectedBuilding = allImmeubles.find(b => b.id === selectedBuildingId);
+            if (selectedBuilding && selectedBuilding.prospectingMode && selectedBuilding.portes && selectedBuilding.portes.length > 0) {
+                // If already configured, go directly to doors page
+                navigate(`/commercial/prospecting/doors/${selectedBuildingId}`);
+            } else {
+                // Otherwise, go to setup page
+                navigate(`/commercial/prospecting/setup/${selectedBuildingId}`);
+            }
         }
     };
 

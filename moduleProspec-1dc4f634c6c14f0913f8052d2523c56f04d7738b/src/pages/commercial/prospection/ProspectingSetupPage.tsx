@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui-admin/card';
 import { Button } from '@/components/ui-admin/button';
 import { Label } from '@/components/ui-admin/label';
-import { User, Users, ArrowRight, Send, Loader2 } from 'lucide-react';
+import { User, Users, ArrowRight, Send, Loader2, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui-admin/select';
 import { useAuth } from '@/contexts/AuthContext';
@@ -160,6 +160,9 @@ const ProspectingSetupPage = () => {
 
     return (
         <div className="container mx-auto py-8 p-4">
+            <Button variant="outline" onClick={() => navigate('/commercial/prospecting')} className="mb-4">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Retour à la sélection de l'immeuble
+            </Button>
             <Card className="max-w-2xl mx-auto">
                 <CardHeader>
                     <CardTitle className="text-2xl flex items-center gap-3">

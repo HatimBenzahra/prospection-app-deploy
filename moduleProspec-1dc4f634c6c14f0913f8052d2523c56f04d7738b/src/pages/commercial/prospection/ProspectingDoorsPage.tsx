@@ -172,8 +172,8 @@ const ProspectingDoorsPage = () => {
 
     return (
         <div className="container mx-auto py-8 p-4">
-            <Button variant="outline" onClick={() => navigate(`/commercial/prospecting/setup/${buildingId}`)} className="mb-4">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Retour au choix du mode
+            <Button variant="outline" onClick={() => navigate('/commercial/prospecting')} className="mb-4">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Retour à la sélection de l'immeuble
             </Button>
             <Card>
                 <CardHeader>
