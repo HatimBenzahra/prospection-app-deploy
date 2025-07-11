@@ -7,14 +7,11 @@ const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
-  // + Ajout du div wrapper pour le scroll horizontal
-  <div className="relative w-full overflow-auto"> 
-    <table
-      ref={ref}
-      className={cn("w-full caption-bottom text-sm", className)}
-      {...props}
-    />
-  </div>
+  <table
+    ref={ref}
+    className={cn("w-full caption-bottom text-sm table-fixed", className)}
+    {...props}
+  />
 ))
 Table.displayName = "Table"
 

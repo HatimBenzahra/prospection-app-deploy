@@ -146,7 +146,7 @@ export function DataTable<TData extends { id: string }, TValue>({
           </div>
         </div>
         
-        <Table>
+        <Table className="whitespace-normal">
           <TableHeader>
             {table.getHeaderGroups().map(headerGroup=>(
               <TableRow key={headerGroup.id} className="border-b-[#EFEDED] hover:bg-transparent">
@@ -194,7 +194,7 @@ export function DataTable<TData extends { id: string }, TValue>({
               <SelectTrigger className="w-[140px] md:w-[160px] min-w-[140px]"><SelectValue placeholder={`${table.getState().pagination.pageSize} par page`}/></SelectTrigger>
               <SelectContent>{[10,20,30,40,50].map(ps=><SelectItem key={ps} value={`${ps}`}>{ps} par page</SelectItem>)}</SelectContent>
             </Select>
-            <div className="flex items-center space-x-2 rounded-lg border px-3 py-1 bg-gray-50 min-w-[180px]">
+            <div className="flex items-center space-x-2 rounded-lg px-3 py-1 bg-gray-50 min-w-[180px]">
               <div className="text-sm font-medium">Page {table.getState().pagination.pageIndex+1} sur {table.getPageCount()}</div>
               <Button variant="outline" size="sm" onClick={()=>table.previousPage()} disabled={!table.getCanPreviousPage()}>Précédent</Button>
               <Button variant="outline" size="sm" onClick={()=>table.nextPage()} disabled={!table.getCanNextPage()}>Suivant</Button>
