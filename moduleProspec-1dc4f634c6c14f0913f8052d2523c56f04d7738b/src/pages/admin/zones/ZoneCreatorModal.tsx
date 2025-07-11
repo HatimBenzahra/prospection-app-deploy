@@ -49,7 +49,7 @@ function createGeoJSONCircle(center: [number, number], radiusInMeters: number, p
 }
 
 /* eslint-disable-next-line react/display-name */
-const GeocoderControl = React.memo((props: { onResult: (e: any) => void }) => {
+const GeocoderControl = React.memo((props: { onResult: (e: any) => void, position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' }) => {
     useControl(() => {
         const geocoder = new MapboxGeocoder({
             accessToken: mapboxgl.accessToken,
@@ -59,7 +59,7 @@ const GeocoderControl = React.memo((props: { onResult: (e: any) => void }) => {
         });
         geocoder.on('result', props.onResult);
         return geocoder;
-    });
+    }, { position: props.position });
     return null;
 });
 
@@ -159,7 +159,7 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
                     cursor={step < 3 ? 'crosshair' : 'default'}
                 >
                     <NavigationControl position="top-right" />
-                    <GeocoderControl onResult={handleGeocoderResult} />
+                    <GeocoderControl onResult={handleGeocoderResult} position="top-left" />
 
                     {/* Display existing zones */}
                     {existingZones.filter(z => z.id !== zoneToEdit?.id).map(zone => {
@@ -191,20 +191,20 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
                     )}
                 </Map>
                 
-                <div className="absolute top-4 left-4 z-[1000] bg-white p-4 rounded-lg shadow-xl w-full max-w-sm">
-                    <div className="flex justify-between items-center mb-2">
+                <div className="absolute top-2 right-15 bg-white p-2 rounded-lg shadow-xl w-full max-w-sm flex flex-col items-center">
+                    <div className="flex justify-between items-center mb-2 w-full">
                         <h3 className="font-semibold text-lg">
                             {isEditMode ? "Modifier la Zone" : step === 1 ? "Étape 1: Définir le centre" : step === 2 ? "Étape 2: Définir le rayon" : "Étape 3: Nommer la zone"}
                         </h3>
                         <Button variant="ghost" size="icon" onClick={handleReset} title="Recommencer le tracé"><RotateCcw className="h-4 w-4" /></Button>
                     </div>
                     {step < 3 && (
-                        <p className="text-sm text-muted-foreground flex items-center gap-2"><MousePointerClick className="h-4 w-4"/>
+                        <p className="text-sm text-muted-foreground flex items-center gap-2 mb-4"><MousePointerClick className="h-4 w-4"/>
                             {step === 1 ? 'Cliquez pour placer le centre.' : 'Déplacez pour ajuster, puis cliquez pour fixer le rayon.'}
                         </p>
                     )}
                     {step >= 2 && (
-                        <div className="space-y-3 animate-in fade-in-0 pt-2">
+                        <div className="space-y-3 animate-in fade-in-0 pt-2 w-full">
                             <div className="space-y-1"><Label htmlFor="zone-name">Nom de la zone</Label><Input id="zone-name" value={zoneName} onChange={e => setZoneName(e.target.value)} placeholder="Ex: Zone Commerciale Nord"/></div>
                             <div className="space-y-1">
                                 <Label htmlFor="zone-color">Couleur de la zone</Label>
@@ -212,15 +212,14 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
                             </div>
                         </div>
                     )}
-                </div>
-
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex flex-row gap-2">
-                    <Button onClick={handleValidate} className="bg-green-600 text-white hover:bg-green-700" disabled={!center || radius <= 0 || !zoneName}>
-                        <Check className="mr-2 h-4 w-4" />{isEditMode ? "Enregistrer" : "Valider"}
-                    </Button>
-                    <Button onClick={onClose} variant="secondary" className="bg-white hover:bg-zinc-100">
-                        <X className="mr-2 h-4 w-4" />Fermer
-                    </Button>
+                    <div className="flex flex-row gap-2 mt-4">
+                        <Button onClick={handleValidate} className="bg-green-600 text-white hover:bg-green-700" disabled={!center || radius <= 0 || !zoneName}>
+                            <Check className="mr-2 h-4 w-4" />{isEditMode ? "Enregistrer" : "Valider"}
+                        </Button>
+                        <Button onClick={onClose} variant="secondary" className="bg-white hover:bg-zinc-100">
+                            <X className="mr-2 h-4 w-4" />Fermer
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>
