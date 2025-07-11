@@ -1,8 +1,9 @@
-// src/pages/commercial/ZoneFocusMap.tsx
+// src/pages/commercial/ZoneFocusMap
 import Map, { Marker, Popup, Source, Layer, NavigationControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { useMemo } from 'react';
 import { MapPin } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 
 
@@ -32,14 +33,40 @@ interface ZoneFocusMapProps {
     color: string;
   };
   immeubles: ImmeubleFromApi[];
+  className?: string;
 }
 
-export const ZoneFocusMap = ({ zone, immeubles }: ZoneFocusMapProps) => {
-  const googleMapsLink = useMemo(() => {
-    const [lat, lng] = zone.latlng;
-    const zoneName = encodeURIComponent(zone.nom);
-    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=${zoneName}`;
-  }, [zone]);
+export const ZoneFocusMap = ({ zone, immeubles, className }: ZoneFocusMapProps) => {
+  const [isLocating, setIsLocating] = useState(false);
+
+  const handleGoToZone = () => {
+    setIsLocating(true);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const [destLat, destLng] = zone.latlng;
+          const url = `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${destLat},${destLng}`;
+          window.open(url, '_blank');
+          setIsLocating(false);
+        },
+        (error) => {
+          console.error("Erreur de géolocalisation:", error);
+          // Fallback to destination-only link
+          const [destLat, destLng] = zone.latlng;
+          const url = `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`;
+          window.open(url, '_blank');
+          setIsLocating(false);
+        }
+      );
+    } else {
+      // Geolocation not supported
+      const [destLat, destLng] = zone.latlng;
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`;
+      window.open(url, '_blank');
+      setIsLocating(false);
+    }
+  };
 
   const [lat, lng] = (zone.latlng && typeof zone.latlng[0] === 'number' && !isNaN(zone.latlng[0]) && typeof zone.latlng[1] === 'number' && !isNaN(zone.latlng[1])) ? zone.latlng : [0, 0]; // Default to [0,0] or handle error
   const circle = createGeoJSONCircle([lng, lat], zone.radius);
@@ -48,53 +75,55 @@ export const ZoneFocusMap = ({ zone, immeubles }: ZoneFocusMapProps) => {
   const validImmeubles = immeubles.filter(imm => imm.latitude && typeof imm.latitude === 'number' && !isNaN(imm.latitude) && imm.longitude && typeof imm.longitude === 'number' && !isNaN(imm.longitude));
 
   return (
-    <div className="relative z-10 h-full min-h-[500px] w-full rounded-lg overflow-hidden border-2 border-[hsl(var(--winvest-blue-clair))] flex flex-col">
-        <Map
-            initialViewState={{
-                longitude: lng,
-                latitude: lat,
-                zoom: 14
-            }}
-            style={{ width: '100%', height: '100%' }}
-            mapStyle="mapbox://styles/mapbox/streets-v12"
-        >
-            <NavigationControl position="top-right" />
-            <Source id="zone-source" type="geojson" data={circle}>
-                <Layer
-                    id="zone-fill"
-                    type="fill"
-                    paint={{ 'fill-color': zone.color, 'fill-opacity': 0.2 }}
-                />
-                <Layer
-                    id="zone-line"
-                    type="line"
-                    paint={{ 'line-color': zone.color, 'line-width': 2 }}
-                />
-            </Source>
+    <>
 
-            {immeubles.map(imm => (
-                <Marker key={imm.id} longitude={imm.longitude} latitude={imm.latitude}>
-                    <Popup longitude={imm.longitude} latitude={imm.latitude}>{imm.adresse}</Popup>
-                </Marker>
-            ))}
-        </Map>
-        <div className="p-4 bg-white border-t border-gray-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-primary" />
-                <p className="text-sm font-medium text-gray-700">
-                    Centre de la zone : <strong>{zone.nom}</strong>
-                </p>
-            </div>
-            <a 
-                href={googleMapsLink} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-            >
-                Y aller
-            </a>
-        </div>
-    </div>
+      <div className={cn("relative z-10 h-full min-h-[500px] w-full rounded-lg overflow-hidden border-2 border-[hsl(var(--winvest-blue-clair))] flex flex-col", className)}>
+          <Map
+              initialViewState={{
+                  longitude: lng,
+                  latitude: lat,
+                  zoom: 13
+              }}
+              style={{ width: '100%', height: '100%' }}
+              mapStyle="mapbox://styles/mapbox/streets-v12"
+          >
+              <NavigationControl position="top-right" />
+              <Source id="zone-source" type="geojson" data={circle}>
+                  <Layer
+                      id="zone-fill"
+                      type="fill"
+                      paint={{ 'fill-color': zone.color, 'fill-opacity': 0.2 }}
+                  />
+                  <Layer
+                      id="zone-line"
+                      type="line"
+                      paint={{ 'line-color': zone.color, 'line-width': 2 }}
+                  />
+              </Source>
+
+              {immeubles.map(imm => (
+                  <Marker key={imm.id} longitude={imm.longitude} latitude={imm.latitude}>
+                      <Popup longitude={imm.longitude} latitude={imm.latitude}>{imm.adresse}</Popup>
+                  </Marker>
+              ))}
+          </Map>
+          <div className="p-4 bg-white border-t border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  <p className="text-sm font-medium text-gray-700">
+                      Centre de la zone : <strong>{zone.nom}</strong>
+                  </p>
+              </div>
+              <button
+                  onClick={handleGoToZone}
+                  disabled={isLocating}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+              >
+                  {isLocating ? 'Localisation...' : 'Y aller'}
+              </button>
+          </div>
+      </div>
+    </>
   );
 };
 
@@ -104,3 +133,4 @@ interface ImmeubleFromApi {
   latitude: number;
   longitude: number;
 }
+''

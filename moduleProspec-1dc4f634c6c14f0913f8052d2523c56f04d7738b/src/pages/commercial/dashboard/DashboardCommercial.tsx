@@ -131,22 +131,24 @@ const CommercialDashboardPage = () => {
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {assignedZone ? (
-                    <ZoneFocusMap
-                        zone={{
-                            nom: assignedZone.nom,
-                            latlng: [assignedZone.latitude, assignedZone.longitude],
-                            radius: assignedZone.rayonMetres,
-                            color: assignedZone.couleur,
-                        }}
-                        immeubles={immeubles}
-                    />
-                ) : (
-                    <NoZoneAssigned />
-                )}
+            <div className="flex flex-col gap-6">
+                <Card className="h-[550px] w-full overflow-hidden rounded-lg shadow-lg">
+                    {assignedZone ? (
+                        <ZoneFocusMap
+                            zone={{
+                                nom: assignedZone.nom,
+                                latlng: [assignedZone.latitude, assignedZone.longitude],
+                                radius: assignedZone.rayonMetres,
+                                color: assignedZone.couleur,
+                            }}
+                            immeubles={immeubles}
+                        />
+                    ) : (
+                        <NoZoneAssigned />
+                    )}
+                </Card>
 
-                <div className="flex flex-col h-full gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <GoalProgressCard
                         title="Objectif du Mois"
                         description="Progression de votre objectif de contrats mensuel."
