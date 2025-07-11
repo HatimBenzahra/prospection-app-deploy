@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { AssignmentType } from '@/types/enums';
 
 const API_URL = 'http://localhost:3000/zones';
 
@@ -19,6 +20,10 @@ export interface ZoneDetailsFromApi extends ZoneFromApi {
     totalRdvPris: number;
   };
   immeubles: any[]; // Pour l'instant, on garde any pour la simplicité
+  typeAssignation?: AssignmentType;
+  equipeId?: string;
+  managerId?: string;
+  commercialId?: string;
 }
 
 const getZones = async (): Promise<ZoneFromApi[]> => {

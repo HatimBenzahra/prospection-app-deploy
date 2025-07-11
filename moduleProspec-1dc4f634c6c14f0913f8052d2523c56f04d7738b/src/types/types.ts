@@ -35,10 +35,13 @@ export interface Manager {
 
 export interface Zone {
   id: string;
-  nom: string;
-  latitude: number;
-  longitude: number;
-  rayonMetres: number;
-  couleur: string;
-  createdAt: string;
+  name: string;
+  assignedTo: string;
+  color: string;
+  latlng: [number, number];
+  radius: number;
+  dateCreation: string;
+  nbImmeubles: number;
+  totalContratsSignes: number;
+  totalRdvPris: number;
 }

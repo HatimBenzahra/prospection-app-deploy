@@ -9,8 +9,13 @@ import { Modal } from '@/components/ui-admin/Modal';
 import { ZoneCreatorModal } from './ZoneCreatorModal';
 import type { RowSelectionState } from '@tanstack/react-table';
 import { zoneService } from '@/services/zone.service';
+import { commercialService } from '@/services/commercial.service';
+import { equipeService } from '@/services/equipe.service';
+import { managerService } from '@/services/manager.service';
+import { assignmentGoalsService } from '@/services/assignment-goals.service';
 import { AssignmentType } from '@/types/enums';
 import { ViewToggleContainer } from '@/components/ui-admin/ViewToggleContainer';
+import type { Commercial, Manager, Equipe } from '@/types/types';
 
 const ZonesPage = () => {
   const [view, setView] = useState<'table' | 'map'>('table');
@@ -31,16 +36,57 @@ const ZonesPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const zones = await zoneService.getZones();
-      const formattedZones: ZoneTableType[] = zones.map(z => ({
-        id: z.id,
-        name: z.nom,
-        assignedTo: 'Non assignée', // This logic might need adjustment based on your data model
-        color: z.couleur || 'gray',
-        latlng: [z.latitude, z.longitude], // Ensure this is [lat, lng]
-        radius: z.rayonMetres,
-        dateCreation: z.createdAt,
-      }));
+      const [zonesData, commercialsData, managersData, equipesData] = await Promise.all([
+        zoneService.getZones(),
+        commercialService.getCommerciaux(),
+        managerService.getManagers(),
+        equipeService.getEquipes(),
+      ]);
+
+      const commercialMap = new Map<string, Commercial>();
+      commercialsData.forEach(c => commercialMap.set(c.id, c));
+
+      const managerMap = new Map<string, Manager>();
+      managersData.forEach(m => managerMap.set(m.id, m));
+
+      const equipeMap = new Map<string, Equipe>();
+      equipesData.forEach(e => equipeMap.set(e.id, e));
+
+      const detailedZonesPromises = zonesData.map(async (zone) => {
+        const details = await zoneService.getZoneDetails(zone.id);
+        let assignedToName = 'Non assignée';
+
+        if (details.typeAssignation === AssignmentType.COMMERCIAL && details.commercialId) {
+          const commercial = commercialMap.get(details.commercialId);
+          if (commercial) {
+            assignedToName = `${commercial.nom} ${commercial.prenom}`;
+          }
+        } else if (details.typeAssignation === AssignmentType.EQUIPE && details.equipeId) {
+          const equipe = equipeMap.get(details.equipeId);
+          if (equipe) {
+            assignedToName = `Équipe: ${equipe.nom}`;
+          }
+        } else if (details.typeAssignation === AssignmentType.MANAGER && details.managerId) {
+          const manager = managerMap.get(details.managerId);
+          if (manager) {
+            assignedToName = `Manager: ${manager.nom} ${manager.prenom}`;
+          }
+        }
+
+        return {
+          id: zone.id,
+          name: zone.nom,
+          assignedTo: assignedToName,
+          color: zone.couleur || 'gray',
+          latlng: [zone.latitude, zone.longitude],
+          radius: zone.rayonMetres,
+          dateCreation: zone.createdAt,
+          nbImmeubles: details.stats.nbImmeubles,
+          totalContratsSignes: details.stats.totalContratsSignes,
+          totalRdvPris: details.stats.totalRdvPris,
+        };
+      });
+      const formattedZones = await Promise.all(detailedZonesPromises);
       setExistingZones(formattedZones);
     } catch (error) {
       console.error('Erreur de chargement des données:', error);
