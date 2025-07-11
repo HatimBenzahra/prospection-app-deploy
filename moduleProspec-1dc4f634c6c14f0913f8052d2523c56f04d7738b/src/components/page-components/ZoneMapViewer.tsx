@@ -4,41 +4,28 @@ import { Map, Pin } from 'lucide-react';
 import type { Zone } from '@/types/types';
 
 interface ZoneMapViewerProps {
-  zone: Zone | null;
+  zones: Zone[];
+  focusedZone: Zone | null;
   onMapLoad?: () => void;
 }
 
-export const ZoneMapViewer = ({ zone, onMapLoad }: ZoneMapViewerProps) => {
+export const ZoneMapViewer = ({ zones, focusedZone, onMapLoad }: ZoneMapViewerProps) => {
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow h-full flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center text-purple-600">
-          <Pin className="mr-3 h-6 w-6" /> Visualisation de la Zone
+          <Pin className="mr-3 h-6 w-6" /> Visualisation des Zones
         </CardTitle>
         <CardDescription>
-          {zone ? `Détails pour la zone : ${zone.nom}` : 'Sélectionnez une zone pour la voir ici.'}
+          {focusedZone ? `Zone sélectionnée : ${focusedZone.nom}` : 'Vue d\'ensemble des zones'}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow rounded-b-lg overflow-hidden p-0">
-        {zone ? (
-          <MapComponent
-            latitude={zone.latitude}
-            longitude={zone.longitude}
-            zoom={13} 
-            radius={zone.rayonMetres}
-            color={zone.couleur} // Pass the zone color
-            key={zone.id} // Important: force le re-rendu de la map quand la zone change
-            onLoad={onMapLoad}
-          />
-        ) : (
-          <div className="h-full bg-gray-100 flex flex-col items-center justify-center text-center p-8">
-            <Map className="h-24 w-24 text-gray-300 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-600">Aucune zone sélectionnée</h3>
-            <p className="text-gray-500 mt-2">
-              Veuillez choisir une zone dans le panneau d'assignation pour afficher sa localisation et son périmètre.
-            </p>
-          </div>
-        )}
+        <MapComponent
+          zones={zones}
+          focusedZoneId={focusedZone?.id || null}
+          onLoad={onMapLoad}
+        />
       </CardContent>
     </Card>
   );

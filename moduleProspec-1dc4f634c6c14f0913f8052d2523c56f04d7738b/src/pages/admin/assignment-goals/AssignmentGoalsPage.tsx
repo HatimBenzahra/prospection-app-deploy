@@ -134,7 +134,7 @@ const AssignmentGoalsPage = () => {
         
         {/* Colonne de droite avec la carte */}
         <div className="lg:col-span-2">
-           <ZoneMapViewer zone={selectedZone} onMapLoad={() => setIsMapReady(true)} />
+           <ZoneMapViewer zones={data.zones} focusedZone={selectedZone} onMapLoad={() => setIsMapReady(true)} />
         </div>
       </div>
     </div>
