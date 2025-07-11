@@ -12,10 +12,9 @@ import { zoneService } from '@/services/zone.service';
 import { commercialService } from '@/services/commercial.service';
 import { equipeService } from '@/services/equipe.service';
 import { managerService } from '@/services/manager.service';
-import { assignmentGoalsService } from '@/services/assignment-goals.service';
 import { AssignmentType } from '@/types/enums';
 import { ViewToggleContainer } from '@/components/ui-admin/ViewToggleContainer';
-import type { Commercial, Manager, Equipe } from '@/types/types';
+import type { Commercial, Manager } from '@/types/types';
 
 const ZonesPage = () => {
   const [view, setView] = useState<'table' | 'map'>('table');
@@ -36,7 +35,7 @@ const ZonesPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [zonesData, commercialsData, managersData, equipesData] = await Promise.all([
+      const [zonesData, commercialsData, managersData] = await Promise.all([
         zoneService.getZones(),
         commercialService.getCommerciaux(),
         managerService.getManagers(),
@@ -49,9 +48,6 @@ const ZonesPage = () => {
       const managerMap = new Map<string, Manager>();
       managersData.forEach(m => managerMap.set(m.id, m));
 
-      const equipeMap = new Map<string, Equipe>();
-      equipesData.forEach(e => equipeMap.set(e.id, e));
-
       const detailedZonesPromises = zonesData.map(async (zone) => {
         const details = await zoneService.getZoneDetails(zone.id);
         let assignedToName = 'Non assignée';
@@ -61,12 +57,8 @@ const ZonesPage = () => {
           if (commercial) {
             assignedToName = `${commercial.nom} ${commercial.prenom}`;
           }
-        } else if (details.typeAssignation === AssignmentType.EQUIPE && details.equipeId) {
-          const equipe = equipeMap.get(details.equipeId);
-          if (equipe) {
-            assignedToName = `Équipe: ${equipe.nom}`;
-          }
-        } else if (details.typeAssignation === AssignmentType.MANAGER && details.managerId) {
+        } 
+        else if (details.typeAssignation === AssignmentType.MANAGER && details.managerId) {
           const manager = managerMap.get(details.managerId);
           if (manager) {
             assignedToName = `Manager: ${manager.nom} ${manager.prenom}`;
@@ -78,7 +70,7 @@ const ZonesPage = () => {
           name: zone.nom,
           assignedTo: assignedToName,
           color: zone.couleur || 'gray',
-          latlng: [zone.latitude, zone.longitude],
+          latlng: [zone.latitude, zone.longitude] as [number, number],
           radius: zone.rayonMetres,
           dateCreation: zone.createdAt,
           nbImmeubles: details.stats.nbImmeubles,

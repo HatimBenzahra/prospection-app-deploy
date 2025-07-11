@@ -63,7 +63,9 @@ const ZoneDetailsPage = () => {
     id: imm.id,
     adresse: imm.adresse,
     status: imm.status,
-    latlng: (typeof imm.latitude === 'number' && !isNaN(imm.latitude) && typeof imm.longitude === 'number' && !isNaN(imm.longitude)) ? [imm.latitude, imm.longitude] : [0, 0],
+    latlng: (typeof imm.latitude === 'number' && !isNaN(imm.latitude) && typeof imm.longitude === 'number' && !isNaN(imm.longitude))
+      ? [imm.latitude, imm.longitude] as [number, number]
+      : [0, 0] as [number, number],
   }));
 
   return (

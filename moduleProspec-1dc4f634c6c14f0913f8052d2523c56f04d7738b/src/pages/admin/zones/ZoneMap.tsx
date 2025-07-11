@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Map, { Marker, Popup, Source, Layer, useControl, NavigationControl, FullscreenControl } from 'react-map-gl';
-import type { MapRef, LngLatLike } from 'react-map-gl';
+import type { MapRef } from 'react-map-gl';
 import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
