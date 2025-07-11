@@ -80,19 +80,13 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
     const [step, setStep] = useState(isEditMode ? 2 : 1);
     const [zoneName, setZoneName] = useState(isEditMode ? zoneToEdit.name : '');
     const [zoneColor, setZoneColor] = useState(isEditMode ? zoneToEdit.color : '#3388ff');
-    
-    const [initialViewState, setInitialViewState] = useState({
-        longitude: 2.3522, latitude: 48.8566, zoom: 12
-    });
+
+    const initialMapViewState = isEditMode && zoneToEdit
+        ? { longitude: zoneToEdit.latlng[1], latitude: zoneToEdit.latlng[0], zoom: 14 }
+        : { longitude: 2.3522, latitude: 48.8566, zoom: 14 };
 
     useEffect(() => {
-        if (isEditMode && zoneToEdit) {
-            setInitialViewState({
-                longitude: zoneToEdit.latlng[1],
-                latitude: zoneToEdit.latlng[0],
-                zoom: 14
-            });
-        } else if (existingZones.length > 0) {
+        if (!isEditMode && existingZones.length > 0) {
             // Fit bounds to existing zones when creating a new one
             const map = mapRef.current;
             if (map) {
@@ -100,10 +94,10 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
                 const bounds = allPoints.reduce((bounds, coord) => {
                     return bounds.extend(coord);
                 }, new (window as any).mapboxgl.LngLatBounds(allPoints[0], allPoints[0]));
-                map.fitBounds(bounds, { padding: 80, animate: true, maxZoom: 15 });
+                map.fitBounds(bounds, { padding: 80, animate: true, maxZoom: 20 });
             }
         }
-    }, [isEditMode, zoneToEdit, existingZones, mapRef]);
+    }, [isEditMode, existingZones, mapRef]);
 
 
     const handleMapClick = (e: MapLayerMouseEvent) => {
@@ -157,8 +151,7 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
              <div className="flex-1 w-full relative">
                 <Map
                     ref={mapRef}
-                    
-                    
+                    initialViewState={initialMapViewState}
                     style={{ height: '100%', width: '100%', borderRadius: '0.5rem' }}
                     mapStyle="mapbox://styles/mapbox/streets-v12"
                     onClick={handleMapClick}
@@ -221,7 +214,7 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
                     )}
                 </div>
 
-                <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex flex-row gap-2">
                     <Button onClick={handleValidate} className="bg-green-600 text-white hover:bg-green-700" disabled={!center || radius <= 0 || !zoneName}>
                         <Check className="mr-2 h-4 w-4" />{isEditMode ? "Enregistrer" : "Valider"}
                     </Button>
