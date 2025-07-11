@@ -33,7 +33,7 @@ import CommercialDashboardPage from './pages/commercial/dashboard/DashboardComme
 import ProspectingSetupPage from './pages/commercial/prospection/ProspectingSetupPage'; 
 import ProspectingDoorsPage from './pages/commercial/prospection/ProspectingDoorsPage';
 import CommercialImmeublesPage from './pages/commercial/immeubles/CommercialImmeublesPage'; // Import the new page
-
+import CommercialStatisticsPage from './pages/commercial/statistics/StatisticsPage';
 
 
 // --- Pages des autres Rôles (pour l'exemple) ---
@@ -91,6 +91,7 @@ function App() {
 
             {/* Autres pages du commercial */}
             <Route path="history" element={<HistoriquePage />} />
+            <Route path="stats" element={<CommercialStatisticsPage />} />
           </Route>
             
           {/* Routes pour les autres rôles */}
@@ -108,3 +109,4 @@ function App() {
 }
 
 export default App;
+

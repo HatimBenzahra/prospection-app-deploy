@@ -1,22 +1,14 @@
-
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { statisticsService } from '@/services/statistics.service';
 import StatCard from '@/components/ui-admin/StatCard';
 import { GenericPieChart } from '@/components/charts/GenericPieChart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
-import { Building, DoorOpen, Handshake, Target, ArrowLeft, User, Phone, Mail, UserCheck } from 'lucide-react';
-import { Button } from '@/components/ui-admin/button';
+import { Building, DoorOpen, Handshake, Target, BarChart } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui-admin/tooltip';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui-admin/table';
-import { commercialService } from '@/services/commercial.service';
 
 interface CommercialStats {
-  commercialInfo: {
-    nom: string;
-    prenom: string;
-    email: string;
-  };
   kpis: {
     immeublesVisites: number;
     portesVisitees: number;
@@ -43,46 +35,24 @@ interface HistoryEntry {
   tauxCouverture: number;
 }
 
-interface CommercialDetails {
-  id: string;
-  nom: string;
-  prenom: string;
-  email: string;
-  telephone?: string;
-  equipe: {
-    id: string;
-    nom: string;
-    manager: {
-      id: string;
-      nom: string;
-      prenom: string;
-    };
-  };
-}
-
-const CommercialDetailsPage = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const location = useLocation();
+const CommercialStatisticsPage = () => {
+  const { user } = useAuth();
   const [stats, setStats] = useState<CommercialStats | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [commercial, setCommercial] = useState<CommercialDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (id) {
+    if (user?.id) {
       const fetchData = async () => {
         try {
           setLoading(true);
-          const [statsData, historyData, commercialData] = await Promise.all([
-            statisticsService.getStatsForCommercial(id),
-            statisticsService.getCommercialHistory(id),
-            commercialService.getCommercialDetails(id),
+          const [statsData, historyData] = await Promise.all([
+            statisticsService.getStatsForCommercial(user.id),
+            statisticsService.getCommercialHistory(user.id),
           ]);
           setStats(statsData);
           setHistory(historyData);
-          setCommercial(commercialData);
           setError(null);
         } catch (err) {
           setError('Erreur lors de la récupération des données.');
@@ -93,7 +63,7 @@ const CommercialDetailsPage = () => {
       };
       fetchData();
     }
-  }, [id]);
+  }, [user]);
 
   if (loading) {
     return <div>Chargement des données...</div>;
@@ -103,8 +73,8 @@ const CommercialDetailsPage = () => {
     return <div className="text-red-500">{error}</div>;
   }
 
-  if (!stats || !commercial) {
-    return <div>Aucune statistique disponible pour ce commercial.</div>;
+  if (!stats) {
+    return <div>Aucune statistique disponible.</div>;
   }
 
   const pieData = Object.entries(stats.repartitionStatuts).map(([name, value]) => ({
@@ -112,58 +82,14 @@ const CommercialDetailsPage = () => {
     value: value as number,
   }));
 
-  const handleBackClick = () => {
-    navigate(-1);
-  };
-
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center">
-        {location.state?.fromManager ? (
-          <div style={{ border: '2px solid #6366f1', borderRadius: '6px', padding: '2px 8px', marginRight: '16px' }}>
-            <Button variant="outline" size="icon" onClick={handleBackClick}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </div>
-        ) : location.state?.fromEquipe ? (
-          <div style={{ border: '2px solid #22c55e', borderRadius: '6px', padding: '2px 8px', marginRight: '16px' }}>
-            <Button variant="outline" size="icon" onClick={handleBackClick}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </div>
-        ) : (
-          <Button variant="outline" size="icon" className="mr-4" onClick={handleBackClick}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        )}
-        <h1 className="text-2xl font-bold">
-          Statistiques de {stats.commercialInfo.prenom} {stats.commercialInfo.nom}
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <BarChart className="h-6 w-6" />
+          Vos Statistiques de Performance
         </h1>
       </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Informations Personnelles</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="flex items-center space-x-2">
-            <User className="h-5 w-5 text-gray-500" />
-            <span>{commercial.prenom} {commercial.nom}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Phone className="h-5 w-5 text-gray-500" />
-            <span>{commercial.telephone || 'N/A'}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Mail className="h-5 w-5 text-gray-500" />
-            <span>{commercial.email}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <UserCheck className="h-5 w-5 text-gray-500" />
-            <span>{commercial.equipe ? `${commercial.equipe.manager.prenom} ${commercial.equipe.manager.nom}` : 'N/A'}</span>
-          </div>
-        </CardContent>
-      </Card>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Immeubles Visitées" value={stats.kpis.immeublesVisites} Icon={Building} />
@@ -177,7 +103,7 @@ const CommercialDetailsPage = () => {
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Le taux de conversion représente le rapport entre le nombre de contrats signés et le nombre total de portes visitées. Il mesure l’efficacité du commercial à conclure des ventes.</p>
+              <p>Le taux de conversion représente le rapport entre le nombre de contrats signés et le nombre total de portes visitées.</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -241,4 +167,4 @@ const CommercialDetailsPage = () => {
   );
 };
 
-export default CommercialDetailsPage;
+export default CommercialStatisticsPage;
