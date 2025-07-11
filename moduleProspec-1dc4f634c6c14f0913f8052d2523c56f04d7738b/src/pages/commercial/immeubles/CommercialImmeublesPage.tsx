@@ -360,7 +360,7 @@ const CommercialImmeublesPage: React.FC = () => {
                       <p className="min-w-0"><strong>Portes:</strong> <span className="font-medium text-green-600 break-words">{immeuble.nbPortesTotal}</span></p>
                       <p className="min-w-0"><strong>Ascenseur:</strong> <span className="font-medium text-orange-600 break-words">{immeuble.hasElevator ? 'Oui' : 'Non'}</span></p>
                       {immeuble.digicode && <p className="min-w-0"><strong>Digicode:</strong> <span className="font-medium text-red-600 break-words">{immeuble.digicode}</span></p>}
-                      <p className="min-w-0"><strong>Mode:</strong> <span className="font-medium text-indigo-600 break-words">{immeuble.prospectingMode === 'DUO' ? 'Duo' : 'Solo'}</span></p>
+                      <p className="min-w-0"><strong>Mode:</strong> <span className="font-medium text-indigo-600 break-words">{immeuble.prospectingMode === 'DUO' ? 'Duo' : (immeuble.prospectingMode === 'SOLO' ? 'Solo' : '')}</span></p>
                     </div>
                   </CardContent>
                   <div className="flex flex-col sm:flex-row justify-end items-end p-4 pt-0 gap-2">
