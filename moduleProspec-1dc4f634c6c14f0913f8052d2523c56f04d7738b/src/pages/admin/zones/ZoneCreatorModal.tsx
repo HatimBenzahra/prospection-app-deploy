@@ -12,6 +12,7 @@ import { Button } from '@/components/ui-admin/button';
 import { Input } from '@/components/ui-admin/input';
 import { Label } from '@/components/ui-admin/label';
 import { Check, X, RotateCcw, MousePointerClick } from 'lucide-react';
+import { ThreeDControl } from './ZoneMap';
 import type { Zone as ZoneTableType } from './columns';
 
 
@@ -80,6 +81,17 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
     const [step, setStep] = useState(isEditMode ? 2 : 1);
     const [zoneName, setZoneName] = useState(isEditMode ? zoneToEdit.name : '');
     const [zoneColor, setZoneColor] = useState(isEditMode ? zoneToEdit.color : '#3388ff');
+    const [show3D, setShow3D] = useState(false);
+
+    useEffect(() => {
+        if (mapRef.current) {
+            if (show3D) {
+                mapRef.current.easeTo({ pitch: 60, duration: 1000 });
+            } else {
+                mapRef.current.easeTo({ pitch: 0, duration: 1000 });
+            }
+        }
+    }, [show3D]);
 
     const initialMapViewState = isEditMode && zoneToEdit
         ? { longitude: zoneToEdit.latlng[1], latitude: zoneToEdit.latlng[0], zoom: 14 }
@@ -160,6 +172,49 @@ export const ZoneCreatorModal = ({ onValidate, onClose, existingZones, zoneToEdi
                 >
                     <NavigationControl position="top-right" />
                     <GeocoderControl onResult={handleGeocoderResult} position="top-left" />
+                    <ThreeDControl position="top-right" onClick={() => setShow3D(s => !s)} />
+                    
+                    {show3D && (
+                        <Source
+                            id="mapbox-dem"
+                            type="raster-dem"
+                            url="mapbox://mapbox.mapbox-terrain-dem-v1"
+                            tileSize={512}
+                            maxzoom={14}
+                        />
+                    )}
+                    {show3D && (
+                         <Layer
+                            id="3d-buildings"
+                            source="composite"
+                            source-layer="building"
+                            filter={['==', 'extrude', 'true']}
+                            type="fill-extrusion"
+                            minzoom={15}
+                            paint={{
+                                'fill-extrusion-color': '#aaa',
+                                'fill-extrusion-height': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['zoom'],
+                                    15,
+                                    0,
+                                    15.05,
+                                    ['get', 'height']
+                                ],
+                                'fill-extrusion-base': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['zoom'],
+                                    15,
+                                    0,
+                                    15.05,
+                                    ['get', 'min_height']
+                                ],
+                                'fill-extrusion-opacity': 0.6
+                            }}
+                        />
+                    )}
 
                     {/* Display existing zones */}
                     {existingZones.filter(z => z.id !== zoneToEdit?.id).map(zone => {

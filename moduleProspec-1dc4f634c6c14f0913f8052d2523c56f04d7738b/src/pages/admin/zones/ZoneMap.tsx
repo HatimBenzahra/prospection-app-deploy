@@ -170,7 +170,7 @@ const ZoneDisplay = ({ zone, onDoubleClick, onMarkerClick }: { zone: Zone, onDou
     );
 };
 
-const ThreeDControl = ({ onClick, position }: { onClick: () => void, position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' }) => {
+export const ThreeDControl = React.memo(({ onClick, position }: { onClick: () => void, position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' }) => {
   useControl(() => {
     class CustomControl {
       _map: any;
@@ -208,7 +208,7 @@ const ThreeDControl = ({ onClick, position }: { onClick: () => void, position: '
   }, { position });
 
   return null;
-};
+});
 
 export const ZoneMap = ({ existingZones, immeubles = [], zoneToFocus }: ZoneMapProps) => {
     const validZones = existingZones.filter(z => z.latlng && typeof z.latlng[0] === 'number' && !isNaN(z.latlng[0]) && typeof z.latlng[1] === 'number' && !isNaN(z.latlng[1]));
