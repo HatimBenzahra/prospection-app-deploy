@@ -162,7 +162,7 @@ const CommercialDashboardPage = () => {
                                 <Button
                                     variant="ghost"
                                     className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-[hsl(var(--winvest-blue-moyen))] text-white hover:bg-blue-700 transition"
-                                    onClick={() => navigate('/commercial/prospection')}
+                                    onClick={() => navigate('/commercial/prospecting')}
                                 >
                                     <MapPin className="h-6 w-6" />
                                     <span className="text-base font-medium">Prospection</span>
@@ -172,7 +172,7 @@ const CommercialDashboardPage = () => {
                                 <Button
                                     variant="ghost"
                                     className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-[hsl(var(--winvest-blue-moyen))] text-white hover:bg-blue-700 transition"
-                                    onClick={() => navigate('/commercial/historique')}
+                                    onClick={() => navigate('/commercial/history')}
                                 >
                                     <BarChart className="h-6 w-6" />
                                     <span className="text-base font-medium">Historique</span>
