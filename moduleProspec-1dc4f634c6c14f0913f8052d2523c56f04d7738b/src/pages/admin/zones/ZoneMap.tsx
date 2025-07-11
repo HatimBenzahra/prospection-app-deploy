@@ -130,7 +130,7 @@ const MapViewController = ({ mapRef, zones, zoneToFocus, immeubles }: { mapRef: 
     return null;
 };
 
-const ZoneDisplay = ({ zone, onDoubleClick }: { zone: Zone, onDoubleClick: (coords: [number, number]) => void }) => {
+const ZoneDisplay = ({ zone, onDoubleClick, onMarkerClick }: { zone: Zone, onDoubleClick: (coords: [number, number]) => void, onMarkerClick: (zone: Zone) => void }) => {
     const [lat, lng] = zone.latlng;
     const [popupInfo, setPopupInfo] = useState<Zone | null>(null);
     const circleGeoJSON = createGeoJSONCircle([lng, lat], zone.radius);
@@ -150,7 +150,7 @@ const ZoneDisplay = ({ zone, onDoubleClick }: { zone: Zone, onDoubleClick: (coor
                 />
             </Source>
             <Marker longitude={lng} latitude={lat}>
-                <div onDoubleClick={() => onDoubleClick([lng, lat])} onClick={() => setPopupInfo(zone)} style={{ cursor: 'pointer' }}>
+                <div onDoubleClick={() => onDoubleClick([lng, lat])} onClick={() => { setPopupInfo(zone); onMarkerClick(zone); }} style={{ cursor: 'pointer' }}>
                     <img src={zoneCenterIconSvg} alt="Zone center" style={{ width: '16px', height: '16px' }} />
                 </div>
             </Marker>
@@ -230,6 +230,13 @@ export const ZoneMap = ({ existingZones, immeubles = [], zoneToFocus }: ZoneMapP
         mapRef.current?.flyTo({ center: coords, zoom: 15, duration: 1500 });
     };
 
+    const handleZoneClick = (zone: Zone) => {
+        const map = mapRef.current;
+        if (map && map.getZoom() < 12) { // If zoomed out
+            map.flyTo({ center: [zone.latlng[1], zone.latlng[0]], zoom: 15, duration: 1500 });
+        }
+    };
+
     return (
         <div className={cn('relative h-full w-full')}>
             <div className={cn('relative h-full w-full rounded-lg')}>
@@ -293,7 +300,7 @@ export const ZoneMap = ({ existingZones, immeubles = [], zoneToFocus }: ZoneMapP
                     <MapViewController mapRef={mapRef} zones={validZones} zoneToFocus={zoneToFocus} immeubles={validImmeubles} />
 
                     {validZones.map(zone => (
-                        <ZoneDisplay key={zone.id} zone={zone} onDoubleClick={handleMarkerDoubleClick} />
+                        <ZoneDisplay key={zone.id} zone={zone} onDoubleClick={handleMarkerDoubleClick} onMarkerClick={handleZoneClick} />
                     ))}
 
                     {validImmeubles.map(immeuble => {
