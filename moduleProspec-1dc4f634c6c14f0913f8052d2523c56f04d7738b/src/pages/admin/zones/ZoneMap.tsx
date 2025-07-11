@@ -1,52 +1,61 @@
 // frontend-shadcn/src/pages/admin/zones/ZoneMap.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Circle, Popup, useMap, FeatureGroup, Marker } from 'react-leaflet';
-import type { FeatureGroup as FeatureGroupType } from 'leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import Map, { Marker, Popup, Source, Layer, useControl, NavigationControl, FullscreenControl } from 'react-map-gl';
+import type { MapRef, LngLatLike } from 'react-map-gl';
+import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 import { cn } from '@/lib/utils';
-import { Maximize, Shrink } from 'lucide-react';
-import { Button } from '@/components/ui-admin/button';
-import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
-import 'leaflet-geosearch/dist/geosearch.css';
+import mapboxgl from 'mapbox-gl';
 
-// --- Patch et icônes ---
-// @ts-ignore
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-});
 
-const zoneCenterIcon = new L.Icon({
-    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(222.2 47.4% 11.2%)" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="6"/></svg>'),
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-    popupAnchor: [0, -8],
-});
+// --- Helper to create a GeoJSON Polygon circle ---
+function createGeoJSONCircle(center: [number, number], radiusInMeters: number, points = 64) {
+    const coords = {
+        latitude: center[1],
+        longitude: center[0]
+    };
 
-const searchMarkerIcon = new L.Icon({
-    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(206, 92%, 52%)" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-code"><path d="M15.5 15.5 20 20"/><path d="M9 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="m14 14-2.5 2.5"/><path d="m14 6-2.5-2.5"/><path d="m6 14-2.5 2.5"/><path d="m6 6 2.5-2.5"/></svg>'),
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32],
-});
+    const km = radiusInMeters / 1000;
+    const ret: [number, number][] = [];
+    const distanceX = km / (111.320 * Math.cos(coords.latitude * Math.PI / 180));
+    const distanceY = km / 110.574;
+
+    let theta, x, y;
+    for (let i = 0; i < points; i++) {
+        theta = (i / points) * (2 * Math.PI);
+        x = distanceX * Math.cos(theta);
+        y = distanceY * Math.sin(theta);
+        ret.push([coords.longitude + x, coords.latitude + y]);
+    }
+    ret.push(ret[0]);
+
+    return {
+        type: "Feature" as const,
+        geometry: {
+            type: "Polygon" as const,
+            coordinates: [ret]
+        },
+        properties: {}
+    };
+};
+
+const zoneCenterIconSvg = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="hsl(222.2 47.4% 11.2%)" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="6"/></svg>');
 
 interface Zone {
   id: string;
   name: string;
   assignedTo: string;
   color: string;
-  latlng: L.LatLngExpression;
+  latlng: [number, number]; // IMPORTANT: Assumed to be [lat, lng] from parent, will be converted to [lng, lat]
   radius: number;
 }
 
 interface Immeuble {
   id: string;
   adresse: string;
-  latlng: L.LatLngExpression;
+  latlng: [number, number]; // IMPORTANT: Assumed to be [lat, lng] from parent, will be converted to [lng, lat]
   status: string;
 }
 
@@ -56,112 +65,242 @@ interface ZoneMapProps {
   zoneToFocus: string | null;
 }
 
-const SearchControl = () => {
-    const map = useMap();
-    useEffect(() => {
-        const provider = new OpenStreetMapProvider({
-            params: { countrycodes: 'fr', 'accept-language': 'fr' },
-        });
-        // @ts-ignore
-        const searchControl = new GeoSearchControl({
-            provider: provider, style: 'bar', marker: { icon: searchMarkerIcon, draggable: false },
-            showPopup: false, autoClose: true, retainZoomLevel: false,
-            animateZoom: true, keepResult: true, searchLabel: 'Entrez une adresse en France...', updateMap: false, 
-        });
-        const onLocationFound = (event: any) => {
-            if (event.location && event.location.y && event.location.x) {
-                map.flyTo(new L.LatLng(event.location.y, event.location.x), 14, { animate: true, duration: 1.5 }); 
-            }
-        };
-        map.addControl(searchControl);
-        map.on('geosearch/showlocation', onLocationFound);
-        return () => { map.removeControl(searchControl); map.off('geosearch/showlocation', onLocationFound); };
-    }, [map]);
-    return null;
-};
+/* eslint-disable-next-line react/display-name */
+const GeocoderControl = React.memo((props: { position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' }) => {
+  useControl(() => {
+    const geocoder = new MapboxGeocoder({
+      accessToken: mapboxgl.accessToken,
+      marker: false,
+      countries: 'fr',
+      language: 'fr',
+    });
+    return geocoder;
+  }, {
+    position: props.position
+  });
+  return null;
+});
 
-// LA LOGIQUE FINALE, SIMPLIFIÉE
-const MapViewController = ({ zones, zoneToFocus, featureGroupRef }: { zones: Zone[], zoneToFocus: string | null, featureGroupRef: React.RefObject<FeatureGroupType | null> }) => {
-    const map = useMap();
-
+const MapViewController = ({ mapRef, zones, zoneToFocus, immeubles }: { mapRef: React.RefObject<MapRef | null>, zones: Zone[], zoneToFocus: string | null, immeubles: Immeuble[] }) => {
     useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+
         const timer = setTimeout(() => {
-            if (!map) return;
-
-            // SI UNE ZONE EST CIBLÉE : on zoome dessus. C'est tout.
             if (zoneToFocus) {
                 const zone = zones.find(z => z.id === zoneToFocus);
                 if (zone) {
-                    map.flyTo(zone.latlng, 15, { animate: true, duration: 1.5 });
+                    const [lat, lng] = zone.latlng;
+                    map.flyTo({ center: [lng, lat], zoom: 14, duration: 1500 });
                 }
-            } 
-            // SINON (aucune zone ciblée) : on affiche toutes les zones.
-            else {
-                if (featureGroupRef.current && zones.length > 0) {
-                    const bounds = featureGroupRef.current.getBounds();
-                    if (bounds.isValid()) {
-                        map.fitBounds(bounds, { padding: [50, 50], animate: true });
-                    }
+            } else if (zones.length > 0) {
+                const allPoints: LngLatLike[] = zones.map(z => {
+                    const [lat, lng] = z.latlng;
+                    return [lng, lat];
+                });
+                if (immeubles) {
+                    immeubles.forEach(i => {
+                        const [lat, lng] = i.latlng;
+                        allPoints.push([lng, lat]);
+                    });
+                }
+
+                if (allPoints.length > 0) {
+                    const bounds = allPoints.reduce((bounds, coord) => {
+                        return bounds.extend(coord);
+                    }, new (window as any).mapboxgl.LngLatBounds(allPoints[0], allPoints[0]));
+
+                    map.fitBounds(bounds, { padding: 80, animate: true, maxZoom: 15 });
                 }
             }
-        }, 50); // Léger délai pour la stabilité
+        }, 50);
 
         return () => clearTimeout(timer);
-    }, [map, zones, zoneToFocus, featureGroupRef]); // On se base uniquement sur les props
+    }, [mapRef, zones, zoneToFocus, immeubles]);
 
     return null;
-}
+};
 
-const ZoneDisplay = ({ zone }: { zone: Zone }) => {
-    const map = useMap();
-    const handleDoubleClick = () => { map.flyTo(zone.latlng, 15, { animate: true, duration: 1.5 }); };
+const ZoneDisplay = ({ zone, onDoubleClick }: { zone: Zone, onDoubleClick: (coords: [number, number]) => void }) => {
+    const [lat, lng] = zone.latlng;
+    const [popupInfo, setPopupInfo] = useState<Zone | null>(null);
+    const circleGeoJSON = createGeoJSONCircle([lng, lat], zone.radius);
+
     return (
         <>
-            <Circle key={`circle-${zone.id}`} center={zone.latlng} radius={zone.radius} pathOptions={{ color: zone.color, fillColor: zone.color, fillOpacity: 0.2 }}>
-                <Popup><b>{zone.name}</b></Popup>
-            </Circle>
-            <Marker key={`marker-${zone.id}`} position={zone.latlng} icon={zoneCenterIcon} eventHandlers={{ dblclick: handleDoubleClick }}/>
+            <Source id={`source-circle-${zone.id}`} type="geojson" data={circleGeoJSON}>
+                <Layer
+                    id={`layer-fill-${zone.id}`}
+                    type="fill"
+                    paint={{ 'fill-color': zone.color, 'fill-opacity': 0.2 }}
+                />
+                <Layer
+                    id={`layer-outline-${zone.id}`}
+                    type="line"
+                    paint={{ 'line-color': zone.color, 'line-width': 2 }}
+                />
+            </Source>
+            <Marker longitude={lng} latitude={lat}>
+                <div onDoubleClick={() => onDoubleClick([lng, lat])} onClick={() => setPopupInfo(zone)} style={{ cursor: 'pointer' }}>
+                    <img src={zoneCenterIconSvg} alt="Zone center" style={{ width: '16px', height: '16px' }} />
+                </div>
+            </Marker>
+            {popupInfo && (
+                <Popup
+                    longitude={lng}
+                    latitude={lat}
+                    onClose={() => setPopupInfo(null)}
+                    closeButton={true}
+                    closeOnClick={false}
+                    anchor="bottom"
+                >
+                    <b>{popupInfo.name}</b>
+                </Popup>
+            )}
         </>
     );
 };
 
-export const ZoneMap = ({ existingZones, immeubles = [], zoneToFocus }: ZoneMapProps) => {
-    const featureGroupRef = useRef<FeatureGroupType>(null);
-    const [isModalFullscreen, setIsModalFullscreen] = useState(false);
+const ThreeDControl = ({ onClick, position }: { onClick: () => void, position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' }) => {
+  useControl(() => {
+    class CustomControl {
+      _map: any;
+      _container!: HTMLDivElement;
 
-  return (
-    <div className={cn( 'relative h-full w-full', isModalFullscreen && 'fixed inset-0 z-[2000] bg-black/80 p-4' )}>
-      <div className={cn( 'relative h-full w-full', isModalFullscreen && 'rounded-lg overflow-hidden' )}>
-        <div className="absolute top-4 right-4 z-[1001] flex flex-col gap-2">
-            <Button size="icon" variant="secondary" className="shadow-lg bg-white hover:bg-slate-100 text-slate-800"
-                onClick={() => setIsModalFullscreen(!isModalFullscreen)}>
-                {isModalFullscreen ? <Shrink className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-            </Button>
+      onAdd(map: any) {
+        this._map = map;
+        this._container = document.createElement('div');
+        this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+
+        const button = document.createElement('button');
+        button.className = 'mapboxgl-ctrl-icon';
+        button.type = 'button';
+        button.title = 'Toggle 3D Buildings';
+        button.style.width = '29px';
+        button.style.height = '29px';
+        button.style.display = 'flex';
+        button.style.alignItems = 'center';
+        button.style.justifyContent = 'center';
+        button.style.fontFamily = 'sans-serif';
+        button.style.fontWeight = 'bold';
+        button.textContent = '3D';
+        button.onclick = onClick;
+
+        this._container.appendChild(button);
+        return this._container;
+      }
+
+      onRemove() {
+        this._container.parentNode?.removeChild(this._container);
+        this._map = undefined;
+      }
+    }
+    return new CustomControl();
+  }, { position });
+
+  return null;
+};
+
+export const ZoneMap = ({ existingZones, immeubles = [], zoneToFocus }: ZoneMapProps) => {
+    const validZones = existingZones.filter(z => z.latlng && typeof z.latlng[0] === 'number' && !isNaN(z.latlng[0]) && typeof z.latlng[1] === 'number' && !isNaN(z.latlng[1]));
+    const validImmeubles = immeubles.filter(i => i.latlng && typeof i.latlng[0] === 'number' && !isNaN(i.latlng[0]) && typeof i.latlng[1] === 'number' && !isNaN(i.latlng[1]));
+    const mapRef = useRef<MapRef>(null);
+    const [show3D, setShow3D] = useState(false);
+
+    useEffect(() => {
+        if (mapRef.current) {
+            if (show3D) {
+                mapRef.current.easeTo({ pitch: 60, duration: 1000 });
+            } else {
+                mapRef.current.easeTo({ pitch: 0, duration: 1000 });
+            }
+        }
+    }, [show3D]);
+
+    const handleMarkerDoubleClick = (coords: [number, number]) => {
+        mapRef.current?.flyTo({ center: coords, zoom: 15, duration: 1500 });
+    };
+
+    return (
+        <div className={cn('relative h-full w-full')}>
+            <div className={cn('relative h-full w-full rounded-lg')}>
+                <Map
+                    ref={mapRef}
+                    initialViewState={{
+                        longitude: 2.3522,
+                        latitude: 48.8566,
+                        zoom: 10
+                    }}
+                    style={{ width: '100%', height: '100%' }}
+                    mapStyle="mapbox://styles/mapbox/streets-v12"
+                >
+                    <GeocoderControl position="top-left" />
+                    <NavigationControl position="top-right" />
+                    <FullscreenControl position="top-right" />
+                    <ThreeDControl position="top-right" onClick={() => setShow3D(s => !s)} />
+                    
+                    {show3D && (
+                        <Source
+                            id="mapbox-dem"
+                            type="raster-dem"
+                            url="mapbox://mapbox.mapbox-terrain-dem-v1"
+                            tileSize={512}
+                            maxzoom={14}
+                        />
+                    )}
+                    {show3D && (
+                         <Layer
+                            id="3d-buildings"
+                            source="composite"
+                            source-layer="building"
+                            filter={['==', 'extrude', 'true']}
+                            type="fill-extrusion"
+                            minzoom={15}
+                            paint={{
+                                'fill-extrusion-color': '#aaa',
+                                'fill-extrusion-height': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['zoom'],
+                                    15,
+                                    0,
+                                    15.05,
+                                    ['get', 'height']
+                                ],
+                                'fill-extrusion-base': [
+                                    'interpolate',
+                                    ['linear'],
+                                    ['zoom'],
+                                    15,
+                                    0,
+                                    15.05,
+                                    ['get', 'min_height']
+                                ],
+                                'fill-extrusion-opacity': 0.6
+                            }}
+                        />
+                    )}
+                    
+                    <MapViewController mapRef={mapRef} zones={validZones} zoneToFocus={zoneToFocus} immeubles={validImmeubles} />
+
+                    {validZones.map(zone => (
+                        <ZoneDisplay key={zone.id} zone={zone} onDoubleClick={handleMarkerDoubleClick} />
+                    ))}
+
+                    {validImmeubles.map(immeuble => {
+                        const [lat, lng] = immeuble.latlng;
+                        return (
+                            <Marker key={immeuble.id} longitude={lng} latitude={lat}>
+                                <Popup
+                    longitude={lng}
+                    latitude={lat} offset={25} closeButton={true} closeOnClick={false} anchor="bottom">
+                                    <b>{immeuble.adresse}</b><br />Statut: {immeuble.status}
+                                </Popup>
+                            </Marker>
+                        );
+                    })}
+                </Map>
+            </div>
         </div>
-        <MapContainer 
-            key={String(isModalFullscreen) + zoneToFocus} // Astuce : forcer le re-rendu si le focus change
-            center={[48.8566, 2.3522]} zoom={10} 
-            style={{ height: '100%', width: '100%', zIndex: 1 }}
-            scrollWheelZoom={true} dragging={true} touchZoom={true}
-            className={cn(!isModalFullscreen && "rounded-lg")}
-        >
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'/>
-            <SearchControl />
-            <MapViewController 
-                zones={existingZones} 
-                zoneToFocus={zoneToFocus} 
-                featureGroupRef={featureGroupRef} 
-            />
-            <FeatureGroup ref={featureGroupRef}>
-                {existingZones.map(zone => <ZoneDisplay key={zone.id} zone={zone} />)}
-                {immeubles.map(immeuble => (
-                    <Marker key={immeuble.id} position={immeuble.latlng}>
-                        <Popup><b>{immeuble.adresse}</b><br />Statut: {immeuble.status}</Popup>
-                    </Marker>
-                ))}
-            </FeatureGroup>
-        </MapContainer>
-      </div>
-    </div>
-  );
+    );
 };

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui-admin/button';
 import { ArrowLeft, MapPin, Building, CheckCircle, Briefcase } from 'lucide-react';
 import { Skeleton } from '@/components/ui-admin/skeleton';
 import StatCard from '@/components/ui-admin/StatCard';
-import { ZoneMap } from './ZoneMap'; // Assurez-vous que ce composant peut être réutilisé ou adapté
+import { ZoneMap } from './ZoneMap';
 import type { Zone as ZoneTableType } from './columns';
 
 const ZoneDetailsPage = () => {
@@ -48,6 +48,24 @@ const ZoneDetailsPage = () => {
     return <div>Zone non trouvée ou erreur de chargement.</div>;
   }
 
+  // Prepare data for the ZoneMap component
+  const zoneForMap: ZoneTableType = {
+    id: zoneDetails.id,
+    name: zoneDetails.nom,
+    assignedTo: '', // Not needed for this view
+    color: zoneDetails.couleur,
+    latlng: (typeof zoneDetails.latitude === 'number' && !isNaN(zoneDetails.latitude) && typeof zoneDetails.longitude === 'number' && !isNaN(zoneDetails.longitude)) ? [zoneDetails.latitude, zoneDetails.longitude] : [0, 0],
+    radius: zoneDetails.rayonMetres,
+    dateCreation: zoneDetails.createdAt,
+  };
+
+  const immeublesForMap = zoneDetails.immeubles.map(imm => ({
+    id: imm.id,
+    adresse: imm.adresse,
+    status: imm.status,
+    latlng: (typeof imm.latitude === 'number' && !isNaN(imm.latitude) && typeof imm.longitude === 'number' && !isNaN(imm.longitude)) ? [imm.latitude, imm.longitude] : [0, 0],
+  }));
+
   return (
     <div className="h-full flex flex-col space-y-8">
       <Button variant="outline" onClick={() => navigate(-1)}>
@@ -72,21 +90,8 @@ const ZoneDetailsPage = () => {
         <h2 className="text-2xl font-bold mb-4">Carte de la Zone</h2>
         <div className="flex-grow w-full">
           <ZoneMap
-            existingZones={[{
-              id: zoneDetails.id,
-              name: zoneDetails.nom,
-              assignedTo: '', // L'assignation n'est pas nécessaire ici
-              color: zoneDetails.couleur,
-              latlng: [zoneDetails.latitude, zoneDetails.longitude],
-              radius: zoneDetails.rayonMetres,
-              dateCreation: zoneDetails.createdAt,
-            } as ZoneTableType]}
-            immeubles={zoneDetails.immeubles.map(imm => ({
-              id: imm.id,
-              adresse: imm.adresse,
-              status: imm.status, // Le statut est déjà une chaîne de caractères
-              latlng: [imm.latitude, imm.longitude],
-            }))}
+            existingZones={[zoneForMap]}
+            immeubles={immeublesForMap}
             zoneToFocus={zoneDetails.id}
           />
         </div>

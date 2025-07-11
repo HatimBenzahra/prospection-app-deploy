@@ -30,6 +30,7 @@ const AssignmentGoalsPage = () => {
   const [error, setError] = useState<string | null>(null);
   
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -133,7 +134,7 @@ const AssignmentGoalsPage = () => {
         
         {/* Colonne de droite avec la carte */}
         <div className="lg:col-span-2">
-           <ZoneMapViewer zone={selectedZone} />
+           <ZoneMapViewer zone={selectedZone} onMapLoad={() => setIsMapReady(true)} />
         </div>
       </div>
     </div>

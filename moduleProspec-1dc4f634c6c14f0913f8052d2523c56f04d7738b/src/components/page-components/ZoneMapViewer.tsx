@@ -5,9 +5,10 @@ import type { Zone } from '@/types/types';
 
 interface ZoneMapViewerProps {
   zone: Zone | null;
+  onMapLoad?: () => void;
 }
 
-export const ZoneMapViewer = ({ zone }: ZoneMapViewerProps) => {
+export const ZoneMapViewer = ({ zone, onMapLoad }: ZoneMapViewerProps) => {
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow h-full flex flex-col">
       <CardHeader>
@@ -27,6 +28,7 @@ export const ZoneMapViewer = ({ zone }: ZoneMapViewerProps) => {
             radius={zone.rayonMetres}
             color={zone.couleur} // Pass the zone color
             key={zone.id} // Important: force le re-rendu de la map quand la zone change
+            onLoad={onMapLoad}
           />
         ) : (
           <div className="h-full bg-gray-100 flex flex-col items-center justify-center text-center p-8">
