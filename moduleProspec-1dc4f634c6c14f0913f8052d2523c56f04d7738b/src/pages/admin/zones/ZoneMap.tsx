@@ -91,25 +91,34 @@ const MapViewController = ({ mapRef, zones, zoneToFocus, immeubles }: { mapRef: 
                 const zone = zones.find(z => z.id === zoneToFocus);
                 if (zone) {
                     const [lat, lng] = zone.latlng;
-                    map.flyTo({ center: [lng, lat], zoom: 14, duration: 1500 });
+                    const circle = createGeoJSONCircle([lng, lat], zone.radius);
+                    const coordinates = circle.geometry.coordinates[0];
+                    const bounds = new mapboxgl.LngLatBounds(coordinates[0] as mapboxgl.LngLatLike, coordinates[0] as mapboxgl.LngLatLike);
+                     for (const coord of coordinates) {
+                        bounds.extend(coord as mapboxgl.LngLatLike);
+                    }
+                    map.fitBounds(bounds, { padding: 40, duration: 1000, maxZoom: 15 });
                 }
-            } else if (zones.length > 0) {
-                const allPoints: LngLatLike[] = zones.map(z => {
-                    const [lat, lng] = z.latlng;
-                    return [lng, lat];
+            } else if (zones.length > 0 || (immeubles && immeubles.length > 0)) {
+                const bounds = new mapboxgl.LngLatBounds();
+
+                zones.forEach(zone => {
+                    const [lat, lng] = zone.latlng;
+                    const circle = createGeoJSONCircle([lng, lat], zone.radius);
+                    const coordinates = circle.geometry.coordinates[0];
+                    coordinates.forEach(coord => {
+                        bounds.extend(coord as mapboxgl.LngLatLike);
+                    });
                 });
+
                 if (immeubles) {
                     immeubles.forEach(i => {
                         const [lat, lng] = i.latlng;
-                        allPoints.push([lng, lat]);
+                        bounds.extend([lng, lat] as mapboxgl.LngLatLike);
                     });
                 }
 
-                if (allPoints.length > 0) {
-                    const bounds = allPoints.reduce((bounds, coord) => {
-                        return bounds.extend(coord);
-                    }, new (window as any).mapboxgl.LngLatBounds(allPoints[0], allPoints[0]));
-
+                if (!bounds.isEmpty()) {
                     map.fitBounds(bounds, { padding: 80, animate: true, maxZoom: 15 });
                 }
             }
