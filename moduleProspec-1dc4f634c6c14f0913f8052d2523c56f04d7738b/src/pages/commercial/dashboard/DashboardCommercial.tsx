@@ -123,7 +123,7 @@ const CommercialDashboardPage = () => {
         >
             <div className="text-center mb-8">
                 <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-800 flex items-center justify-center gap-4">
-                    <BarChart className="h-10 w-10 text-primary"/>
+                    <BarChart className="h-8 w-8 text-primary"/>
                     Tableau de Bord
                 </h1>
                 <p className="mt-3 text-lg text-gray-600 max-w-2xl mx-auto">

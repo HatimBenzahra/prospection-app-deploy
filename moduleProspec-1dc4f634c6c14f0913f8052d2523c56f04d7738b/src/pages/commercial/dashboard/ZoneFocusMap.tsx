@@ -1,7 +1,7 @@
-// src/pages/commercial/ZoneFocusMap
+// src/pages/commercial/ZoneFocusMap.tsx
 import Map, { Marker, Popup, Source, Layer, NavigationControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { MapPin } from 'lucide-react';
+import { Building, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -38,6 +38,7 @@ interface ZoneFocusMapProps {
 
 export const ZoneFocusMap = ({ zone, immeubles, className }: ZoneFocusMapProps) => {
   const [isLocating, setIsLocating] = useState(false);
+  const [selectedImmeuble, setSelectedImmeuble] = useState<ImmeubleFromApi | null>(null);
 
   const handleGoToZone = () => {
     setIsLocating(true);
@@ -86,6 +87,7 @@ export const ZoneFocusMap = ({ zone, immeubles, className }: ZoneFocusMapProps) 
               }}
               style={{ width: '100%', height: '100%' }}
               mapStyle="mapbox://styles/mapbox/streets-v12"
+              onClick={() => setSelectedImmeuble(null)}
           >
               <NavigationControl position="top-right" />
               <Source id="zone-source" type="geojson" data={circle}>
@@ -101,11 +103,28 @@ export const ZoneFocusMap = ({ zone, immeubles, className }: ZoneFocusMapProps) 
                   />
               </Source>
 
-              {immeubles.map(imm => (
+              {validImmeubles.map(imm => (
                   <Marker key={imm.id} longitude={imm.longitude} latitude={imm.latitude}>
-                      <Popup longitude={imm.longitude} latitude={imm.latitude}>{imm.adresse}</Popup>
+                      <button onClick={(e) => { e.stopPropagation(); setSelectedImmeuble(imm); }} className="transform hover:scale-110 transition-transform">
+                          <Building className="h-6 w-6 text-blue-600" />
+                      </button>
                   </Marker>
               ))}
+
+              {selectedImmeuble && (
+                  <Popup
+                      longitude={selectedImmeuble.longitude}
+                      latitude={selectedImmeuble.latitude}
+                      onClose={() => setSelectedImmeuble(null)}
+                      closeOnClick={false}
+                      offset={30}
+                  >
+                      <div>
+                          <h3 className="font-bold">{selectedImmeuble.adresse}</h3>
+                          <p>Statut: {selectedImmeuble.status}</p>
+                      </div>
+                  </Popup>
+              )}
           </Map>
           <div className="p-4 bg-white border-t border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -132,5 +151,6 @@ interface ImmeubleFromApi {
   adresse: string;
   latitude: number;
   longitude: number;
+  status: string;
 }
-''
+
