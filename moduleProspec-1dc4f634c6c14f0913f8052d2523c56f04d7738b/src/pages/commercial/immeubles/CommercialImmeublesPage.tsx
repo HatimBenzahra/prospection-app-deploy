@@ -5,6 +5,9 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui-admin/skeleton';
 import { Button } from '../../../components/ui-admin/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../../components/ui-admin/dialog';
+import AddressInput from '@/components/ui-admin/AddressInput';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 import { Input } from '../../../components/ui-admin/input';
 import { Checkbox } from '../../../components/ui-admin/checkbox';
 import { Label } from '../../../components/ui-admin/label';
@@ -62,18 +65,7 @@ const CommercialImmeublesPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [activeFilter, setActiveFilter] = useState<string>('all'); // 'all', 'hasElevator', 'noElevator', 'NON_CONFIGURE', 'NON_COMMENCE', 'EN_COURS', 'COMPLET', 'SOLO', 'DUO'
 
-  const geocodeAddress = useCallback(async (address: string, city: string, postalCode: string) => {
-    // In a real application, this function would call a geocoding API (e.g., OpenStreetMap Nominatim, Google Maps Geocoding API)
-    // to convert the address into latitude and longitude coordinates. An API key would likely be required.
-    // For this simulation, we're generating dummy coordinates.
-    if (!address || !city || !postalCode) return { latitude: undefined, longitude: undefined };
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const seed = (address + city + postalCode).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return {
-      latitude: 45.7640 + (seed % 1000) / 10000,
-      longitude: 4.8356 + (seed % 1000) / 10000,
-    };
-  }, []);
+  
 
   const fetchImmeubles = useCallback(async () => {
     if (!user?.id) {
@@ -101,16 +93,6 @@ const CommercialImmeublesPage: React.FC = () => {
     const { name, value, type, checked } = e.target;
     setFormState(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
-  
-  // Geocode when address fields change
-  useEffect(() => {
-    const { adresse, ville, codePostal } = formState;
-    if (adresse && ville && codePostal) {
-      geocodeAddress(adresse, ville, codePostal).then(({ latitude, longitude }) => {
-        setFormState(prev => ({ ...prev, latitude, longitude }));
-      });
-    }
-  }, [formState.adresse, formState.ville, formState.codePostal, geocodeAddress]);
 
   const getProspectingStatus = (immeuble: ImmeubleFromApi) => {
     if (!immeuble.portes || immeuble.portes.length === 0) {
@@ -406,7 +388,19 @@ const CommercialImmeublesPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="adresse">Adresse</Label>
-              <Input id="adresse" name="adresse" value={formState.adresse} onChange={handleFormChange} placeholder="Adresse" required />
+              <AddressInput
+                initialValue={formState.adresse}
+                onSelect={(selection) => {
+                  setFormState((prev) => ({
+                    ...prev,
+                    adresse: selection.address,
+                    ville: selection.city,
+                    codePostal: selection.postalCode,
+                    latitude: selection.latitude,
+                    longitude: selection.longitude,
+                  }));
+                }}
+              />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
