@@ -381,7 +381,7 @@ const CommercialImmeublesPage: React.FC = () => {
                       {immeuble.ville}, {immeuble.codePostal}
                     </CardDescription>
                     <div className="mt-2 text-sm break-words w-full space-y-1">
-                      <p className="min-w-0"><strong>Statut:</strong> <span className="font-medium text-blue-600 break-words">{immeuble.status}</span></p>
+                      <p className="min-w-0"><strong>Statut:</strong> <span className="font-medium text-blue-600 break-words">{getProspectingStatus(immeuble).label}</span></p>
                       <p className="min-w-0"><strong>Zone:</strong> <span className="font-medium text-purple-600 break-words">{immeuble.zone?.nom ?? 'N/A'}</span></p>
                       <p className="min-w-0"><strong>Portes:</strong> <span className="font-medium text-green-600 break-words">{immeuble.nbPortesTotal}</span></p>
                       <p className="min-w-0"><strong>Étages:</strong> <span className="font-medium text-green-600 break-words">{(() => {

@@ -233,6 +233,7 @@ const ImmeubleDetailsPage = () => {
                                 <div key={floor} className="border rounded-lg p-4">
                                     <h3 className="text-lg font-semibold mb-4">Étage {floor}</h3>
                                     <DataTable
+                                    title='xx'
                                         columns={portesColumns}
                                         data={portesGroupedByFloor[parseInt(floor)]}
                                         filterColumnId="numeroPorte"

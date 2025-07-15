@@ -186,7 +186,6 @@ const ProspectingDoorsPage = () => {
             await porteService.updatePorte(updatedDoor.id, {
                 statut: updatedDoor.statut,
                 commentaire: updatedDoor.commentaire || '',
-                repassage: needsRepassage,
                 // assigneeId is not part of the payload, it's handled by the backend
             });
             setPortes(portes.map(p => p.id === updatedDoor.id ? { ...updatedDoor, passage: newPassage } : p));
