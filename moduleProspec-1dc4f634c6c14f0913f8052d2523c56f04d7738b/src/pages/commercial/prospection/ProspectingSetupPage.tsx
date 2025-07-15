@@ -10,10 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/contexts/AuthContext';
 import { commercialService, type CommercialFromAPI } from '@/services/commercial.service';
 import { prospectionService } from '@/services/prospection.service';
-import { immeubleService, type ImmeubleDetailsFromApi } from '@/services/immeuble.service';
+import { immeubleService } from '@/services/immeuble.service';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui-admin/Modal';
-import axios from 'axios';
 
 type ProspectingMode = 'solo' | 'duo';
 
