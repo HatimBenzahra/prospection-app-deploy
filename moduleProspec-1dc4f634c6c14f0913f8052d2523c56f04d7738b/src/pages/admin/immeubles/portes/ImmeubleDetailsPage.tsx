@@ -111,14 +111,13 @@ const ImmeubleDetailsPage = () => {
                 digicode: detailsFromApi.digicode,
                 nbPortesTotal: detailsFromApi.nbPortesTotal,
                 portes: (detailsFromApi.portes || []).map(p => {
-                    console.log("Raw p.statut from API:", p.statut);
                     return {
                         id: p.id,
                         numeroPorte: p.numeroPorte,
-                        statut: p.statut as PorteStatus, // Explicitly cast to PorteStatus
+                        statut: p.statut as PorteStatus,
                         passage: p.passage,
                         commentaire: p.commentaire || null,
-                        assigneeId: p.assigneeId || null, // Ensure assigneeId is included
+                        assigneeId: (p as any).assigneeId || null, // Safely access assigneeId
                     }
                 }),
                 stats: detailsFromApi.stats,
@@ -185,7 +184,15 @@ const ImmeubleDetailsPage = () => {
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Retour à la liste des immeubles
                 </Button>
-                <Button variant="outline" onClick={() => fetchData(immeubleId)} disabled={loading}> 
+                <Button 
+                    variant="outline" 
+                    onClick={() => {
+                        if (immeubleId) {
+                            fetchData(immeubleId);
+                        }
+                    }} 
+                    disabled={loading || !immeubleId}
+                > 
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Actualiser les données
                 </Button>

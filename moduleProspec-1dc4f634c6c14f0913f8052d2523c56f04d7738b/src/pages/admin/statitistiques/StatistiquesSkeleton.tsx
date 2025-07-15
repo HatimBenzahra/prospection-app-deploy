@@ -1,5 +1,5 @@
 // src/pages/admin/statistiques/StatistiquesSkeleton.tsx
-import { Skeleton } from "@/components/ui-admin/Skeleton";
+import { Skeleton } from "@/components/ui-admin/skeleton";
 
 export const StatistiquesSkeleton = () => {
   return (

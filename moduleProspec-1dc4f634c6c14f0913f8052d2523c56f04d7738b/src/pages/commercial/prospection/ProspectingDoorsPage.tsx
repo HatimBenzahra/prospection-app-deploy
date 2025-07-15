@@ -105,13 +105,15 @@ const ProspectingDoorsPage = () => {
             if (details) {
                 setBuilding(details);
                 if (details.portes && details.portes.length > 0) {
-                    const userPortes = details.portes.filter(p => p.assigneeId === user.id);
-                    const portesFromAPI = userPortes.map(p => ({
+                    // Assuming the API returns all doors and we need to filter them client-side
+                    // If the backend is supposed to filter, this logic might need adjustment
+                    const portesFromAPI = details.portes.map(p => ({
                         id: p.id,
                         numero: p.numeroPorte,
                         statut: p.statut as PorteStatus,
                         commentaire: p.commentaire || null,
                         passage: p.passage,
+                        nbPassages: p.nbPassages,
                     }));
                     setPortes(portesFromAPI);
                 } else {
@@ -136,11 +138,17 @@ const ProspectingDoorsPage = () => {
     }, [portes]);
 
     const handleSaveDoor = async (updatedDoor: Porte) => {
+        if (!user) {
+            setSaveError("Utilisateur non authentifié.");
+            return;
+        }
+
         setIsSaving(true);
         setSaveError(null);
-        
+
+        const needsRepassage = ['ABSENT', 'RDV', 'CURIEUX'].includes(updatedDoor.statut);
         let newPassage = updatedDoor.passage;
-        if (updatedDoor.statut === 'ABSENT' || updatedDoor.statut === 'CURIEUX' || updatedDoor.statut === 'RDV') {
+        if (needsRepassage) {
             newPassage = Math.min(updatedDoor.passage + 1, 3);
         }
 
@@ -148,8 +156,8 @@ const ProspectingDoorsPage = () => {
             await porteService.updatePorte(updatedDoor.id, {
                 statut: updatedDoor.statut,
                 commentaire: updatedDoor.commentaire || '',
-                passage: newPassage,
-                assigneeId: user.id,
+                repassage: needsRepassage,
+                // assigneeId is not part of the payload, it's handled by the backend
             });
             setPortes(portes.map(p => p.id === updatedDoor.id ? { ...updatedDoor, passage: newPassage } : p));
             setIsModalOpen(false);
