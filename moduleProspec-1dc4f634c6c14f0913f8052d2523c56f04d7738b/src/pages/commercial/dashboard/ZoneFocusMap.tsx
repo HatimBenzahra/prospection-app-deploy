@@ -76,7 +76,6 @@ interface ZoneFocusMapProps {
 }
 
 export const ZoneFocusMap = ({ zone, immeubles, className }: ZoneFocusMapProps) => {
-  const [isLocating, setIsLocating] = useState(false);
   const [selectedImmeuble, setSelectedImmeuble] = useState<ImmeubleFromApi | null>(null);
   const [show3D, setShow3D] = useState(false);
   const mapRef = useRef<MapRef>(null);
