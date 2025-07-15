@@ -92,32 +92,9 @@ export const ZoneFocusMap = ({ zone, immeubles, className }: ZoneFocusMapProps) 
   }, [show3D]);
 
   const handleGoToZone = () => {
-    setIsLocating(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const [destLat, destLng] = zone.latlng;
-          const url = `https://www.google.com/maps/dir/?api=1&origin=${latitude},${longitude}&destination=${destLat},${destLng}`;
-          window.open(url, '_blank');
-          setIsLocating(false);
-        },
-        (error) => {
-          console.error("Erreur de géolocalisation:", error);
-          // Fallback to destination-only link
-          const [destLat, destLng] = zone.latlng;
-          const url = `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`;
-          window.open(url, '_blank');
-          setIsLocating(false);
-        }
-      );
-    } else {
-      // Geolocation not supported
-      const [destLat, destLng] = zone.latlng;
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`;
-      window.open(url, '_blank');
-      setIsLocating(false);
-    }
+    const [destLat, destLng] = zone.latlng;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`;
+    window.open(url, '_blank');
   };
 
   const [lat, lng] = (zone.latlng && typeof zone.latlng[0] === 'number' && !isNaN(zone.latlng[0]) && typeof zone.latlng[1] === 'number' && !isNaN(zone.latlng[1])) ? zone.latlng : [0, 0]; // Default to [0,0] or handle error
@@ -230,10 +207,9 @@ export const ZoneFocusMap = ({ zone, immeubles, className }: ZoneFocusMapProps) 
               </div>
               <button
                   onClick={handleGoToZone}
-                  disabled={isLocating}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-400"
               >
-                  {isLocating ? 'Localisation...' : 'Y aller'}
+                  Y aller
               </button>
           </div>
       </div>
@@ -248,6 +224,3 @@ interface ImmeubleFromApi {
   longitude: number;
   status: string;
 }
-
-
-
