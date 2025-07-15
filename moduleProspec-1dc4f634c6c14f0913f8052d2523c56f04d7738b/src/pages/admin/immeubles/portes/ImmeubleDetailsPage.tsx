@@ -11,6 +11,7 @@ import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui-admin/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
 import { Skeleton } from '@/components/ui-admin/skeleton';
+import { ScrollArea } from '@/components/ui-admin/scroll-area';
 import { DataTable } from '@/components/data-table/DataTable';
 import type { Porte, PorteStatus } from './portes-columns.tsx';
 import { createPortesColumns } from './portes-columns';
@@ -75,6 +76,7 @@ const ImmeubleDetailsPage = () => {
     const navigate = useNavigate();
     const [immeuble, setImmeuble] = useState<ImmeubleDetails | null>(null);
     const [loading, setLoading] = useState(true);
+    const [activeFloor, setActiveFloor] = useState<number | null>(null);
 
     // NEW: Calculate building-specific stats from portes array
     const buildingStats = useMemo(() => {
@@ -88,11 +90,37 @@ const ImmeubleDetailsPage = () => {
         return { contratsSignes, rdvPris };
     }, [immeuble]); // Recalculate when immeuble (and thus its portes) changes
 
+    const portesGroupedByFloor = useMemo(() => {
+        if (!immeuble) return {};
+
+        const portesMap = new Map(immeuble.portes.map(p => [p.numeroPorte, p]));
+        const grouped: { [key: number]: Porte[] } = {};
+
+        for (let i = 1; i <= immeuble.nbPortesTotal; i++) {
+            const numeroPorteStr = `Porte ${i}`;
+            const visiteExistante = portesMap.get(numeroPorteStr);
+            const porte: Porte = visiteExistante ? { ...visiteExistante, assigneeId: visiteExistante.assigneeId || null } : { id: `porte-non-visitee-${i}`, numeroPorte: numeroPorteStr, statut: 'NON_VISITE', passage: 0, commentaire: "", assigneeId: null };
+
+            const floor = Math.ceil(i / immeuble.nbPortesParEtage);
+            if (!grouped[floor]) {
+                grouped[floor] = [];
+            }
+            grouped[floor].push(porte);
+        }
+        return grouped;
+    }, [immeuble]);
+
     useEffect(() => {
         if (immeubleId) {
             fetchData(immeubleId);
         }
     }, [immeubleId]);
+
+    useEffect(() => {
+        if (immeuble && Object.keys(portesGroupedByFloor).length > 0 && activeFloor === null) {
+            setActiveFloor(parseInt(Object.keys(portesGroupedByFloor)[0]));
+        }
+    }, [immeuble, portesGroupedByFloor, activeFloor]);
 
     const fetchData = async (id: string) => {
         setLoading(true);
@@ -135,27 +163,7 @@ const ImmeubleDetailsPage = () => {
         }
     };
 
-    const portesGroupedByFloor = useMemo(() => {
-        if (!immeuble) return {};
-
-        const portesMap = new Map(immeuble.portes.map(p => [p.numeroPorte, p]));
-        const grouped: { [key: number]: Porte[] } = {};
-
-        for (let i = 1; i <= immeuble.nbPortesTotal; i++) {
-            const numeroPorteStr = `Porte ${i}`;
-            const visiteExistante = portesMap.get(numeroPorteStr);
-            const porte: Porte = visiteExistante ? { ...visiteExistante, assigneeId: visiteExistante.assigneeId || null } : { id: `porte-non-visitee-${i}`, numeroPorte: numeroPorteStr, statut: 'NON_VISITE', passage: 0, commentaire: "", assigneeId: null };
-
-            const floor = Math.ceil(i / immeuble.nbPortesParEtage);
-            if (!grouped[floor]) {
-                grouped[floor] = [];
-            }
-            grouped[floor].push(porte);
-        }
-        return grouped;
-    }, [immeuble]);
-
-        const portesColumns = useMemo(() => createPortesColumns(immeuble?.prospectors || []), [immeuble?.prospectors]);
+    const portesColumns = useMemo(() => createPortesColumns(immeuble?.prospectors || []), [immeuble?.prospectors]);
 
     if (loading) {
         return (
@@ -229,13 +237,27 @@ const ImmeubleDetailsPage = () => {
                             <CardDescription>Couverture: {portesProspectees} / {immeuble.nbPortesTotal} portes visitées ({((portesProspectees / immeuble.nbPortesTotal) * 100).toFixed(0)}%)</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            {Object.keys(portesGroupedByFloor).sort((a, b) => parseInt(a) - parseInt(b)).map(floor => (
-                                <div key={floor} className="border rounded-lg p-4">
-                                    <h3 className="text-lg font-semibold mb-4">Étage {floor}</h3>
+                            <ScrollArea className="h-20 w-full rounded-md border p-4">
+                                <div className="flex space-x-2 pb-2">
+                                    {Object.keys(portesGroupedByFloor).sort((a, b) => parseInt(a) - parseInt(b)).map(floor => (
+                                        <Button
+                                            key={floor}
+                                            variant={activeFloor === parseInt(floor) ? "secondary" : "outline"}
+                                            onClick={() => setActiveFloor(parseInt(floor))}
+                                            className={`flex-shrink-0 ${activeFloor === parseInt(floor) ? "bg-blue-600 text-white" : ""}`}
+                                        >
+                                            Étage {floor}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                            {activeFloor && (
+                                <div className="border rounded-lg p-4 mt-4">
+                                    <h3 className="text-lg font-semibold mb-4">Étage {activeFloor}</h3>
                                     <DataTable
-                                    title='xx'
+                                        title=''
                                         columns={portesColumns}
-                                        data={portesGroupedByFloor[parseInt(floor)]}
+                                        data={portesGroupedByFloor[activeFloor]}
                                         filterColumnId="numeroPorte"
                                         filterPlaceholder="Filtrer par n° de porte..."
                                         isDeleteMode={false}
@@ -245,7 +267,7 @@ const ImmeubleDetailsPage = () => {
                                         onConfirmDelete={() => {}}
                                     />
                                 </div>
-                            ))}
+                            )}
                         </CardContent>
                     </Card>
                 </div>
