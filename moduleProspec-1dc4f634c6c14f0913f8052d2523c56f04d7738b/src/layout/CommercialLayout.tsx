@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 const CommercialLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user } = useAuth();
-  const [pendingRequest, setPendingRequest] = useState<any | null>(null); // Type this properly
+  const [pendingRequest, setPendingRequest] = useState<any | null>(null);
   const navigate = useNavigate();
 
   const toggleSidebar = () => {
@@ -23,9 +23,8 @@ const CommercialLayout = () => {
     if (user?.id) {
       try {
         const requests = await prospectionService.getPendingRequestsForCommercial(user.id);
-        console.log("Fetched pending requests:", requests);
         if (requests.length > 0) {
-          setPendingRequest(requests[0]); // Display the first pending request
+          setPendingRequest(requests[0]);
         } else {
           setPendingRequest(null);
         }
@@ -37,8 +36,8 @@ const CommercialLayout = () => {
   }, [user]);
 
   useEffect(() => {
-    fetchPendingRequests(); // Fetch immediately on mount
-    const interval = setInterval(fetchPendingRequests, 5000); // Poll every 5 seconds
+    fetchPendingRequests();
+    const interval = setInterval(fetchPendingRequests, 5000);
     return () => clearInterval(interval);
   }, [fetchPendingRequests]);
 
@@ -50,18 +49,12 @@ const CommercialLayout = () => {
         accept,
       });
       toast.success(accept ? "Demande acceptée !" : "Demande refusée.");
-      console.log("Pending request before nulling:", pendingRequest);
-      setPendingRequest(null); // Close modal
-      console.log("Pending request after nulling:", pendingRequest);
-      // Force a re-fetch of pending requests immediately after handling
+      setPendingRequest(null);
       await fetchPendingRequests();
-      console.log("Pending request after re-fetch:", pendingRequest);
       if (accept && response.immeubleId) {
-        // Redirect to doors page for the accepted immeuble
         navigate(`/commercial/prospecting/doors/${response.immeubleId}`);
       }
     } catch (error) {
-      console.error("Error handling request:", error);
       toast.error("Erreur lors du traitement de la demande.");
     }
   };
@@ -69,7 +62,7 @@ const CommercialLayout = () => {
   return (
     <div className="flex h-screen bg-muted/40">
       <CommercialSidebar isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         <CommercialHeader />
         <main className="flex-1 overflow-y-auto">
           <Outlet />
@@ -79,7 +72,7 @@ const CommercialLayout = () => {
       {pendingRequest && (
         <Modal
           isOpen={!!pendingRequest}
-          onClose={() => setPendingRequest(null)} // Allow closing, but it's blocking
+          onClose={() => setPendingRequest(null)}
           title="Nouvelle demande de prospection en duo"
           maxWidth="max-w-md"
         >
