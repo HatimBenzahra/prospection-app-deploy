@@ -1,7 +1,8 @@
 // frontend-shadcn/src/services/statistics.service.ts
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-const API_URL = 'http://localhost:3000/statistics';
+const API_URL = `${API_BASE_URL}/statistics`;
 
 // Définition des types pour les filtres
 export type PeriodType = 'WEEK' | 'MONTH' | 'YEAR';

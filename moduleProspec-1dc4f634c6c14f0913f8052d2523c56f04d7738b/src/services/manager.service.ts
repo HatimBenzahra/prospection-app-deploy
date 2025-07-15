@@ -1,8 +1,9 @@
 // frontend-shadcn/src/services/manager.service.ts
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import type { Manager } from '@/types/types'; // On réutilise le type existant
 
-const API_URL = 'http://localhost:3000/managers'; // L'URL de notre back-end
+const API_URL = `${API_BASE_URL}/managers`; // L'URL de notre back-end
 
 // DTO pour la création/mise à jour, on peut les définir ici
 type CreateManagerPayload = {

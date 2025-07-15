@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { AssignmentType } from '@/types/enums';
+import { API_BASE_URL } from '../config';
 
-const API_URL = 'http://localhost:3000/assignment-goals';
+const API_URL = `${API_BASE_URL}/assignment-goals`;
 
 const getAssignedZonesForCommercial = async (commercialId: string): Promise<any[]> => {
   const response = await axios.get(`${API_URL}/commercial/${commercialId}/zones`);

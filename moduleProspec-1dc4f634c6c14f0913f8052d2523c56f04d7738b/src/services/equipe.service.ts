@@ -1,7 +1,8 @@
 // frontend-shadcn/src/services/equipe.service.ts
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-const API_URL = 'http://localhost:3000/equipes';
+const API_URL = `${API_BASE_URL}/equipes`;
 
 import type { Commercial } from '@/types/types';
 

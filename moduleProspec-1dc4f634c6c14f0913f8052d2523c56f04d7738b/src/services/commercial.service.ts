@@ -1,7 +1,8 @@
 // frontend-shadcn/src/services/commercial.service.ts
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-const API_URL = 'http://localhost:3000/commerciaux';
+const API_URL = `${API_BASE_URL}/commerciaux`;
 
 export type CommercialFromAPI = {
   id: string;

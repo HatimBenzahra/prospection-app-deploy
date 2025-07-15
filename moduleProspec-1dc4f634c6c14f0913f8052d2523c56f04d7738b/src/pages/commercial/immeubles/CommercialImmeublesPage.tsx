@@ -36,22 +36,17 @@ const buildingStatusMap: { [key: string]: { label: string; className: string } }
 };
 
 const PageSkeleton = () => (
-    <Card>
-      <CardHeader>
-        <Skeleton className="h-8 w-48" />
-      </CardHeader>
-      <CardContent>
-        <div className="flex justify-between mb-4">
-            <Skeleton className="h-10 w-64" />
-            <Skeleton className="h-10 w-40" />
+    <div className="space-y-8 animate-pulse">
+        <Skeleton className="h-10 w-1/3" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Skeleton className="h-[400px] w-full" />
+            <Skeleton className="h-[400px] w-full" />
         </div>
-        <div className="space-y-2">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
         </div>
-      </CardContent>
-    </Card>
+        <Skeleton className="h-96 w-full" />
+    </div>
 );
 
 const CommercialImmeublesPage: React.FC = () => {
@@ -240,13 +235,22 @@ const CommercialImmeublesPage: React.FC = () => {
   if (error) return <div className="text-red-500 p-4">{error}</div>;
 
   return (
-    <div className="py-10 p-4">
-      <Card className="w-full">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Mes Immeubles</CardTitle>
-          <Button onClick={() => handleOpenModal()} className="bg-[hsl(var(--winvest-blue-moyen))] text-white hover:bg-blue-700"><PlusCircle className="mr-2 h-4 w-4" /> Ajouter un immeuble</Button>
-        </CardHeader>
-        <CardContent>
+    <motion.div 
+        className="space-y-8 max-w-7xl mx-auto p-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+    >
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-800 flex items-center gap-3">
+              <Building className="h-8 w-8 text-primary"/>
+              Gestion des Immeubles
+          </h1>
+          <Button onClick={() => handleOpenModal()} className="bg-[hsl(var(--winvest-blue-moyen))] text-white hover:bg-blue-700 w-full sm:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Ajouter un immeuble</Button>
+      </div>
+
+      <Card>
+        <CardContent className="p-4">
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <Input
@@ -361,7 +365,7 @@ const CommercialImmeublesPage: React.FC = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredImmeubles.map((immeuble, index) => (
               <motion.div
                 key={immeuble.id}
@@ -411,9 +415,9 @@ const CommercialImmeublesPage: React.FC = () => {
               </motion.div>
             ))}
           </div>
-          {immeubles.length === 0 && !loading && !error && (
+          {filteredImmeubles.length === 0 && !loading && !error && (
             <div className="text-center py-8 text-muted-foreground">
-              Aucun immeuble trouvé pour ce commercial.
+              Aucun immeuble trouvé.
             </div>
           )}
         </CardContent>
@@ -481,7 +485,7 @@ const CommercialImmeublesPage: React.FC = () => {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 };
 

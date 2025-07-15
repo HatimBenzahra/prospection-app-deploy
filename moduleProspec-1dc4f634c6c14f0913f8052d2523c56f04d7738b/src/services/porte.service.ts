@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-const API_URL = 'http://localhost:3000/portes';
+const API_URL = `${API_BASE_URL}/portes`;
 
 export type PorteFromAPI = {
   id: string;

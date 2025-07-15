@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import { AssignmentType } from '@/types/enums';
 
-const API_URL = 'http://localhost:3000/zones';
+const API_URL = `${API_BASE_URL}/zones`;
 
 export interface ZoneFromApi {
   id: string;

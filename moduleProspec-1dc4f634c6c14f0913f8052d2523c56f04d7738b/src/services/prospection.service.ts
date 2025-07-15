@@ -1,8 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-const API_URL = 'http://localhost:3000/prospection';
-
-
+const API_URL = `${API_BASE_URL}/prospection`;
 
 interface StartProspectionDto {
   commercialId: string;

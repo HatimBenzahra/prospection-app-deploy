@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-const API_URL = 'http://localhost:3000/admin/immeubles';
-const COMMERCIAL_API_URL = 'http://localhost:3000/commercial';
+const API_URL = `${API_BASE_URL}/admin/immeubles`;
+const COMMERCIAL_API_URL = `${API_BASE_URL}/commercial`;
 
 export interface ImmeubleFromApi {
   id: string;
