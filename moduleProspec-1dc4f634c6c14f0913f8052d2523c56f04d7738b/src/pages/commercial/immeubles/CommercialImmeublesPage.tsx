@@ -20,7 +20,8 @@ type ImmeubleFormState = {
   adresse: string;
   ville: string;
   codePostal: string;
-  nbPortesTotal: number;
+  nbEtages: number;
+  nbPortesParEtage: number;
   hasElevator: boolean;
   digicode?: string;
   latitude?: number;
@@ -91,7 +92,10 @@ const CommercialImmeublesPage: React.FC = () => {
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setFormState(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    setFormState(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : (name === 'nbEtages' || name === 'nbPortesParEtage' ? Number(value) : value)
+    }));
   };
 
   const getProspectingStatus = (immeuble: ImmeubleFromApi) => {
@@ -147,14 +151,30 @@ const CommercialImmeublesPage: React.FC = () => {
   const handleOpenModal = (immeuble: ImmeubleFromApi | null = null) => {
     setEditingImmeuble(immeuble);
     if (immeuble) {
+      const storedDetails = localStorage.getItem(`building_${immeuble.id}_details`);
+      let nbEtages = 1;
+      let nbPortesParEtage = 10;
+
+      if (storedDetails) {
+        const parsedDetails = JSON.parse(storedDetails);
+        nbEtages = parsedDetails.nbEtages || nbEtages;
+        nbPortesParEtage = parsedDetails.nbPortesParEtage || nbPortesParEtage;
+      } else {
+        // Fallback to deduction if not found in localStorage
+        nbEtages = Math.floor(immeuble.nbPortesTotal / 10) || 1;
+        nbPortesParEtage = immeuble.nbPortesTotal % 10 === 0 ? 10 : immeuble.nbPortesTotal % 10;
+      }
+
       setFormState({
         adresse: immeuble.adresse, ville: immeuble.ville, codePostal: immeuble.codePostal,
-        nbPortesTotal: immeuble.nbPortesTotal, hasElevator: immeuble.hasElevator,
+        nbEtages: nbEtages,
+        nbPortesParEtage: nbPortesParEtage,
+        hasElevator: immeuble.hasElevator,
         digicode: immeuble.digicode || '', latitude: immeuble.latitude || undefined, longitude: immeuble.longitude || undefined,
       });
     } else {
       setFormState({
-        adresse: '', ville: '', codePostal: '', nbPortesTotal: 10, hasElevator: false,
+        adresse: '', ville: '', codePostal: '', nbEtages: 1, nbPortesParEtage: 10, hasElevator: false,
         digicode: '', latitude: undefined, longitude: undefined,
       });
     }
@@ -166,17 +186,23 @@ const CommercialImmeublesPage: React.FC = () => {
     if (!user?.id) return;
     setIsSubmitting(true);
     const dataToSubmit = { 
-      ...formState, 
-      nbPortesTotal: Number(formState.nbPortesTotal),
+      adresse: formState.adresse,
+      ville: formState.ville,
+      codePostal: formState.codePostal,
+      nbPortesTotal: Number(formState.nbEtages) * Number(formState.nbPortesParEtage),
+      hasElevator: formState.hasElevator,
+      digicode: formState.digicode,
       latitude: Number(formState.latitude),
       longitude: Number(formState.longitude),
     };
     try {
       if (editingImmeuble) {
         await immeubleService.updateImmeubleForCommercial(editingImmeuble.id, dataToSubmit, user.id);
+        localStorage.setItem(`building_${editingImmeuble.id}_details`, JSON.stringify({ nbEtages: formState.nbEtages, nbPortesParEtage: formState.nbPortesParEtage }));
         toast.success('Immeuble mis à jour avec succès.');
       } else {
-        await immeubleService.createImmeubleForCommercial(dataToSubmit, user.id);
+        const newImmeuble = await immeubleService.createImmeubleForCommercial(dataToSubmit, user.id);
+        localStorage.setItem(`building_${newImmeuble.id}_details`, JSON.stringify({ nbEtages: formState.nbEtages, nbPortesParEtage: formState.nbPortesParEtage }));
         toast.success('Immeuble créé avec succès.');
       }
       setIsModalOpen(false);
@@ -358,6 +384,20 @@ const CommercialImmeublesPage: React.FC = () => {
                       <p className="min-w-0"><strong>Statut:</strong> <span className="font-medium text-blue-600 break-words">{immeuble.status}</span></p>
                       <p className="min-w-0"><strong>Zone:</strong> <span className="font-medium text-purple-600 break-words">{immeuble.zone?.nom ?? 'N/A'}</span></p>
                       <p className="min-w-0"><strong>Portes:</strong> <span className="font-medium text-green-600 break-words">{immeuble.nbPortesTotal}</span></p>
+                      <p className="min-w-0"><strong>Étages:</strong> <span className="font-medium text-green-600 break-words">{(() => {
+                        const storedDetails = localStorage.getItem(`building_${immeuble.id}_details`);
+                        if (storedDetails) {
+                          return JSON.parse(storedDetails).nbEtages;
+                        }
+                        return Math.floor(immeuble.nbPortesTotal / 10) || 1;
+                      })()}</span></p>
+                      <p className="min-w-0"><strong>Portes par étage:</strong> <span className="font-medium text-green-600 break-words">{(() => {
+                        const storedDetails = localStorage.getItem(`building_${immeuble.id}_details`);
+                        if (storedDetails) {
+                          return JSON.parse(storedDetails).nbPortesParEtage;
+                        }
+                        return immeuble.nbPortesTotal % 10 === 0 ? 10 : immeuble.nbPortesTotal % 10;
+                      })()}</span></p>
                       <p className="min-w-0"><strong>Ascenseur:</strong> <span className="font-medium text-orange-600 break-words">{immeuble.hasElevator ? 'Oui' : 'Non'}</span></p>
                       {immeuble.digicode && <p className="min-w-0"><strong>Digicode:</strong> <span className="font-medium text-red-600 break-words">{immeuble.digicode}</span></p>}
                       <p className="min-w-0"><strong>Mode:</strong> <span className="font-medium text-indigo-600 break-words">{immeuble.prospectingMode === 'DUO' ? 'Duo' : (immeuble.prospectingMode === 'SOLO' ? 'Solo' : '')}</span></p>
@@ -418,8 +458,12 @@ const CommercialImmeublesPage: React.FC = () => {
                 <Input id="digicode" name="digicode" value={formState.digicode} onChange={handleFormChange} placeholder="Digicode (optionnel)" />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="nbPortesTotal">Nombre total de portes</Label>
-                <Input id="nbPortesTotal" type="number" name="nbPortesTotal" value={formState.nbPortesTotal} onChange={handleFormChange} placeholder="Nb. Portes" required />
+                <Label htmlFor="nbEtages">Nombre d'étages</Label>
+                <Input id="nbEtages" type="number" name="nbEtages" value={formState.nbEtages} onChange={handleFormChange} placeholder="Nb. Étages" required min="1" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="nbPortesParEtage">Portes par étage</Label>
+                <Input id="nbPortesParEtage" type="number" name="nbPortesParEtage" value={formState.nbPortesParEtage} onChange={handleFormChange} placeholder="Portes par étage" required min="1" />
               </div>
             </div>
             

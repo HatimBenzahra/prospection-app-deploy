@@ -33,6 +33,8 @@ interface ImmeubleDetails {
   hasElevator: boolean;
   digicode: string | null;
   nbPortesTotal: number;
+  nbEtages: number; // Added
+  nbPortesParEtage: number; // Added
   portes: Porte[];
   stats: {
     contratsSignes: number;
@@ -110,6 +112,8 @@ const ImmeubleDetailsPage = () => {
                 hasElevator: detailsFromApi.hasElevator,
                 digicode: detailsFromApi.digicode,
                 nbPortesTotal: detailsFromApi.nbPortesTotal,
+                nbEtages: Math.floor(detailsFromApi.nbPortesTotal / 10) || 1, // Assuming 10 doors per floor
+                nbPortesParEtage: detailsFromApi.nbPortesTotal % 10 === 0 ? 10 : detailsFromApi.nbPortesTotal % 10, // Assuming 10 doors per floor
                 portes: (detailsFromApi.portes || []).map(p => {
                     return {
                         id: p.id,
@@ -131,21 +135,24 @@ const ImmeubleDetailsPage = () => {
         }
     };
 
-    const portesData = useMemo(() => {
-        if (!immeuble) return [];
-        const visitesMap = new Map(immeuble.portes.map(p => [p.numeroPorte, p]));
-        const allPortes: Porte[] = [];
-        for (let i = 1; i <= immeuble.nbPortesTotal; i++) {
-            const numeroPorteStr = `Porte ${i}`; // Match API format
+    const portesGroupedByFloor = useMemo(() => {
+        if (!immeuble) return {};
 
-            const visiteExistante = visitesMap.get(numeroPorteStr);
-            if (visiteExistante) {
-                allPortes.push({ ...visiteExistante, assigneeId: visiteExistante.assigneeId || null });
-            } else {
-                allPortes.push({ id: `porte-non-visitee-${i}`, numeroPorte: numeroPorteStr, statut: 'NON_VISITE', passage: 0, commentaire: "", assigneeId: null });
+        const portesMap = new Map(immeuble.portes.map(p => [p.numeroPorte, p]));
+        const grouped: { [key: number]: Porte[] } = {};
+
+        for (let i = 1; i <= immeuble.nbPortesTotal; i++) {
+            const numeroPorteStr = `Porte ${i}`;
+            const visiteExistante = portesMap.get(numeroPorteStr);
+            const porte: Porte = visiteExistante ? { ...visiteExistante, assigneeId: visiteExistante.assigneeId || null } : { id: `porte-non-visitee-${i}`, numeroPorte: numeroPorteStr, statut: 'NON_VISITE', passage: 0, commentaire: "", assigneeId: null };
+
+            const floor = Math.ceil(i / immeuble.nbPortesParEtage);
+            if (!grouped[floor]) {
+                grouped[floor] = [];
             }
+            grouped[floor].push(porte);
         }
-        return allPortes;
+        return grouped;
     }, [immeuble]);
 
         const portesColumns = useMemo(() => createPortesColumns(immeuble?.prospectors || []), [immeuble?.prospectors]);
@@ -175,14 +182,14 @@ const ImmeubleDetailsPage = () => {
         );
     }
 
-    const portesProspectees = portesData.filter(p => p.statut !== "NON_VISITE").length;
+    const portesProspectees = Object.values(portesGroupedByFloor).flat().filter(p => p.statut !== "NON_VISITE").length;
     
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center mb-4"> 
                 <Button variant="outline" onClick={() => navigate(-1)}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Retour à la liste des immeubles
+                    Retour à la sélection de l'immeuble
                 </Button>
                 <Button 
                     variant="outline" 
@@ -202,9 +209,9 @@ const ImmeubleDetailsPage = () => {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-3 text-2xl">
                         <Building className="h-6 w-6" />
-                        {immeuble.adresse}, {immeuble.codePostal} {immeuble.ville}
+                        Prospection : {immeuble.adresse}, {immeuble.codePostal} {immeuble.ville}
                     </CardTitle>
-                    <CardDescription>Détails et informations sur la prospection de cet immeuble.</CardDescription>
+                    <CardDescription>Voici la liste des {immeuble.nbPortesTotal} portes à prospecter. Mettez à jour leur statut au fur et à mesure.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
                    <ProspectorBadge Icon={Users} label={immeuble.prospectingMode === 'DUO' ? "Duo de Prospection" : "Prospecteur"} prospectors={immeuble.prospectors} />
@@ -216,18 +223,30 @@ const ImmeubleDetailsPage = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
-                    <DataTable
-                        columns={portesColumns}
-                        data={portesData}
-                        title="Détail des Portes"
-                        filterColumnId="numeroPorte"
-                        filterPlaceholder="Filtrer par n° de porte..."
-                        isDeleteMode={false}
-                        onToggleDeleteMode={() => {}}
-                        rowSelection={{}}
-                        setRowSelection={() => {}}
-                        onConfirmDelete={() => {}}
-                    />
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Détail des Portes</CardTitle>
+                            <CardDescription>Couverture: {portesProspectees} / {immeuble.nbPortesTotal} portes visitées ({((portesProspectees / immeuble.nbPortesTotal) * 100).toFixed(0)}%)</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {Object.keys(portesGroupedByFloor).sort((a, b) => parseInt(a) - parseInt(b)).map(floor => (
+                                <div key={floor} className="border rounded-lg p-4">
+                                    <h3 className="text-lg font-semibold mb-4">Étage {floor}</h3>
+                                    <DataTable
+                                        columns={portesColumns}
+                                        data={portesGroupedByFloor[parseInt(floor)]}
+                                        filterColumnId="numeroPorte"
+                                        filterPlaceholder="Filtrer par n° de porte..."
+                                        isDeleteMode={false}
+                                        onToggleDeleteMode={() => {}}
+                                        rowSelection={{}}
+                                        setRowSelection={() => {}}
+                                        onConfirmDelete={() => {}}
+                                    />
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
                 </div>
                 <div className="lg:col-span-1">
                     <GenericRadialBarChart

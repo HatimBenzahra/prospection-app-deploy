@@ -49,19 +49,41 @@ const ProspectingDoorsPage = () => {
     const [selectedStatuses, setSelectedStatuses] = useState<Set<PorteStatus>>(new Set());
     const [showRepassageOnly, setShowRepassageOnly] = useState(false);
 
-    const filteredPortes = useMemo(() => {
-        let filtered = portes;
+    const portesGroupedByFloor = useMemo(() => {
+        if (!building || !portes.length) return {};
 
-        if (selectedStatuses.size > 0) {
-            filtered = filtered.filter(porte => selectedStatuses.has(porte.statut));
+        const grouped: { [key: number]: Porte[] } = {};
+        const portesMap = new Map(portes.map(p => [p.numero, p]));
+
+        for (let i = 1; i <= building.nbPortesTotal; i++) {
+            const numeroPorteStr = `Porte ${i}`;
+            const porte = portesMap.get(numeroPorteStr);
+
+            const floor = Math.ceil(i / (building.nbPortesParEtage || 1)); // Use nbPortesParEtage from building details
+            if (!grouped[floor]) {
+                grouped[floor] = [];
+            }
+            if (porte) {
+                grouped[floor].push(porte);
+            }
         }
 
-        if (showRepassageOnly) {
-            filtered = filtered.filter(porte => (['ABSENT', 'RDV', 'CURIEUX'].includes(porte.statut) && porte.passage < 3));
+        // Apply filters to the grouped portes
+        const filteredGrouped: { [key: number]: Porte[] } = {};
+        for (const floor in grouped) {
+            let floorPortes = grouped[floor];
+            if (selectedStatuses.size > 0) {
+                floorPortes = floorPortes.filter(p => selectedStatuses.has(p.statut));
+            }
+            if (showRepassageOnly) {
+                floorPortes = floorPortes.filter(p => (['ABSENT', 'RDV', 'CURIEUX'].includes(p.statut) && p.passage < 3));
+            }
+            if (floorPortes.length > 0) {
+                filteredGrouped[floor] = floorPortes;
+            }
         }
-
-        return filtered;
-    }, [portes, selectedStatuses, showRepassageOnly]);
+        return filteredGrouped;
+    }, [building, portes, selectedStatuses, showRepassageOnly]);
 
     const toggleStatusFilter = (status: PorteStatus) => {
         setSelectedStatuses(prev => {
@@ -80,7 +102,7 @@ const ProspectingDoorsPage = () => {
             return { visitedDoorsCount: 0, coveragePercentage: 0 };
         }
 
-        const visited = portes.filter(p => p.statut !== "NON_VISITE").length;
+        const visited = Object.values(portesGroupedByFloor).flat().filter(p => p.statut !== "NON_VISITE").length;
         const total = building.nbPortesTotal;
         const percentage = total > 0 ? (visited / total) * 100 : 0;
 
@@ -88,7 +110,7 @@ const ProspectingDoorsPage = () => {
             visitedDoorsCount: visited,
             coveragePercentage: parseFloat(percentage.toFixed(2)),
         };
-    }, [portes, building]);
+    }, [portesGroupedByFloor, building]);
 
     useEffect(() => {
         if (!buildingId) {
@@ -103,10 +125,18 @@ const ProspectingDoorsPage = () => {
 
         immeubleService.getImmeubleDetails(buildingId).then(details => {
             if (details) {
-                setBuilding(details);
+                const storedDetails = localStorage.getItem(`building_${buildingId}_details`);
+                let nbEtages = Math.floor(details.nbPortesTotal / 10) || 1; // Default if not in localStorage
+                let nbPortesParEtage = details.nbPortesTotal % 10 === 0 ? 10 : details.nbPortesTotal % 10; // Default if not in localStorage
+
+                if (storedDetails) {
+                    const parsedDetails = JSON.parse(storedDetails);
+                    nbEtages = parsedDetails.nbEtages || nbEtages;
+                    nbPortesParEtage = parsedDetails.nbPortesParEtage || nbPortesParEtage;
+                }
+
+                setBuilding({ ...details, nbEtages, nbPortesParEtage });
                 if (details.portes && details.portes.length > 0) {
-                    // Assuming the API returns all doors and we need to filter them client-side
-                    // If the backend is supposed to filter, this logic might need adjustment
                     const portesFromAPI = details.portes.map(p => ({
                         id: p.id,
                         numero: p.numeroPorte,
@@ -240,92 +270,99 @@ const ProspectingDoorsPage = () => {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {portes.length === 0 ? (
+                    {Object.keys(portesGroupedByFloor).length === 0 ? (
                         <div className="text-center text-muted-foreground py-10">
-                            Aucune porte à prospecter pour cet immeuble.
+                            Aucune porte à prospecter pour cet immeuble ou ne correspond aux filtres.
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-4">
-                            {filteredPortes.map((porte) => {
-                                const config = statusConfig[porte.statut];
-                                const StatusIcon = config?.icon || DoorOpen;
-                                return (
-                                    <motion.div
-                                        key={porte.id}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.3 }}
-                                        whileHover={{ scale: 1.03, boxShadow: "0px 8px 15px rgba(0, 0, 0, 0.1)" }}
-                                        className="h-full"
-                                    >
-                                        <Card 
-                                            className="flex flex-col h-full cursor-pointer bg-card hover:bg-muted/50 transition-colors"
-                                            onClick={() => handleEdit(porte.id)}
-                                        >
-                                            <CardHeader>
-                                                <CardTitle className="flex items-center justify-between text-lg">
-                                                    <span className="flex items-center gap-2">
-                                                        <DoorOpen className="h-5 w-5" />
-                                                        Porte n°{porte.numero}
-                                                    </span>
-                                                    <span 
-                                                        className={cn(
-                                                            "text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1.5",
-                                                            config?.badgeClassName
-                                                        )}
-                                                    >
-                                                        <StatusIcon className="h-3.5 w-3.5" />
-                                                        {config.label}
-                                                    </span>
-                                                </CardTitle>
-                                            </CardHeader>
-                                            <CardContent className="flex-grow space-y-3 text-sm">
-                                                {porte.commentaire ? (
-                                                    <div className="flex items-start gap-2.5 text-muted-foreground">
-                                                        <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                                                        <p className="italic line-clamp-2">{porte.commentaire}</p>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-start gap-2.5 text-gray-400">
-                                                        <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                                                        <p className="italic">Aucun commentaire</p>
-                                                    </div>
-                                                )}
-                                                {(['ABSENT', 'RDV', 'CURIEUX'].includes(porte.statut) && porte.passage > 0) && (
-                                                    <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/40">
-                                                        <div className="flex items-center gap-2">
-                                                            <Repeat className="h-5 w-5 text-muted-foreground" />
-                                                            <span className="font-medium text-sm">Passage</span>
-                                                        </div>
-                                                        <span className={cn(
-                                                            "font-bold text-lg",
-                                                            porte.passage >= 3 ? "text-red-500" : "text-primary"
-                                                        )}>
-                                                            {porte.passage >= 3 ? "Stop" : `${porte.passage}${porte.passage === 1 ? 'er' : 'ème'}`}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </CardContent>
-                                            <CardFooter>
-                                                <Button 
-                                                    variant="default" 
-                                                    className={cn(
-                                                        "w-full text-white",
-                                                        config?.buttonClassName
-                                                    )} 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleEdit(porte.id);
-                                                    }}
+                        <div className="space-y-6 mt-4">
+                            {Object.keys(portesGroupedByFloor).sort((a, b) => parseInt(a) - parseInt(b)).map(floor => (
+                                <div key={floor} className="border rounded-lg p-4">
+                                    <h3 className="text-lg font-semibold mb-4">Étage {floor}</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                        {portesGroupedByFloor[parseInt(floor)].map((porte) => {
+                                            const config = statusConfig[porte.statut];
+                                            const StatusIcon = config?.icon || DoorOpen;
+                                            return (
+                                                <motion.div
+                                                    key={porte.id}
+                                                    initial={{ opacity: 0, y: 20 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ duration: 0.3 }}
+                                                    whileHover={{ scale: 1.03, boxShadow: "0px 8px 15px rgba(0, 0, 0, 0.1)" }}
+                                                    className="h-full"
                                                 >
-                                                    <Edit2 className="mr-2 h-4 w-4" />
-                                                    Mettre à jour
-                                                </Button>
-                                            </CardFooter>
-                                        </Card>
-                                    </motion.div>
-                                );
-                            })}
+                                                    <Card 
+                                                        className="flex flex-col h-full cursor-pointer bg-card hover:bg-muted/50 transition-colors"
+                                                        onClick={() => handleEdit(porte.id)}
+                                                    >
+                                                        <CardHeader>
+                                                            <CardTitle className="flex items-center justify-between text-lg">
+                                                                <span className="flex items-center gap-2">
+                                                                    <DoorOpen className="h-5 w-5" />
+                                                                    Porte n°{porte.numero}
+                                                                </span>
+                                                                <span 
+                                                                    className={cn(
+                                                                        "text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1.5",
+                                                                        config?.badgeClassName
+                                                                    )}
+                                                                >
+                                                                    <StatusIcon className="h-3.5 w-3.5" />
+                                                                    {config.label}
+                                                                </span>
+                                                            </CardTitle>
+                                                        </CardHeader>
+                                                        <CardContent className="flex-grow space-y-3 text-sm">
+                                                            {porte.commentaire ? (
+                                                                <div className="flex items-start gap-2.5 text-muted-foreground">
+                                                                    <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                                                    <p className="italic line-clamp-2">{porte.commentaire}</p>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-start gap-2.5 text-gray-400">
+                                                                    <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                                                    <p className="italic">Aucun commentaire</p>
+                                                                </div>
+                                                            )}
+                                                            {(['ABSENT', 'RDV', 'CURIEUX'].includes(porte.statut) && porte.passage > 0) && (
+                                                                <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/40">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Repeat className="h-5 w-5 text-muted-foreground" />
+                                                                        <span className="font-medium text-sm">Passage</span>
+                                                                    </div>
+                                                                    <span className={cn(
+                                                                        "font-bold text-lg",
+                                                                        porte.passage >= 3 ? "text-red-500" : "text-primary"
+                                                                    )}>
+                                                                        {porte.passage >= 3 ? "Stop" : `${porte.passage}${porte.passage === 1 ? 'er' : 'ème'}`}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </CardContent>
+                                                        <CardFooter>
+                                                            <Button 
+                                                                variant="default" 
+                                                                className={cn(
+                                                                    "w-full text-white",
+                                                                    config?.buttonClassName
+                                                                )} 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleEdit(porte.id);
+                                                                }}
+                                                            >
+                                                                <Edit2 className="mr-2 h-4 w-4" />
+                                                                Mettre à jour
+                                                            </Button>
+                                                        </CardFooter>
+                                                    </Card>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </CardContent>
