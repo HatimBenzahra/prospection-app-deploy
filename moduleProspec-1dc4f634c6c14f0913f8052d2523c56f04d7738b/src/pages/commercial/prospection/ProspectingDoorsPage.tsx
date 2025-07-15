@@ -276,9 +276,14 @@ const ProspectingDoorsPage = () => {
                     ) : (
                         <div className="space-y-6 mt-4">
                             {Object.keys(portesGroupedByFloor).sort((a, b) => parseInt(a) - parseInt(b)).map(floor => (
-                                <div key={floor} className="border rounded-lg p-4">
-                                    <h3 className="text-lg font-semibold mb-4">Étage {floor}</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                <details key={floor} className="border rounded-lg p-4 shadow-sm group">
+                                    <summary className="flex justify-between items-center cursor-pointer py-2 px-3 -mx-3 -mt-3 mb-4 font-semibold text-lg bg-blue-50 rounded-t-lg text-gray-800 hover:bg-blue-100 transition-colors duration-200">
+                                        <span>Étage {floor} ({portesGroupedByFloor[parseInt(floor)].length} portes)</span>
+                                        <svg className="h-5 w-5 text-gray-500 transform transition-transform duration-200 group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </summary>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-4">
                                         {portesGroupedByFloor[parseInt(floor)].map((porte) => {
                                             const config = statusConfig[porte.statut];
                                             const StatusIcon = config?.icon || DoorOpen;
@@ -360,7 +365,7 @@ const ProspectingDoorsPage = () => {
                                             );
                                         })}
                                     </div>
-                                </div>
+                                </details>
                             ))}
                         </div>
                     )}
