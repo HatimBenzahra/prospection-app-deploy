@@ -15,6 +15,17 @@ import { porteService } from '@/services/porte.service';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui-admin/alert-dialog";
 
 
 const LoadingSkeleton = () => (
@@ -49,6 +60,8 @@ const ProspectingDoorsPage = () => {
     const [saveError, setSaveError] = useState<string | null>(null);
     const [selectedStatuses, setSelectedStatuses] = useState<Set<PorteStatus>>(new Set());
     const [showRepassageOnly, setShowRepassageOnly] = useState(false);
+    const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+    const [doorToDeleteId, setDoorToDeleteId] = useState<string | null>(null);
 
     const portesGroupedByFloor = useMemo(() => {
         if (!building) return {};
@@ -221,15 +234,24 @@ const ProspectingDoorsPage = () => {
         }
     };
 
-    const handleDeleteDoor = async (doorId: string) => {
-        if (!building) return;
+    const handleDeleteClick = (doorId: string) => {
+        setDoorToDeleteId(doorId);
+        setIsConfirmDeleteOpen(true);
+    };
+
+    const confirmDeleteDoor = async () => {
+        if (!building || !doorToDeleteId) return;
         try {
-            await porteService.deletePorte(doorId);
-            setPortes(portes.filter(p => p.id !== doorId));
+            await porteService.deletePorte(doorToDeleteId);
+            setPortes(portes.filter(p => p.id !== doorToDeleteId));
             setBuilding({ ...building, nbPortesTotal: building.nbPortesTotal - 1 });
+            toast.success("Porte supprimée avec succès.");
         } catch (error) {
             console.error("Error deleting door:", error);
             toast.error("Erreur lors de la suppression de la porte.");
+        } finally {
+            setIsConfirmDeleteOpen(false);
+            setDoorToDeleteId(null);
         }
     };
 
@@ -279,7 +301,7 @@ const ProspectingDoorsPage = () => {
                                         "px-3 py-1.5 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all duration-200 ease-in-out",
                                         isSelected 
                                             ? `${config.badgeClassName} ring-2 ring-offset-2 ring-blue-500`
-                                            : `bg-gray-100 text-gray-600 hover:bg-gray-200`,
+                                            : `bg-gray-100 text-gray-600 hover:bg-gray-200`, 
                                         config.badgeClassName
                                     )}
                                 >
@@ -399,7 +421,7 @@ const ProspectingDoorsPage = () => {
                                                                 className="bg-red-500 hover:bg-red-600"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    handleDeleteDoor(porte.id);
+                                                                    handleDeleteClick(porte.id);
                                                                 }}
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
@@ -499,6 +521,21 @@ const ProspectingDoorsPage = () => {
                     {saveError && <p className="text-red-500 text-sm mt-2">{saveError}</p>}
                 </Modal>
             )}
+
+            <AlertDialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
+                <AlertDialogContent className="bg-white">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Êtes-vous absolument sûr ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Cette action ne peut pas être annulée. Cela supprimera définitivement cette porte de l'immeuble.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDeleteDoor} className="bg-red-500 hover:bg-red-600 text-white">Supprimer</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };
