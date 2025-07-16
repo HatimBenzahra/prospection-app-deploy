@@ -118,7 +118,7 @@ const HistoriquePage = () => {
                 variant='ghost' 
                 onClick={() => setSelectedPeriod('WEEK')} 
                 className={cn(
-                    "px-5 py-2 rounded-lg text-base font-medium transition-all duration-300", 
+                    "px-3 py-1.5 text-sm md:px-5 md:py-2 md:text-base rounded-lg font-medium transition-all duration-300", 
                     selectedPeriod === 'WEEK' 
                         ? 'bg-[hsl(var(--winvest-blue-moyen))] text-white shadow-md hover:bg-[hsl(var(--winvest-blue-moyen))] hover:text-white' 
                         : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
@@ -128,7 +128,7 @@ const HistoriquePage = () => {
                 variant='ghost' 
                 onClick={() => setSelectedPeriod('MONTH')} 
                 className={cn(
-                    "px-5 py-2 rounded-lg text-base font-medium transition-all duration-300", 
+                    "px-3 py-1.5 text-sm md:px-5 md:py-2 md:text-base rounded-lg font-medium transition-all duration-300", 
                     selectedPeriod === 'MONTH' 
                         ? 'bg-[hsl(var(--winvest-blue-moyen))] text-white shadow-md hover:bg-[hsl(var(--winvest-blue-moyen))] hover:text-white' 
                         : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
@@ -138,7 +138,7 @@ const HistoriquePage = () => {
                 variant='ghost' 
                 onClick={() => setSelectedPeriod('YEAR')} 
                 className={cn(
-                    "px-5 py-2 rounded-lg text-base font-medium transition-all duration-300", 
+                    "px-3 py-1.5 text-sm md:px-5 md:py-2 md:text-base rounded-lg font-medium transition-all duration-300", 
                     selectedPeriod === 'YEAR' 
                         ? 'bg-[hsl(var(--winvest-blue-moyen))] text-white shadow-md hover:bg-[hsl(var(--winvest-blue-moyen))] hover:text-white' 
                         : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
@@ -151,7 +151,7 @@ const HistoriquePage = () => {
       {filteredHistory.length === 0 ? (
         <div className="text-center text-gray-500 py-10">Aucun historique de prospection ne correspond à vos filtres.</div>
       ) : (
-        <div className="flex flex-col items-center gap-6 py-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-6">
           {filteredHistory.map((item, index) => (
             <motion.div
               key={item.id}
@@ -159,7 +159,7 @@ const HistoriquePage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
               whileHover={{ scale: 1.02, boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.1)" }}
-              className="w-full"
+              className=""
             >
               <Card className="flex flex-col p-3">
               <CardHeader>
