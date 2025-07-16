@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui-admin/card';
 import { type Porte, statusConfig, statusList, type PorteStatus } from './doors-columns';
-import { ArrowLeft, Building, DoorOpen, MessageSquare, Repeat, Edit2 } from 'lucide-react';
+import { ArrowLeft, Building, DoorOpen, MessageSquare, Repeat, Edit2, Trash2, Plus } from 'lucide-react';
 import { Modal } from '@/components/ui-admin/Modal';
 import { Input } from '@/components/ui-admin/input';
 import { Button } from '@/components/ui-admin/button';
@@ -14,6 +14,7 @@ import { immeubleService, type ImmeubleDetailsFromApi } from '@/services/immeubl
 import { porteService } from '@/services/porte.service';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 
 const LoadingSkeleton = () => (
@@ -50,23 +51,16 @@ const ProspectingDoorsPage = () => {
     const [showRepassageOnly, setShowRepassageOnly] = useState(false);
 
     const portesGroupedByFloor = useMemo(() => {
-        if (!building || !portes.length) return {};
+        if (!building) return {};
 
         const grouped: { [key: number]: Porte[] } = {};
-        const portesMap = new Map(portes.map(p => [p.numero, p]));
-
-        for (let i = 1; i <= building.nbPortesTotal; i++) {
-            const numeroPorteStr = `Porte ${i}`;
-            const porte = portesMap.get(numeroPorteStr);
-
-            const floor = Math.ceil(i / (building.nbPortesParEtage || 1)); // Use nbPortesParEtage from building details
+        portes.forEach(porte => {
+            const floor = porte.etage;
             if (!grouped[floor]) {
                 grouped[floor] = [];
             }
-            if (porte) {
-                grouped[floor].push(porte);
-            }
-        }
+            grouped[floor].push(porte);
+        });
 
         // Apply filters to the grouped portes
         const filteredGrouped: { [key: number]: Porte[] } = {};
@@ -102,7 +96,7 @@ const ProspectingDoorsPage = () => {
             return { visitedDoorsCount: 0, coveragePercentage: 0 };
         }
 
-        const visited = Object.values(portesGroupedByFloor).flat().filter(p => p.statut !== "NON_VISITE").length;
+        const visited = portes.filter(p => p.statut !== "NON_VISITE").length;
         const total = building.nbPortesTotal;
         const percentage = total > 0 ? (visited / total) * 100 : 0;
 
@@ -110,7 +104,7 @@ const ProspectingDoorsPage = () => {
             visitedDoorsCount: visited,
             coveragePercentage: parseFloat(percentage.toFixed(2)),
         };
-    }, [portesGroupedByFloor, building]);
+    }, [portes, building]);
 
     useEffect(() => {
         if (!buildingId) {
@@ -137,13 +131,13 @@ const ProspectingDoorsPage = () => {
 
                 setBuilding({ ...details, nbEtages, nbPortesParEtage });
                 if (details.portes && details.portes.length > 0) {
-                    const portesFromAPI = details.portes.map(p => ({
+                    const portesFromAPI = details.portes.map((p) => ({
                         id: p.id,
                         numero: p.numeroPorte,
                         statut: p.statut as PorteStatus,
                         commentaire: p.commentaire || null,
                         passage: p.passage,
-                        nbPassages: p.nbPassages,
+                        etage: p.etage ?? 1, // fallback if etage is missing
                     }));
                     setPortes(portesFromAPI);
                 } else {
@@ -186,7 +180,6 @@ const ProspectingDoorsPage = () => {
             await porteService.updatePorte(updatedDoor.id, {
                 statut: updatedDoor.statut,
                 commentaire: updatedDoor.commentaire || '',
-                // assigneeId is not part of the payload, it's handled by the backend
             });
             setPortes(portes.map(p => p.id === updatedDoor.id ? { ...updatedDoor, passage: newPassage } : p));
             setIsModalOpen(false);
@@ -196,6 +189,47 @@ const ProspectingDoorsPage = () => {
             console.error("Erreur lors de la mise à jour de la porte:", error);
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleAddDoor = async (floor: number) => {
+        if (!buildingId || !user?.id || !building) return;
+
+        const newDoorNumber = `Porte ${portes.length + 1}`;
+
+        try {
+            const newPorteFromApi = await porteService.createPorte({
+                numeroPorte: newDoorNumber,
+                etage: floor,
+                statut: 'NON_VISITE',
+                passage: 0,
+                immeubleId: buildingId,
+            });
+            const newPorte: Porte = {
+                id: newPorteFromApi.id,
+                numero: newPorteFromApi.numeroPorte,
+                etage: newPorteFromApi.etage,
+                statut: newPorteFromApi.statut as PorteStatus,
+                passage: newPorteFromApi.passage,
+                commentaire: newPorteFromApi.commentaire
+            };
+            setPortes([...portes, newPorte]);
+            setBuilding({ ...building, nbPortesTotal: building.nbPortesTotal + 1 });
+        } catch (error) {
+            console.error("Error adding door:", error);
+            toast.error("Erreur lors de l'ajout de la porte.");
+        }
+    };
+
+    const handleDeleteDoor = async (doorId: string) => {
+        if (!building) return;
+        try {
+            await porteService.deletePorte(doorId);
+            setPortes(portes.filter(p => p.id !== doorId));
+            setBuilding({ ...building, nbPortesTotal: building.nbPortesTotal - 1 });
+        } catch (error) {
+            console.error("Error deleting door:", error);
+            toast.error("Erreur lors de la suppression de la porte.");
         }
     };
 
@@ -329,7 +363,7 @@ const ProspectingDoorsPage = () => {
                                                                     <p className="italic">Aucun commentaire</p>
                                                                 </div>
                                                             )}
-                                                            {(['ABSENT', 'RDV', 'CURIEUX'].includes(porte.statut) && porte.passage > 0) && (
+                                                            {(porte.statut === 'ABSENT' || porte.statut === 'RDV' || porte.statut === 'CURIEUX') && porte.passage > 0 && (
                                                                 <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/40">
                                                                     <div className="flex items-center gap-2">
                                                                         <Repeat className="h-5 w-5 text-muted-foreground" />
@@ -344,7 +378,7 @@ const ProspectingDoorsPage = () => {
                                                                 </div>
                                                             )}
                                                         </CardContent>
-                                                        <CardFooter>
+                                                        <CardFooter className="flex justify-between">
                                                             <Button 
                                                                 variant="default" 
                                                                 className={cn(
@@ -359,11 +393,35 @@ const ProspectingDoorsPage = () => {
                                                                 <Edit2 className="mr-2 h-4 w-4" />
                                                                 Mettre à jour
                                                             </Button>
+                                                            <Button 
+                                                                variant="destructive" 
+                                                                size="icon"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteDoor(porte.id);
+                                                                }}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
                                                         </CardFooter>
                                                     </Card>
                                                 </motion.div>
                                             );
                                         })}
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.3 }}
+                                            whileHover={{ scale: 1.03, boxShadow: "0px 8px 15px rgba(0, 0, 0, 0.1)" }}
+                                            className="h-full"
+                                        >
+                                            <Card 
+                                                className="flex flex-col h-full cursor-pointer bg-card hover:bg-muted/50 transition-colors items-center justify-center border-dashed border-2 border-gray-300"
+                                                onClick={() => handleAddDoor(parseInt(floor))}
+                                            >
+                                                <Plus className="h-12 w-12 text-gray-400" />
+                                            </Card>
+                                        </motion.div>
                                     </div>
                                 </details>
                             ))}

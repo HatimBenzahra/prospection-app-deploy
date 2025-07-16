@@ -99,6 +99,7 @@ model Immeuble {
 model Porte {
   id          String      @id @default(uuid())
   numeroPorte String
+  etage       Int
   statut      PorteStatut @default(NON_VISITE)
   passage     Int
   commentaire String?

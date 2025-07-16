@@ -118,6 +118,9 @@ export class ProspectionService {
       throw new BadRequestException('No commercial IDs provided for door assignment.');
     }
 
+    // TODO: Fetch nbPortesParEtage from the immeuble and use it here.
+    const nbPortesParEtage = 10;
+
     // Ensure there are at least two commercials for duo mode, otherwise default to solo logic
     const hostCommercialId = commercialIds[0];
     const duoCommercialId = commercialIds.length > 1 ? commercialIds[1] : null;
@@ -126,6 +129,7 @@ export class ProspectionService {
 
     for (let i = 0; i < totalPortes; i++) {
       const numeroPorte = `Porte ${i + 1}`;
+      const etage = Math.floor(i / nbPortesParEtage) + 1;
       let assigneeId: string;
 
       if (duoCommercialId && i < midpoint) {
@@ -141,6 +145,7 @@ export class ProspectionService {
 
       portesToCreate.push({
         numeroPorte: numeroPorte,
+        etage: etage,
         statut: PorteStatut.NON_VISITE,
         passage: 0,
         immeubleId: immeubleId,

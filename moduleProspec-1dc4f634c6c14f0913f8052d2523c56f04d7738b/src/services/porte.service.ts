@@ -6,18 +6,19 @@ const API_URL = `${API_BASE_URL}/portes`;
 export type PorteFromAPI = {
   id: string;
   numeroPorte: string;
-  statut: string; // Changed 'status' to 'statut'
-  nbPassages: number;
+  etage: number;
+  statut: string;
+  passage: number;
   commentaire: string | null;
   immeubleId: string;
 };
 
 type CreatePortePayload = {
   numeroPorte: string;
+  etage: number;
   statut: string;
-  nbPassages?: number;
+  passage: number;
   commentaire?: string;
-  repassage?: boolean;
   immeubleId: string;
 };
 

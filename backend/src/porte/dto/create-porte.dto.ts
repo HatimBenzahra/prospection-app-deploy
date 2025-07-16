@@ -6,6 +6,10 @@ export class CreatePorteDto {
   @IsNotEmpty()
   numeroPorte: string;
 
+  @IsNumber()
+  @IsNotEmpty()
+  etage: number;
+
   @IsEnum(PorteStatut)
   @IsNotEmpty()
   statut: PorteStatut;

@@ -34,7 +34,7 @@ export interface ImmeubleDetailsFromApi extends ImmeubleFromApi {
   nbEtages?: number; // Added for frontend calculation
   nbPortesParEtage?: number; // Added for frontend calculation
   prospectingMode: 'SOLO' | 'DUO';
-  portes: { id: string; numeroPorte: string; statut: string; passage: number; commentaire: string; nbPassages: number }[];
+  portes: { id: string; numeroPorte: string; statut: string; passage: number; commentaire: string; etage: number }[];
 }
 
 // Admin functions

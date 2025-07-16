@@ -12,6 +12,7 @@ export type PorteStatus = "NON_VISITE" | "VISITE" | "ABSENT" | "REFUS" | "CURIEU
 export type Porte = {
   id: string; 
   numero: string;
+  etage: number;
   statut: PorteStatus;
   commentaire: string | null;
   passage: number;
