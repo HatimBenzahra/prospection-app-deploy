@@ -193,6 +193,7 @@ const ProspectingDoorsPage = () => {
             await porteService.updatePorte(updatedDoor.id, {
                 statut: updatedDoor.statut,
                 commentaire: updatedDoor.commentaire || '',
+                numeroPorte: updatedDoor.numero,
             });
             setPortes(portes.map(p => p.id === updatedDoor.id ? { ...updatedDoor, passage: newPassage } : p));
             setIsModalOpen(false);
@@ -208,7 +209,19 @@ const ProspectingDoorsPage = () => {
     const handleAddDoor = async (floor: number) => {
         if (!buildingId || !user?.id || !building) return;
 
-        const newDoorNumber = `Porte ${portes.length + 1}`;
+        // Filter portes for the current floor
+        const portesOnCurrentFloor = portes.filter(p => p.etage === floor);
+
+        // Find the highest existing door number on this floor
+        let maxDoorNumber = 0;
+        if (portesOnCurrentFloor.length > 0) {
+            maxDoorNumber = Math.max(...portesOnCurrentFloor.map(p => {
+                const match = p.numero.match(/\d+/);
+                return match ? parseInt(match[0]) : 0;
+            }));
+        }
+
+        const newDoorNumber = `Porte ${maxDoorNumber + 1}`;
 
         try {
             const newPorteFromApi = await porteService.createPorte({
@@ -360,7 +373,7 @@ const ProspectingDoorsPage = () => {
                                                             <CardTitle className="flex items-center justify-between text-lg">
                                                                 <span className="flex items-center gap-2">
                                                                     <DoorOpen className="h-5 w-5" />
-                                                                    Porte n°{porte.numero}
+                                                                    {porte.numero}
                                                                 </span>
                                                                 <span 
                                                                     className={cn(
@@ -461,6 +474,15 @@ const ProspectingDoorsPage = () => {
                     maxWidth="sm:max-w-3xl"
                 >
                     <div className="py-4 space-y-6">
+                        <div className="grid grid-cols-1 gap-3">
+                            <Label htmlFor="numero">Numéro de Porte</Label>
+                            <Input
+                                id="numero"
+                                value={editingDoor.numero || ''}
+                                onChange={(e) => setEditingDoor({ ...editingDoor, numero: e.target.value })}
+                                placeholder="Numéro de la porte"
+                            />
+                        </div>
                         <div className="grid grid-cols-1 gap-3">
                             <Label>Statut</Label>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
