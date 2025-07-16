@@ -20,7 +20,7 @@ export const GenericPieChart = ({ title, data, dataKey, nameKey, colors }: Gener
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={310}>
           <PieChart>
             <Tooltip
               cursor={{ fill: 'hsl(var(--muted))' }}

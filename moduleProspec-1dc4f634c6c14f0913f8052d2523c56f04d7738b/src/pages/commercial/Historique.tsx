@@ -39,6 +39,8 @@ const HistoriquePage = () => {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedZone, setSelectedZone] = useState<string>('');
   const [selectedPeriod, setSelectedPeriod] = useState<'WEEK' | 'MONTH' | 'YEAR' | null>('MONTH'); // Default to MONTH
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9; // 3x3 grid
 
   useEffect(() => {
     if (user) {
@@ -83,13 +85,32 @@ const HistoriquePage = () => {
   }, [zones]);
 
   const filteredHistory = useMemo(() => {
-    return history.filter(item => {
+    const filtered = history.filter(item => {
       const itemDate = new Date(item.dateProspection);
       const inDateRange = !dateRange || (dateRange.from && dateRange.to && itemDate >= dateRange.from && itemDate <= dateRange.to);
       const isZoneMatch = !selectedZone || (item.immeuble && item.immeuble.zoneId === selectedZone);
       return inDateRange && isZoneMatch;
     });
-  }, [history, dateRange, selectedZone]);
+
+    // Apply pagination
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filtered.slice(startIndex, endIndex);
+  }, [history, dateRange, selectedZone, currentPage, itemsPerPage]);
+
+  const totalPages = useMemo(() => {
+    const totalFilteredItems = history.filter(item => {
+      const itemDate = new Date(item.dateProspection);
+      const inDateRange = !dateRange || (dateRange.from && dateRange.to && itemDate >= dateRange.from && itemDate <= dateRange.to);
+      const isZoneMatch = !selectedZone || (item.immeuble && item.immeuble.zoneId === selectedZone);
+      return inDateRange && isZoneMatch;
+    }).length;
+    return Math.ceil(totalFilteredItems / itemsPerPage);
+  }, [history, dateRange, selectedZone, itemsPerPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   if (loading) {
     return <div className="flex justify-center items-center h-full">Chargement de l'historique...</div>;
@@ -100,7 +121,7 @@ const HistoriquePage = () => {
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto mb-15 mt-4 p-4">
       <h1 className="text-2xl font-bold mb-6">Historique de Prospection</h1>
       <Card className="mb-3 w-full">
         <CardContent className="flex flex-col md:flex-row items-center md:justify-between gap-6 py-3">
@@ -151,62 +172,92 @@ const HistoriquePage = () => {
       {filteredHistory.length === 0 ? (
         <div className="text-center text-gray-500 py-10">Aucun historique de prospection ne correspond à vos filtres.</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-6">
-          {filteredHistory.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-              whileHover={{ scale: 1.02, boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.1)" }}
-              className=""
-            >
-              <Card className="flex flex-col p-3">
-              <CardHeader>
-                <CardTitle className="flex items-center text-lg">
-                  <Building className="mr-2 h-5 w-5" />
-                  {item.adresse}, {item.ville}
-                </CardTitle>
-                <CardDescription className="flex items-center">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {new Date(item.dateProspection).toLocaleDateString()}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2 text-sm flex-grow">
-                <div className="flex items-center">
-                  <DoorOpen className="mr-2 h-4 w-4 text-blue-500" />
-                  <span>Portes visitées: <strong>{item.nbPortesVisitees}</strong></span>
-                </div>
-                <div className="flex items-center">
-                  <Percent className="mr-2 h-4 w-4 text-indigo-500" />
-                  <span>Couverture: <strong>{item.tauxCouverture}%</strong></span>
-                </div>
-                <div className="flex items-center">
-                  <Handshake className="mr-2 h-4 w-4 text-green-500" />
-                  <span>Contrats signés: <strong>{item.nbContratsSignes}</strong></span>
-                </div>
-                <div className="flex items-center">
-                  <Phone className="mr-2 h-4 w-4 text-yellow-500" />
-                  <span>RDV pris: <strong>{item.nbRdvPris}</strong></span>
-                </div>
-                <div className="flex items-center">
-                  <CheckCircle className="mr-2 h-4 w-4 text-gray-500" />
-                  <span>Absents: <strong>{item.nbAbsents}</strong></span>
-                </div>
-                <div className="flex items-center">
-                  <XCircle className="mr-2 h-4 w-4 text-red-500" />
-                  <span>Refus: <strong>{item.nbRefus}</strong></span>
-                </div>
-                <div className="flex items-center">
-                  <MessageSquare className="mr-2 h-4 w-4 text-purple-500" />
-                  <span>Curieux: <strong>{item.nbCurieux}</strong></span>
-                </div>
-                
-              </CardContent>
-            </Card>
-            </motion.div>
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-6">
+            {filteredHistory.map((item, index) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                whileHover={{ scale: 1.02, boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.1)" }}
+                className=""
+              >
+                <Card className="flex flex-col p-3">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-lg">
+                    <Building className="mr-2 h-5 w-5" />
+                    {item.adresse}, {item.ville}
+                  </CardTitle>
+                  <CardDescription className="flex items-center">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {new Date(item.dateProspection).toLocaleDateString()}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-2 text-sm flex-grow">
+                  <div className="flex items-center">
+                    <DoorOpen className="mr-2 h-4 w-4 text-blue-500" />
+                    <span>Portes visitées: <strong>{item.nbPortesVisitees}</strong></span>
+                  </div>
+                  <div className="flex items-center">
+                    <Percent className="mr-2 h-4 w-4 text-indigo-500" />
+                    <span>Couverture: <strong>{item.tauxCouverture}%</strong></span>
+                  </div>
+                  <div className="flex items-center">
+                    <Handshake className="mr-2 h-4 w-4 text-green-500" />
+                    <span>Contrats signés: <strong>{item.nbContratsSignes}</strong></span>
+                  </div>
+                  <div className="flex items-center">
+                    <Phone className="mr-2 h-4 w-4 text-yellow-500" />
+                    <span>RDV pris: <strong>{item.nbRdvPris}</strong></span>
+                  </div>
+                  <div className="flex items-center">
+                    <CheckCircle className="mr-2 h-4 w-4 text-gray-500" />
+                    <span>Absents: <strong>{item.nbAbsents}</strong></span>
+                  </div>
+                  <div className="flex items-center">
+                    <XCircle className="mr-2 h-4 w-4 text-red-500" />
+                    <span>Refus: <strong>{item.nbRefus}</strong></span>
+                  </div>
+                  <div className="flex items-center">
+                    <MessageSquare className="mr-2 h-4 w-4 text-purple-500" />
+                    <span>Curieux: <strong>{item.nbCurieux}</strong></span>
+                  </div>
+                  
+                </CardContent>
+              </Card>
+              </motion.div>
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center space-x-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Précédent
+              </Button>
+              {[...Array(totalPages)].map((_, index) => (
+                <Button
+                  key={index + 1}
+                  variant={currentPage === index + 1 ? "default" : "outline"}
+                  onClick={() => handlePageChange(index + 1)}
+                >
+                  {index + 1}
+                </Button>
+              ))}
+              <Button
+                variant="outline"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Suivant
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

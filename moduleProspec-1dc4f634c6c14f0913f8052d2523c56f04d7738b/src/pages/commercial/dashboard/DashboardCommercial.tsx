@@ -116,7 +116,7 @@ const CommercialDashboardPage = () => {
 
     return (
         <motion.div 
-            className="space-y-8 max-w-7xl mx-auto p-4"
+            className="space-y-8 max-w-7xl my-10 mt-4 mx-auto p-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}

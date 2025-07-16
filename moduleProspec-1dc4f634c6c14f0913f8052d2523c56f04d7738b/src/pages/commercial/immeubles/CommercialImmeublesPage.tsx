@@ -217,7 +217,7 @@ const CommercialImmeublesPage: React.FC = () => {
 
   return (
     <motion.div 
-        className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8"
+        className="space-y-6 max-w-7xl mx-auto p-4 mb-10 mt-4  sm:p-6 lg:p-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -250,21 +250,23 @@ const CommercialImmeublesPage: React.FC = () => {
                 ...Object.entries(buildingStatusMap).map(([key, { label }]) => ({ key, label })),
                 { key: 'SOLO', label: 'Solo' },
                 { key: 'DUO', label: 'Duo' },
-            ].map(({ key, label, icon }) => (
+            ].map(
+              ({ key, label, icon }: { key: string; label: string; icon?: React.ReactNode }) => (
                 <button
-                    key={key}
-                    onClick={() => setActiveFilter(key)}
-                    className={cn(
-                        "px-4 py-2 text-sm font-semibold rounded-full flex items-center gap-2 transition-all duration-200 ease-in-out whitespace-nowrap",
-                        activeFilter === key
-                        ? 'bg-blue-600 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    )}
+                  key={key}
+                  onClick={() => setActiveFilter(key)}
+                  className={cn(
+                    "px-4 py-2 text-sm font-semibold rounded-full flex items-center gap-2 transition-all duration-200 ease-in-out whitespace-nowrap",
+                    activeFilter === key
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  )}
                 >
-                    {icon}
-                    {label}
+                  {icon && icon}
+                  {label}
                 </button>
-            ))}
+              )
+            )}
           </div>
         </CardContent>
       </Card>

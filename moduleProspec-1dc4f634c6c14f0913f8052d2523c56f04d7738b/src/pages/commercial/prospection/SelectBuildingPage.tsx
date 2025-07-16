@@ -159,7 +159,7 @@ const SelectBuildingPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen mt-2 lg:my-20 mb-20 bg-white">
             <motion.div 
                 className="w-full max-w-5xl mx-auto px-4 py-8 md:py-12"
                 variants={containerVariants}
@@ -167,7 +167,7 @@ const SelectBuildingPage = () => {
                 animate="visible"
             >
                 <motion.div className="text-center mb-8" variants={itemVariants}>
-                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-800 flex items-center justify-center gap-4">
+                    <h1 className="text-3xl md:text-5xl text-start lg:text-center font-bold tracking-tight mb-6 justify-start text-gray-800 flex items-center lg:justify-center gap-4">
                         <Building className="h-10 w-10 text-primary"/>
                         Sélection de l'immeuble
                     </h1>
