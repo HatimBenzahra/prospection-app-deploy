@@ -1,7 +1,7 @@
 // src/pages/commercial/ZoneFocusMap.tsx
 import Map, { Marker, Popup, Source, Layer, NavigationControl, FullscreenControl, useControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Building, MapPin } from 'lucide-react';
+import { Building, MapPin, Pin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
 import type { MapRef } from 'react-map-gl';
@@ -111,7 +111,7 @@ export const ZoneFocusMap = ({ zone, immeubles, className }: ZoneFocusMapProps) 
               initialViewState={{
                   longitude: lng,
                   latitude: lat,
-                  zoom: 13
+                  zoom: 12
               }}
               style={{ width: '100%', height: '100%' }}
               mapStyle="mapbox://styles/mapbox/streets-v12"
@@ -173,6 +173,16 @@ export const ZoneFocusMap = ({ zone, immeubles, className }: ZoneFocusMapProps) 
                       paint={{ 'line-color': zone.color, 'line-width': 2 }}
                   />
               </Source>
+
+              {/* Marker for the zone origin */}
+              <Marker longitude={lng} latitude={lat}>
+                  <Pin 
+                      className="h-8 w-8 text-red-500"
+                      style={{
+                          filter: 'drop-shadow(0px 0px 2px rgba(0,0,0,0.7)) drop-shadow(0px 5px 5px rgba(0,0,0,0.3))'
+                      }}
+                  />
+              </Marker>
 
               {validImmeubles.map(imm => (
                   <Marker key={imm.id} longitude={imm.longitude} latitude={imm.latitude}>

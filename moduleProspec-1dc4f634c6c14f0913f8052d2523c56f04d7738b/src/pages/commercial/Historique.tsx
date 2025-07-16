@@ -186,7 +186,7 @@ const HistoriquePage = () => {
                 <Card className="flex flex-col p-3">
                 <CardHeader>
                   <CardTitle className="flex items-center text-lg">
-                    <Building className="mr-2 h-5 w-5" />
+                    <Building className="mr-2 h-4 w-4" />
                     {item.adresse}, {item.ville}
                   </CardTitle>
                   <CardDescription className="flex items-center">
