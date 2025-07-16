@@ -378,11 +378,11 @@ const ProspectingDoorsPage = () => {
                                                                 </div>
                                                             )}
                                                         </CardContent>
-                                                        <CardFooter className="flex justify-between">
+                                                        <CardFooter className="flex justify-end gap-2">
                                                             <Button 
                                                                 variant="default" 
                                                                 className={cn(
-                                                                    "w-full text-white",
+                                                                    "flex-grow text-white",
                                                                     config?.buttonClassName
                                                                 )} 
                                                                 onClick={(e) => {
@@ -396,6 +396,7 @@ const ProspectingDoorsPage = () => {
                                                             <Button 
                                                                 variant="destructive" 
                                                                 size="icon"
+                                                                className="bg-red-500 hover:bg-red-600"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     handleDeleteDoor(porte.id);
