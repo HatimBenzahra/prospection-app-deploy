@@ -1,23 +1,17 @@
 // src/layout/CommercialLayout.tsx
 import { useState, useEffect, useCallback } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { CommercialSidebar } from './CommercialSidebar';
-import CommercialHeader from './CommercialHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { prospectionService } from '@/services/prospection.service';
 import { Modal } from '@/components/ui-admin/Modal';
 import { Button } from '@/components/ui-admin/button';
 import { toast } from 'sonner';
+import { CommercialBottomBar } from './CommercialBottomBar';
 
 const CommercialLayout = () => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const { user } = useAuth();
   const [pendingRequest, setPendingRequest] = useState<any | null>(null);
   const navigate = useNavigate();
-
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
-  };
 
   const fetchPendingRequests = useCallback(async () => {
     if (user?.id) {
@@ -60,14 +54,11 @@ const CommercialLayout = () => {
   };
 
   return (
-    <div className="flex h-screen bg-muted/40">
-      <CommercialSidebar isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} />
-      <div className="flex-1 flex flex-col min-w-0">
-        <CommercialHeader />
-        <main className="flex-1 overflow-y-auto">
-          <Outlet />
-        </main>
-      </div>
+    <div className="flex flex-col h-screen bg-muted/40">
+      <main className="flex-1 overflow-y-auto pb-16">
+        <Outlet />
+      </main>
+      <CommercialBottomBar />
 
       {pendingRequest && (
         <Modal
