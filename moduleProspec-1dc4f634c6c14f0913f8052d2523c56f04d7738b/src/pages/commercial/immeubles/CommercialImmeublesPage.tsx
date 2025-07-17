@@ -11,9 +11,9 @@ import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 import { Input } from '../../../components/ui-admin/input';
 import { Checkbox } from '../../../components/ui-admin/checkbox';
 import { Label } from '../../../components/ui-admin/label';
-import { Loader2, PlusCircle, Building, Trash2, Edit, Search, CheckCircle, XCircle, Users, User, MapPin, ArrowUpDown, KeyRound, Info } from 'lucide-react';
+import { Loader2, PlusCircle, Building, Trash2, Edit, Search, CheckCircle, XCircle, Users, User, MapPin, ArrowUpDown, KeyRound, Info, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui-admin/card';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui-admin/tooltip';
 
@@ -62,6 +62,7 @@ const CommercialImmeublesPage: React.FC = () => {
   const [formState, setFormState] = useState<ImmeubleFormState>({} as ImmeubleFormState);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [formStep, setFormStep] = useState(1);
 
   const fetchImmeubles = useCallback(async () => {
     if (!user?.id) {
@@ -136,6 +137,7 @@ const CommercialImmeublesPage: React.FC = () => {
   }, [immeubles, searchTerm, activeFilter]);
 
   const handleOpenModal = (immeuble: ImmeubleFromApi | null = null) => {
+    setFormStep(1);
     setEditingImmeuble(immeuble);
     if (immeuble) {
       const storedDetails = localStorage.getItem(`building_${immeuble.id}_details`);
@@ -167,9 +169,23 @@ const CommercialImmeublesPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handleNextStep = () => {
+    if (formStep === 1) {
+        if (!formState.adresse || !formState.ville || !formState.codePostal) {
+            toast.warning('Veuillez remplir tous les champs d adresse.');
+            return;
+        }
+    }
+    setFormStep(prev => prev + 1);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id) return;
+    if (formState.nbEtages <= 0 || formState.nbPortesParEtage <= 0) {
+        toast.error("Le nombre d'étages et de portes doit être supérieur à zéro.");
+        return;
+    }
     setIsSubmitting(true);
     const dataToSubmit = { 
       adresse: formState.adresse,
@@ -206,7 +222,7 @@ const CommercialImmeublesPage: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (!user?.id) {
-      toast.error('Commercial non identifié. Impossible de supprimer l\'immeuble.');
+      toast.error('Commercial non identifié. Impossible de supprimer limmeuble.');
       return;
     }
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cet immeuble ? Cette action est irréversible.')) {
@@ -366,63 +382,115 @@ const CommercialImmeublesPage: React.FC = () => {
             )}
 
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="sm:max-w-lg bg-white rounded-2xl">
-                    <DialogHeader className="px-6 pt-6">
-                        <DialogTitle className="text-2xl font-bold text-gray-800">{editingImmeuble ? 'Modifier l\'immeuble' : 'Ajouter un nouvel immeuble'}</DialogTitle>
-                        <DialogDescription className="text-gray-600">Renseignez les informations de l'immeuble. La latitude et la longitude seront calculées automatiquement à partir de l'adresse.</DialogDescription>
+                <DialogContent className="sm:max-w-md bg-white rounded-2xl">
+                    <DialogHeader className="px-6 pt-6 text-center">
+                        <DialogTitle className="text-2xl font-bold text-gray-800">{editingImmeuble ? 'Modifier limmeuble' : 'Ajouter un nouvel immeuble'}</DialogTitle>
+                        <DialogDescription className="text-gray-600">
+                            {formStep === 1 ? "Commencez par l'adresse de l'immeuble." : "Ajoutez les détails de l'immeuble."}
+                        </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleSubmit} className="grid gap-6 p-6">
-                        <div className="grid gap-3">
-                            <Label htmlFor="adresse" className="font-semibold">Adresse</Label>
-                            <AddressInput
-                                initialValue={formState.adresse}
-                                onSelect={(selection) => {
-                                setFormState((prev) => ({
-                                    ...prev,
-                                    adresse: selection.address,
-                                    ville: selection.city,
-                                    codePostal: selection.postalCode,
-                                    latitude: selection.latitude,
-                                    longitude: selection.longitude,
-                                }));
-                                }}
+                    
+                    {/* Progress Bar */}
+                    <div className="px-6">
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                            <motion.div 
+                                className="bg-blue-600 h-2 rounded-full"
+                                initial={{ width: '0%' }}
+                                animate={{ width: formStep === 1 ? '50%' : '100%' }}
+                                transition={{ duration: 0.3 }}
                             />
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="grid gap-3">
-                                <Label htmlFor="ville" className="font-semibold">Ville</Label>
-                                <Input id="ville" name="ville" value={formState.ville} onChange={handleFormChange} placeholder="Ex: Paris" required className="py-3" />
-                            </div>
-                            <div className="grid gap-3">
-                                <Label htmlFor="codePostal" className="font-semibold">Code Postal</Label>
-                                <Input id="codePostal" name="codePostal" value={formState.codePostal} onChange={handleFormChange} placeholder="Ex: 75001" required className="py-3" />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="grid gap-3">
-                                <Label htmlFor="nbEtages" className="font-semibold">Étages</Label>
-                                <Input id="nbEtages" type="number" name="nbEtages" value={formState.nbEtages} onChange={handleFormChange} placeholder="Nb." required min="1" className="py-3" />
-                            </div>
-                            <div className="grid gap-3">
-                                <Label htmlFor="nbPortesParEtage" className="font-semibold">Portes / étage</Label>
-                                <Input id="nbPortesParEtage" type="number" name="nbPortesParEtage" value={formState.nbPortesParEtage} onChange={handleFormChange} placeholder="Nb." required min="1" className="py-3" />
-                            </div>
-                            <div className="grid gap-3">
-                                <Label htmlFor="digicode" className="font-semibold">Digicode</Label>
-                                <Input id="digicode" name="digicode" value={formState.digicode} onChange={handleFormChange} placeholder="Optionnel" className="py-3" />
-                            </div>
-                        </div>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="grid gap-6 p-6">
+                        <AnimatePresence mode="wait">
+                            {formStep === 1 && (
+                                <motion.div
+                                    key="step1"
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 20 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="grid gap-4"
+                                >
+                                    <div className="grid gap-3">
+                                        <Label htmlFor="adresse" className="font-semibold">Adresse</Label>
+                                        <AddressInput
+                                            initialValue={formState.adresse}
+                                            onSelect={(selection) => {
+                                            setFormState((prev) => ({
+                                                ...prev,
+                                                adresse: selection.address,
+                                                ville: selection.city,
+                                                codePostal: selection.postalCode,
+                                                latitude: selection.latitude,
+                                                longitude: selection.longitude,
+                                            }));
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="grid gap-3">
+                                        <Label htmlFor="ville" className="font-semibold">Ville</Label>
+                                        <Input id="ville" name="ville" value={formState.ville} onChange={handleFormChange} placeholder="Ex: Paris" required className="py-3" />
+                                    </div>
+                                    <div className="grid gap-3">
+                                        <Label htmlFor="codePostal" className="font-semibold">Code Postal</Label>
+                                        <Input id="codePostal" name="codePostal" value={formState.codePostal} onChange={handleFormChange} placeholder="Ex: 75001" required className="py-3" />
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {formStep === 2 && (
+                                <motion.div
+                                    key="step2"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="grid gap-4"
+                                >
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid gap-3">
+                                            <Label htmlFor="nbEtages" className="font-semibold">Étages</Label>
+                                            <Input id="nbEtages" type="number" name="nbEtages" value={formState.nbEtages} onChange={handleFormChange} placeholder="Nb." required min="1" className="py-3" />
+                                        </div>
+                                        <div className="grid gap-3">
+                                            <Label htmlFor="nbPortesParEtage" className="font-semibold">Portes / étage</Label>
+                                            <Input id="nbPortesParEtage" type="number" name="nbPortesParEtage" value={formState.nbPortesParEtage} onChange={handleFormChange} placeholder="Nb." required min="1" className="py-3" />
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-3">
+                                        <Label htmlFor="digicode" className="font-semibold">Digicode</Label>
+                                        <Input id="digicode" name="digicode" value={formState.digicode} onChange={handleFormChange} placeholder="Optionnel" className="py-3" />
+                                    </div>
+                                    <div className="flex items-center space-x-3 pt-2">
+                                        <Checkbox id="hasElevator" name="hasElevator" checked={formState.hasElevator} onCheckedChange={(checked) => setFormState(prev => ({ ...prev, hasElevator: !!checked }))} className="h-5 w-5" />
+                                        <Label htmlFor="hasElevator" className="font-semibold text-base">Présence d'un ascenseur</Label>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                         
-                        <div className="flex items-center space-x-3 pt-2">
-                            <Checkbox id="hasElevator" name="hasElevator" checked={formState.hasElevator} onCheckedChange={(checked) => setFormState(prev => ({ ...prev, hasElevator: !!checked }))} className="h-5 w-5" />
-                            <Label htmlFor="hasElevator" className="font-semibold text-base">Présence d'un ascenseur</Label>
-                        </div>
-                        <DialogFooter className="pt-6">
-                            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="px-6 py-3 rounded-lg">Annuler</Button>
-                            <Button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white hover:bg-blue-700 rounded-lg px-6 py-3">
-                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {editingImmeuble ? 'Mettre à jour' : 'Créer l\'immeuble'}
-                            </Button>
+                        <DialogFooter className="pt-6 flex justify-between w-full">
+                            {formStep === 1 ? (
+                                <>
+                                    <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="px-6 py-3 rounded-lg">Annuler</Button>
+                                    <Button type="button" onClick={handleNextStep} className="bg-blue-600 text-white hover:bg-blue-700 rounded-lg px-6 py-3">
+                                        Suivant
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    <Button type="button" variant="outline" onClick={() => setFormStep(1)} className="px-6 py-3 rounded-lg flex items-center gap-2">
+                                        <ArrowLeft className="h-4 w-4" />
+                                        Précédent
+                                    </Button>
+                                    <Button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white hover:bg-blue-700 rounded-lg px-6 py-3">
+                                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        {editingImmeuble ? 'Mettre à jour' : 'Créer limmeuble'}
+                                    </Button>
+                                </>
+                            )}
                         </DialogFooter>
                     </form>
                 </DialogContent>
