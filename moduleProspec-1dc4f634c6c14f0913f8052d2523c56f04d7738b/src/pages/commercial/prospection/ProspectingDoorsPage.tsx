@@ -246,6 +246,60 @@ const ProspectingDoorsPage = () => {
         }
     };
 
+    const handleAddFloor = async () => {
+        if (!buildingId || !user?.id || !building) return;
+
+        const currentNbEtages = building.nbEtages || 1;
+        const currentNbPortesParEtage = building.nbPortesParEtage || 10;
+
+        const newNbEtages = currentNbEtages + 1;
+        const newNbPortesTotal = newNbEtages * currentNbPortesParEtage;
+
+        try {
+            await immeubleService.updateImmeubleForCommercial(buildingId, {
+                nbPortesTotal: newNbPortesTotal,
+            }, user.id);
+
+            // Directly update the building state with the new nbEtages and nbPortesParEtage
+            setBuilding(prevBuilding => {
+                if (!prevBuilding) return null;
+                return {
+                    ...prevBuilding,
+                    nbEtages: newNbEtages,
+                    nbPortesParEtage: currentNbPortesParEtage,
+                    nbPortesTotal: newNbPortesTotal
+                };
+            });
+
+            // After updating the building, create new doors for the new floor
+            const newDoors: Porte[] = [];
+            for (let i = 1; i <= currentNbPortesParEtage; i++) {
+                const newPorteFromApi = await porteService.createPorte({
+                    numeroPorte: `Porte ${i}`,
+                    etage: newNbEtages,
+                    statut: 'NON_VISITE',
+                    passage: 0,
+                    immeubleId: buildingId,
+                });
+                newDoors.push({
+                    id: newPorteFromApi.id,
+                    numero: newPorteFromApi.numeroPorte,
+                    etage: newPorteFromApi.etage,
+                    statut: newPorteFromApi.statut as PorteStatus,
+                    passage: newPorteFromApi.passage,
+                    commentaire: newPorteFromApi.commentaire
+                });
+            }
+            setPortes(prevPortes => [...prevPortes, ...newDoors]);
+
+            toast.success("Nouvel étage ajouté avec succès !");
+            toast.success("Nouvel étage ajouté avec succès !");
+        } catch (error) {
+            console.error("Error adding floor:", error);
+            toast.error("Erreur lors de l'ajout de l'étage.");
+        }
+    };
+
     const handleDeleteClick = (doorId: string) => {
         setDoorToDeleteId(doorId);
         setIsConfirmDeleteOpen(true);
@@ -464,6 +518,22 @@ const ProspectingDoorsPage = () => {
                     )}
                 </CardContent>
             </Card>
+
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                whileHover={{ scale: 1.01, boxShadow: "0px 8px 15px rgba(0, 0, 0, 0.1)" }}
+                className="w-full col-span-full mt-8"
+            >
+                <Card 
+                    className="flex flex-col h-full cursor-pointer bg-card hover:bg-muted/50 transition-colors items-center justify-center border-dashed border-2 border-gray-300 py-8"
+                    onClick={handleAddFloor}
+                >
+                    <Plus className="h-16 w-16 text-gray-400" />
+                    <p className="mt-4 text-xl font-semibold text-gray-600">Ajouter un étage</p>
+                </Card>
+            </motion.div>
 
             {editingDoor && (
                 <Modal
