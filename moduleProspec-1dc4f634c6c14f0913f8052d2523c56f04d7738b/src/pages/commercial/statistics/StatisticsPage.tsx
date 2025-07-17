@@ -42,7 +42,7 @@ const CommercialStatisticsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6; // 2 rows of 3 cards
+  const itemsPerPage = 6; 
 
   useEffect(() => {
     if (user?.id) {
@@ -122,7 +122,7 @@ const CommercialStatisticsPage = () => {
         </TooltipProvider>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
         <Card>
           <CardHeader>
             <CardTitle>Répartition des Statuts</CardTitle>
@@ -131,7 +131,7 @@ const CommercialStatisticsPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[550px]">
+            <div className="h-[400px]">
               <GenericPieChart
                 title="Répartition des Statuts"
                 data={pieData}
