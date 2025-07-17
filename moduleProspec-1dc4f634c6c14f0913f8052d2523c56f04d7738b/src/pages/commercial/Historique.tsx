@@ -200,17 +200,17 @@ const HistoriquePage = () => {
                                 className="w-full h-full"
                             >
                                 <Card className="flex flex-col h-full rounded-2xl bg-white text-card-foreground shadow-lg hover:shadow-2xl transition-all duration-300 border-none transform hover:-translate-y-1">
-                                    <CardHeader className="pb-4">
-                                        <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-800">
-                                            <Building className="h-5 w-5 text-primary flex-shrink-0" />
-                                            {item.adresse}, {item.ville}
+                                    <CardHeader className="pt-4 pb-3 px-6 bg-blue-50 rounded-t-2xl border-b border-blue-100">
+                                        <CardTitle className="flex items-center gap-3 text-2xl font-extrabold text-gray-900 overflow-hidden">
+                                            <Building className="h-7 w-7 text-primary flex-shrink-0" />
+                                            <span className="truncate min-w-0">{item.adresse}, {item.ville}</span>
                                         </CardTitle>
-                                        <CardDescription className="flex items-center gap-2 text-sm text-gray-500 pt-1">
+                                        <CardDescription className="flex items-center gap-2 text-sm font-medium text-gray-600 mt-2">
                                             <Calendar className="h-4 w-4" />
                                             {format(new Date(item.dateProspection), 'd MMMM yyyy', { locale: fr })}
                                         </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="grid grid-cols-2 gap-4 flex-grow">
+                                    <CardContent className="grid grid-cols-2 gap-4 flex-grow mt-4">
                                         <StatItem icon={DoorOpen} label="Portes visitées" value={item.nbPortesVisitees} colorClass="text-blue-500" />
                                         <StatItem icon={Percent} label="Couverture" value={`${item.tauxCouverture}%`} colorClass="text-indigo-500" />
                                         <StatItem icon={Handshake} label="Contrats" value={item.nbContratsSignes} colorClass="text-green-500" />
