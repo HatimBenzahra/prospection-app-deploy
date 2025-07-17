@@ -98,12 +98,12 @@ const CommercialStatisticsPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
         >
-            <div className="mb-10">
-                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 flex items-center gap-4">
-                    <BarChart className="h-10 w-10 text-primary"/>
+            <div className="mb-10 py-8 sm:py-12 lg:py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl shadow-md text-center md:text-left">
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-gray-900 flex items-center justify-center md:justify-start gap-4">
+                    <BarChart className="h-12 w-12 text-blue-600"/>
                     Statistiques de Performance
                 </h1>
-                <p className="mt-2 text-lg text-gray-600">Analysez vos résultats et suivez votre progression.</p>
+                <p className="mt-4 text-xl text-gray-700 max-w-3xl mx-auto md:mx-0">Analysez vos résultats et suivez votre progression.</p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
