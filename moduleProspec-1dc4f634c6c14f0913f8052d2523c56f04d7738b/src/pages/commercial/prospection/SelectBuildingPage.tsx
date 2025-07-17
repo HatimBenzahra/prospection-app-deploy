@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui-admin/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
-import { ArrowRight, Building, MapPin, Search, Clock, ClipboardList, DoorOpen, CheckCircle, Info, Loader2 } from 'lucide-react';
+import { ArrowRight, Building, MapPin, Search, Clock, ClipboardList, DoorOpen, CheckCircle, Info, Loader2, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { immeubleService } from '@/services/immeuble.service';
 import { assignmentGoalsService } from '@/services/assignment-goals.service';
@@ -48,6 +48,7 @@ const SelectBuildingPage = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [activeFilter, setActiveFilter] = useState<string>('all');
+    const [showAll, setShowAll] = useState(false);
 
     const fetchInitialData = useCallback(async () => {
         if (!user?.id) return;
@@ -77,7 +78,7 @@ const SelectBuildingPage = () => {
         return { key: 'NON_COMMENCE', ...buildingStatusMap.NON_COMMENCE };
     };
 
-    const displayedImmeubles = useMemo(() => {
+    const filteredImmeubles = useMemo(() => {
         let filtered = allImmeubles.filter(im => 
             im.adresse.toLowerCase().includes(searchTerm.toLowerCase()) ||
             im.ville.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -91,6 +92,10 @@ const SelectBuildingPage = () => {
         }
         return filtered;
     }, [allImmeubles, searchTerm, activeFilter, assignedZone]);
+
+    const displayedImmeubles = useMemo(() => {
+        return showAll ? filteredImmeubles : filteredImmeubles.slice(0, 3);
+    }, [filteredImmeubles, showAll]);
 
     const handleSelectBuilding = (buildingId: string) => {
         const selectedBuilding = allImmeubles.find(b => b.id === buildingId);
@@ -111,7 +116,7 @@ const SelectBuildingPage = () => {
 
     if (loading) return <PageSkeleton />;
 
-    const FilterButton = ({ filterKey, label, icon }: { filterKey: string, label: string, icon?: React.ElementType }) => (
+    const FilterButton = ({ filterKey, label, icon: Icon }: { filterKey: string, label: string, icon?: React.ElementType }) => (
         <button
             key={filterKey}
             onClick={() => setActiveFilter(filterKey)}
@@ -120,7 +125,7 @@ const SelectBuildingPage = () => {
                 activeFilter === filterKey ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-100'
             )}
         >
-            {icon && <icon className="h-4 w-4" />}
+            {Icon && <Icon className="h-4 w-4" />}
             {label}
         </button>
     );
@@ -167,60 +172,74 @@ const SelectBuildingPage = () => {
                         <p className="text-gray-500 mt-2">Essayez de modifier vos filtres ou d'ajouter un nouvel immeuble.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {displayedImmeubles.map((immeuble, index) => {
-                            const status = getProspectingStatus(immeuble);
-                            const StatusIcon = status.icon;
-                            const isComplete = status.key === 'COMPLET';
+                    <div className="space-y-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {displayedImmeubles.map((immeuble, index) => {
+                                const status = getProspectingStatus(immeuble);
+                                const StatusIcon = status.icon;
+                                const isComplete = status.key === 'COMPLET';
 
-                            return (
-                                <motion.div
-                                    key={immeuble.id}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.4, delay: index * 0.05 }}
-                                    className="w-full h-full"
-                                >
-                                    <Card 
-                                        className={cn(
-                                            "flex flex-col h-full rounded-2xl bg-white text-card-foreground shadow-lg hover:shadow-2xl transition-all duration-300 border-none transform hover:-translate-y-1",
-                                            isComplete ? 'opacity-60' : 'cursor-pointer'
-                                        )}
-                                        onClick={() => handleSelectBuilding(immeuble.id)}
+                                return (
+                                    <motion.div
+                                        key={immeuble.id}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.4, delay: index * 0.05 }}
+                                        className="w-full h-full"
                                     >
-                                        <CardHeader className="pb-4">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <span className={cn("px-3 py-1 text-xs font-bold rounded-full flex items-center gap-2", status.className)}>
-                                                    <StatusIcon className={cn("h-4 w-4", status.key === 'EN_COURS' && 'animate-spin')} />
-                                                    {status.label}
-                                                </span>
-                                                <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                                                    <DoorOpen className="h-5 w-5 text-gray-500" />
-                                                    {immeuble.nbPortesTotal}
+                                        <Card 
+                                            className={cn(
+                                                "flex flex-col h-full rounded-2xl bg-white text-card-foreground shadow-lg hover:shadow-2xl transition-all duration-300 border-none transform hover:-translate-y-1",
+                                                isComplete ? 'opacity-60' : 'cursor-pointer'
+                                            )}
+                                            onClick={() => handleSelectBuilding(immeuble.id)}
+                                        >
+                                            <CardHeader className="pb-4">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className={cn("px-3 py-1 text-xs font-bold rounded-full flex items-center gap-2", status.className)}>
+                                                        <StatusIcon className={cn("h-4 w-4", status.key === 'EN_COURS' && 'animate-spin')} />
+                                                        {status.label}
+                                                    </span>
+                                                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                                        <DoorOpen className="h-5 w-5 text-gray-500" />
+                                                        {immeuble.nbPortesTotal}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <CardTitle className="text-lg font-bold break-words text-gray-800">{immeuble.adresse}</CardTitle>
-                                            <CardDescription className="text-sm text-gray-500 flex items-center gap-2">
-                                                <MapPin className="h-4 w-4" />
-                                                {immeuble.ville}, {immeuble.codePostal}
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="flex-grow flex flex-col justify-end">
-                                            <Button 
-                                                className={cn(
-                                                    "w-full mt-4 font-bold py-3 rounded-lg text-white transition-all duration-300 flex items-center gap-2",
-                                                    isComplete ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'
-                                                )}
-                                                disabled={isComplete}
-                                            >
-                                                {status.key === 'NON_CONFIGURE' ? 'Configurer' : (status.key === 'COMPLET' ? 'Terminé' : 'Continuer')}
-                                                {!isComplete && <ArrowRight className="h-5 w-5" />}
-                                            </Button>
-                                        </CardContent>
-                                    </Card>
-                                </motion.div>
-                            );
-                        })}
+                                                <CardTitle className="text-lg font-bold break-words text-gray-800">{immeuble.adresse}</CardTitle>
+                                                <CardDescription className="text-sm text-gray-500 flex items-center gap-2">
+                                                    <MapPin className="h-4 w-4" />
+                                                    {immeuble.ville}, {immeuble.codePostal}
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="flex-grow flex flex-col justify-end">
+                                                <Button 
+                                                    className={cn(
+                                                        "w-full mt-4 font-bold py-3 rounded-lg text-white transition-all duration-300 flex items-center gap-2",
+                                                        isComplete ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'
+                                                    )}
+                                                    disabled={isComplete}
+                                                >
+                                                    {status.key === 'NON_CONFIGURE' ? 'Configurer' : (status.key === 'COMPLET' ? 'Terminé' : 'Continuer')}
+                                                    {!isComplete && <ArrowRight className="h-5 w-5" />}
+                                                </Button>
+                                            </CardContent>
+                                        </Card>
+                                    </motion.div>
+                                );
+                            })}
+                        </div>
+                        {filteredImmeubles.length > 3 && !showAll && (
+                            <div className="text-center mt-8">
+                                <Button 
+                                    variant="outline"
+                                    onClick={() => setShowAll(true)}
+                                    className="bg-white hover:bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md transition-all duration-300"
+                                >
+                                    <ChevronDown className="mr-2 h-5 w-5" />
+                                    Voir plus d'immeubles ({filteredImmeubles.length - 3} restants)
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 )}
             </motion.div>

@@ -1,6 +1,5 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import ScrollToTop from './components/ScrollToTop';
 
 // --- Logique de Routage ---
 import PrivateRoute from './routes/PrivateRoute';
@@ -48,7 +47,6 @@ import SelectBuildingPage from './pages/commercial/prospection/SelectBuildingPag
 function App() {
   return (
     <BrowserRouter>
-      <ScrollToTop />
       <Routes>
         {/* --- Routes Publiques --- */}
         <Route path="/login" element={<Login />} />

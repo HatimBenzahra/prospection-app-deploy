@@ -1,6 +1,6 @@
 // src/layout/CommercialLayout.tsx
-import { useState, useEffect, useCallback } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { prospectionService } from '@/services/prospection.service';
 import { Modal } from '@/components/ui-admin/Modal';
@@ -12,6 +12,14 @@ const CommercialLayout = () => {
   const { user } = useAuth();
   const [pendingRequest, setPendingRequest] = useState<any | null>(null);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const mainContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTo(0, 0);
+    }
+  }, [pathname]);
 
   const fetchPendingRequests = useCallback(async () => {
     if (user?.id) {
@@ -55,7 +63,7 @@ const CommercialLayout = () => {
 
   return (
     <div className="flex flex-col h-screen bg-muted/40">
-      <main className="flex-1 overflow-y-auto pb-16">
+      <main ref={mainContentRef} className="flex-1 overflow-y-auto pb-16">
         <Outlet />
       </main>
       <CommercialBottomBar />

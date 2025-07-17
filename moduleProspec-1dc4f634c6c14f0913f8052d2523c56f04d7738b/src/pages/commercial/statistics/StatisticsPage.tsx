@@ -4,7 +4,7 @@ import { statisticsService } from '@/services/statistics.service';
 import StatCard from '@/components/ui-admin/StatCard';
 import { GenericPieChart } from '@/components/charts/GenericPieChart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
-import { Building, DoorOpen, Handshake, Target, BarChart, Phone, Percent } from 'lucide-react';
+import { Building, DoorOpen, Handshake, BarChart, Phone, Percent } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui-admin/tooltip';
 import { motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui-admin/skeleton';
