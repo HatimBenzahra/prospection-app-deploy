@@ -77,6 +77,7 @@ const ImmeubleDetailsPage = () => {
     const [immeuble, setImmeuble] = useState<ImmeubleDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeFloor, setActiveFloor] = useState<number | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0); // New state for triggering refresh
 
     // NEW: Calculate building-specific stats from portes array
     const buildingStats = useMemo(() => {
@@ -93,20 +94,24 @@ const ImmeubleDetailsPage = () => {
     const portesGroupedByFloor = useMemo(() => {
         if (!immeuble) return {};
 
-        const portesMap = new Map(immeuble.portes.map(p => [p.numeroPorte, p]));
         const grouped: { [key: number]: Porte[] } = {};
 
-        for (let i = 1; i <= immeuble.nbPortesTotal; i++) {
-            const numeroPorteStr = `Porte ${i}`;
-            const visiteExistante = portesMap.get(numeroPorteStr);
-            const porte: Porte = visiteExistante ? { ...visiteExistante, assigneeId: visiteExistante.assigneeId || null } : { id: `porte-non-visitee-${i}`, numeroPorte: numeroPorteStr, statut: 'NON_VISITE', passage: 0, commentaire: "", assigneeId: null };
-
-            const floor = Math.ceil(i / immeuble.nbPortesParEtage);
-            if (!grouped[floor]) {
-                grouped[floor] = [];
-            }
-            grouped[floor].push(porte);
+        // Initialize all floors up to immeuble.nbEtages
+        for (let i = 1; i <= immeuble.nbEtages; i++) {
+            grouped[i] = [];
         }
+
+        // Group portes by their actual etage
+        immeuble.portes.forEach(porte => {
+            if (grouped[porte.etage]) {
+                grouped[porte.etage].push(porte);
+            } else {
+                // Handle cases where a porte might have an etage outside the expected range
+                // This shouldn't happen if data is consistent, but good for robustness
+                grouped[porte.etage] = [porte];
+            }
+        });
+
         return grouped;
     }, [immeuble]);
 
@@ -114,7 +119,7 @@ const ImmeubleDetailsPage = () => {
         if (immeubleId) {
             fetchData(immeubleId);
         }
-    }, [immeubleId]);
+    }, [immeubleId, refreshKey]); // Add refreshKey to dependencies
 
     useEffect(() => {
         if (immeuble && Object.keys(portesGroupedByFloor).length > 0 && activeFloor === null) {
@@ -140,8 +145,8 @@ const ImmeubleDetailsPage = () => {
                 hasElevator: detailsFromApi.hasElevator,
                 digicode: detailsFromApi.digicode,
                 nbPortesTotal: detailsFromApi.nbPortesTotal,
-                nbEtages: Math.floor(detailsFromApi.nbPortesTotal / 10) || 1, // Assuming 10 doors per floor
-                nbPortesParEtage: detailsFromApi.nbPortesTotal % 10 === 0 ? 10 : detailsFromApi.nbPortesTotal % 10, // Assuming 10 doors per floor
+                nbEtages: detailsFromApi.nbEtages || 1,
+                nbPortesParEtage: detailsFromApi.nbPortesParEtage || 10,
                 portes: (detailsFromApi.portes || []).map(p => {
                     return {
                         id: p.id,
@@ -149,6 +154,7 @@ const ImmeubleDetailsPage = () => {
                         statut: p.statut as PorteStatus,
                         passage: p.passage,
                         commentaire: p.commentaire || null,
+                        etage: p.etage, // Ensure etage is mapped
                         assigneeId: (p as any).assigneeId || null, // Safely access assigneeId
                     }
                 }),
@@ -201,11 +207,7 @@ const ImmeubleDetailsPage = () => {
                 </Button>
                 <Button 
                     variant="outline" 
-                    onClick={() => {
-                        if (immeubleId) {
-                            fetchData(immeubleId);
-                        }
-                    }} 
+                    onClick={() => setRefreshKey(prev => prev + 1)} // Update refreshKey to trigger re-fetch
                     disabled={loading || !immeubleId}
                 > 
                     <RefreshCw className="mr-2 h-4 w-4" />

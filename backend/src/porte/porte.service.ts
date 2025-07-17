@@ -8,8 +8,18 @@ import { PorteStatut } from '@prisma/client';
 export class PorteService {
   constructor(private prisma: PrismaService) {}
 
-  create(createPorteDto: CreatePorteDto) {
-    return this.prisma.porte.create({ data: createPorteDto });
+  async create(createPorteDto: CreatePorteDto) {
+    const newPorte = await this.prisma.porte.create({ data: createPorteDto });
+
+    // Increment nbPortesTotal in the associated Immeuble
+    await this.prisma.immeuble.update({
+      where: { id: newPorte.immeubleId },
+      data: {
+        nbPortesTotal: { increment: 1 },
+      },
+    });
+
+    return newPorte;
   }
 
   findAll() {

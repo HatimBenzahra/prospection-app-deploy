@@ -6,6 +6,7 @@ export type PorteStatus = 'NON_VISITE' | 'VISITE' | 'ABSENT' | 'REFUS' | 'CURIEU
 export interface Porte {
   id: string;
   numeroPorte: string;
+  etage: number; // Added missing etage property
   statut: PorteStatus;
   passage: number;
   commentaire: string | null;

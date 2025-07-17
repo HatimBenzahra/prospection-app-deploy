@@ -193,10 +193,46 @@ export class ImmeubleService {
   }
 
   async updateForCommercial(id: string, updateDto: UpdateCommercialImmeubleDto, commercialId: string) {
-    await this.findOneForCommercial(id, commercialId); // Authorization check
+    const existingImmeuble = await this.findOneForCommercial(id, commercialId); // Authorization check and get existing data
+
+    const { nbEtages, nbPortesParEtage, ...rest } = updateDto;
+
+    let newNbPortesTotal = existingImmeuble.nbPortesTotal;
+
+    if (nbEtages !== undefined && nbPortesParEtage !== undefined) {
+      const currentNbEtages = existingImmeuble.nbEtages || 0;
+      const currentNbPortesParEtage = existingImmeuble.nbPortesParEtage || 0;
+
+      if (nbEtages > currentNbEtages) {
+        // Add new floors and their doors
+        const portesData = [];
+        for (let etage = currentNbEtages + 1; etage <= nbEtages; etage++) {
+          for (let porteNum = 1; porteNum <= nbPortesParEtage; porteNum++) {
+            portesData.push({
+              numeroPorte: `Porte ${porteNum}`,
+              etage: etage,
+              statut: PorteStatut.NON_VISITE,
+              passage: 0,
+            });
+          }
+        }
+        if (portesData.length > 0) {
+          await this.prisma.porte.createMany({
+            data: portesData.map(p => ({ ...p, immeubleId: id })),
+          });
+        }
+      }
+      newNbPortesTotal = nbEtages * nbPortesParEtage;
+    }
+
     return this.prisma.immeuble.update({
       where: { id },
-      data: updateDto,
+      data: {
+        ...rest,
+        ...(nbEtages !== undefined && { nbEtages }),
+        ...(nbPortesParEtage !== undefined && { nbPortesParEtage }),
+        nbPortesTotal: newNbPortesTotal,
+      },
     });
   }
 

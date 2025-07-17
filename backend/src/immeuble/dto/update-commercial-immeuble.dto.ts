@@ -17,6 +17,14 @@ export class UpdateCommercialImmeubleDto {
   @IsOptional()
   nbPortesTotal?: number;
 
+  @IsNumber()
+  @IsOptional()
+  nbEtages?: number;
+
+  @IsNumber()
+  @IsOptional()
+  nbPortesParEtage?: number;
+
   @IsBoolean()
   @IsOptional()
   hasElevator?: boolean;

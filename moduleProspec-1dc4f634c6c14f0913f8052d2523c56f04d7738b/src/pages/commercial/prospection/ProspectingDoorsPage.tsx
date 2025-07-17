@@ -131,22 +131,15 @@ const ProspectingDoorsPage = () => {
         };
     }, [portes, building]);
 
-    useEffect(() => {
-        if (!buildingId) {
-            setIsLoading(false);
-            return;
-        }
-        if (!user?.id) {
-            console.warn("User ID is not available. Cannot filter doors.");
-            setIsLoading(false);
-            return;
-        }
+    const fetchData = useCallback(async (id: string) => {
+        setIsLoading(true);
+        try {
+            const detailsFromApi = await immeubleService.getImmeubleDetails(id);
 
-        immeubleService.getImmeubleDetails(buildingId).then(details => {
-            if (details) {
-                setBuilding({ ...details });
-                if (details.portes && details.portes.length > 0) {
-                    const portesFromAPI = details.portes.map((p) => ({
+            if (detailsFromApi) {
+                setBuilding({ ...detailsFromApi });
+                if (detailsFromApi.portes && detailsFromApi.portes.length > 0) {
+                    const portesFromAPI = detailsFromApi.portes.map((p) => ({
                         id: p.id,
                         numero: p.numeroPorte,
                         statut: p.statut as PorteStatus,
@@ -162,11 +155,24 @@ const ProspectingDoorsPage = () => {
                 setBuilding(null);
             }
             setIsLoading(false);
-        }).catch(error => {
+        } catch (error) {
             console.error("Error loading immeuble details:", error);
             setIsLoading(false);
-        });
-    }, [buildingId, user?.id]);
+        }
+    }, [buildingId, user?.id]); // Corrected: use buildingId instead of immeubleId
+
+    useEffect(() => {
+        if (!buildingId) {
+            setIsLoading(false);
+            return;
+        }
+        if (!user?.id) {
+            console.warn("User ID is not available. Cannot filter doors.");
+            setIsLoading(false);
+            return;
+        }
+        fetchData(buildingId);
+    }, [buildingId, user?.id, fetchData]);
 
     const handleEdit = useCallback((doorId: string) => {
         const doorToEdit = portes.find(p => p.id === doorId);
@@ -197,7 +203,8 @@ const ProspectingDoorsPage = () => {
                 commentaire: updatedDoor.commentaire || '',
                 numeroPorte: updatedDoor.numero,
             });
-            setPortes(portes.map(p => p.id === updatedDoor.id ? { ...updatedDoor, passage: newPassage } : p));
+            // Re-fetch all data to ensure consistency after saving a door
+            await fetchData(buildingId);
             setIsModalOpen(false);
             setEditingDoor(null);
         } catch (error) {
@@ -256,46 +263,16 @@ const ProspectingDoorsPage = () => {
         const currentNbPortesParEtage = building?.nbPortesParEtage || 10;
 
         const newNbEtages = currentNbEtages + 1;
-        const newNbPortesTotal = newNbEtages * currentNbPortesParEtage;
 
         try {
             await immeubleService.updateImmeubleForCommercial(buildingId, {
-                nbPortesTotal: newNbPortesTotal,
+                nbEtages: newNbEtages,
+                nbPortesParEtage: currentNbPortesParEtage,
             }, user.id);
 
-            // Directly update the building state with the new nbEtages and nbPortesParEtage
-            setBuilding(prevBuilding => {
-                if (!prevBuilding) return null;
-                return {
-                    ...prevBuilding,
-                    nbEtages: newNbEtages,
-                    nbPortesParEtage: currentNbPortesParEtage,
-                    nbPortesTotal: newNbPortesTotal
-                };
-            });
+            // After updating the building and creating new doors, re-fetch all data to ensure consistency
+            await fetchData(buildingId);
 
-            // After updating the building, create new doors for the new floor
-            const newDoors: Porte[] = [];
-            for (let i = 1; i <= currentNbPortesParEtage; i++) {
-                const newPorteFromApi = await porteService.createPorte({
-                    numeroPorte: `Porte ${i}`,
-                    etage: newNbEtages,
-                    statut: 'NON_VISITE',
-                    passage: 0,
-                    immeubleId: buildingId,
-                });
-                newDoors.push({
-                    id: newPorteFromApi.id,
-                    numero: newPorteFromApi.numeroPorte,
-                    etage: newPorteFromApi.etage,
-                    statut: newPorteFromApi.statut as PorteStatus,
-                    passage: newPorteFromApi.passage,
-                    commentaire: newPorteFromApi.commentaire
-                });
-            }
-            setPortes(prevPortes => [...prevPortes, ...newDoors]);
-
-            toast.success("Nouvel étage ajouté avec succès !");
             toast.success("Nouvel étage ajouté avec succès !");
         } catch (error) {
             console.error("Error adding floor:", error);
