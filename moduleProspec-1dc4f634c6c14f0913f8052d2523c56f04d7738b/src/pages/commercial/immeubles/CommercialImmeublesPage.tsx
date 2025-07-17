@@ -255,6 +255,14 @@ const CommercialImmeublesPage: React.FC = () => {
     </button>
   );
 
+  const getBuildingDetails = (immeubleId: string) => {
+    const storedDetails = localStorage.getItem(`building_${immeubleId}_details`);
+    if (storedDetails) {
+      return JSON.parse(storedDetails);
+    }
+    return { nbEtages: 'N/A', nbPortesParEtage: 'N/A' };
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen">
         <motion.div 
@@ -305,6 +313,7 @@ const CommercialImmeublesPage: React.FC = () => {
                 {filteredImmeubles.map((immeuble, index) => {
                     const status = getProspectingStatus(immeuble);
                     const StatusIcon = status.icon;
+                    const details = getBuildingDetails(immeuble.id);
                     return (
                         <motion.div
                             key={immeuble.id}
@@ -344,23 +353,29 @@ const CommercialImmeublesPage: React.FC = () => {
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="text-sm text-muted-foreground flex-grow space-y-4 pt-2">
-                                    <div className="grid grid-cols-2 gap-4 text-center">
-                                        <div className="p-3 bg-gray-50 rounded-lg">
-                                            <p className="font-semibold text-gray-800 text-xl">{immeuble.nbPortesTotal}</p>
+                                    <div className="grid grid-cols-3 gap-2 text-center">
+                                        <div className="p-2 bg-gray-50 rounded-lg">
+                                            <p className="font-semibold text-gray-800 text-lg">{details.nbEtages}</p>
+                                            <p className="text-xs text-gray-500">Étages</p>
+                                        </div>
+                                        <div className="p-2 bg-gray-50 rounded-lg">
+                                            <p className="font-semibold text-gray-800 text-lg">{immeuble.nbPortesTotal}</p>
                                             <p className="text-xs text-gray-500">Portes</p>
                                         </div>
-                                        <div className="p-3 bg-gray-50 rounded-lg">
-                                            <p className="font-semibold text-gray-800 text-xl">{immeuble.hasElevator ? 'Oui' : 'Non'}</p>
+                                        <div className="p-2 bg-gray-50 rounded-lg">
+                                            <p className="font-semibold text-gray-800 text-lg">{immeuble.hasElevator ? 'Oui' : 'Non'}</p>
                                             <p className="text-xs text-gray-500">Ascenseur</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                        <span className="font-semibold text-gray-600 flex items-center gap-2">
-                                            {immeuble.prospectingMode === 'SOLO' ? <User className="h-4 w-4" /> : <Users className="h-4 w-4" />}
-                                            Mode
-                                        </span>
-                                        <span className="font-bold text-gray-800">{immeuble.prospectingMode}</span>
-                                    </div>
+                                    {status.key !== 'NON_CONFIGURE' && (
+                                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                            <span className="font-semibold text-gray-600 flex items-center gap-2">
+                                                {immeuble.prospectingMode === 'SOLO' ? <User className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+                                                Mode
+                                            </span>
+                                            <span className="font-bold text-gray-800">{immeuble.prospectingMode}</span>
+                                        </div>
+                                    )}
                                     {immeuble.digicode && (
                                         <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
                                             <span className="font-semibold text-red-600 flex items-center gap-2"><KeyRound className="h-4 w-4" />Digicode</span>
