@@ -73,7 +73,8 @@ const CommercialImmeublesPage: React.FC = () => {
     try {
       setLoading(true);
       const data = await immeubleService.getImmeublesForCommercial(user.id);
-      setImmeubles(data);
+      const sortedData = data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setImmeubles(sortedData);
     } catch (err) {
       setError('Impossible de charger les immeubles.');
       toast.error('Impossible de charger les immeubles.');
