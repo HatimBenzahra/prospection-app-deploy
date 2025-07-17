@@ -14,9 +14,15 @@ export class CreateCommercialImmeubleDto {
   @IsNotEmpty()
   codePostal: string;
 
+  
+
   @IsNumber()
   @IsNotEmpty()
-  nbPortesTotal: number;
+  nbEtages: number;
+
+  @IsNumber()
+  @IsNotEmpty()
+  nbPortesParEtage: number;
 
   @IsBoolean()
   @IsNotEmpty()

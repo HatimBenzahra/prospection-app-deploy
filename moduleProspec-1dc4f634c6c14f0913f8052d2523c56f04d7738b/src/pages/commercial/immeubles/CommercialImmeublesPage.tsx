@@ -183,7 +183,7 @@ const CommercialImmeublesPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id) return;
-    if (formState.nbEtages <= 0 || formState.nbPortesParEtage <= 0) {
+    if (!editingImmeuble && (formState.nbEtages <= 0 || formState.nbPortesParEtage <= 0)) {
         toast.error("Le nombre d'étages et de portes doit être supérieur à zéro.");
         return;
     }
@@ -197,6 +197,7 @@ const CommercialImmeublesPage: React.FC = () => {
       digicode: formState.digicode,
       latitude: Number(formState.latitude),
       longitude: Number(formState.longitude),
+      ...(editingImmeuble ? {} : { nbEtages: Number(formState.nbEtages), nbPortesParEtage: Number(formState.nbPortesParEtage) }),
     };
     try {
       if (editingImmeuble) {
@@ -256,12 +257,8 @@ const CommercialImmeublesPage: React.FC = () => {
     </button>
   );
 
-  const getBuildingDetails = (immeubleId: string) => {
-    const storedDetails = localStorage.getItem(`building_${immeubleId}_details`);
-    if (storedDetails) {
-      return JSON.parse(storedDetails);
-    }
-    return { nbEtages: 'N/A', nbPortesParEtage: 'N/A' };
+  const getBuildingDetails = (immeuble: ImmeubleFromApi) => {
+    return { nbEtages: immeuble.nbEtages, nbPortesParEtage: immeuble.nbPortesParEtage };
   };
 
   return (
@@ -314,7 +311,7 @@ const CommercialImmeublesPage: React.FC = () => {
                 {filteredImmeubles.map((immeuble, index) => {
                     const status = getProspectingStatus(immeuble);
                     const StatusIcon = status.icon;
-                    const details = getBuildingDetails(immeuble.id);
+                    const details = getBuildingDetails(immeuble);
                     return (
                         <motion.div
                             key={immeuble.id}
@@ -522,38 +519,40 @@ const CommercialImmeublesPage: React.FC = () => {
                       className="grid gap-4"
                     >
                       {/* Étages & portes */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-3">
-                          <Label htmlFor="nbEtages" className="font-semibold">
-                            Étages
-                          </Label>
-                          <Input
-                            id="nbEtages"
-                            type="number"
-                            name="nbEtages"
-                            value={formState.nbEtages}
-                            onChange={handleFormChange}
-                            min="1"
-                            required
-                            className="py-3"
-                          />
+                      {!editingImmeuble && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-3">
+                            <Label htmlFor="nbEtages" className="font-semibold">
+                              Étages
+                            </Label>
+                            <Input
+                              id="nbEtages"
+                              type="number"
+                              name="nbEtages"
+                              value={formState.nbEtages}
+                              onChange={handleFormChange}
+                              min="1"
+                              required
+                              className="py-3"
+                            />
+                          </div>
+                          <div className="grid gap-3">
+                            <Label htmlFor="nbPortesParEtage" className="font-semibold">
+                              Portes / étage
+                            </Label>
+                            <Input
+                              id="nbPortesParEtage"
+                              type="number"
+                              name="nbPortesParEtage"
+                              value={formState.nbPortesParEtage}
+                              onChange={handleFormChange}
+                              min="1"
+                              required
+                              className="py-3"
+                            />
+                          </div>
                         </div>
-                        <div className="grid gap-3">
-                          <Label htmlFor="nbPortesParEtage" className="font-semibold">
-                            Portes / étage
-                          </Label>
-                          <Input
-                            id="nbPortesParEtage"
-                            type="number"
-                            name="nbPortesParEtage"
-                            value={formState.nbPortesParEtage}
-                            onChange={handleFormChange}
-                            min="1"
-                            required
-                            className="py-3"
-                          />
-                        </div>
-                      </div>
+                      )}
 
                       {/* Digicode */}
                       <div className="grid gap-3">

@@ -19,8 +19,16 @@ export class CreateImmeubleDto {
   status?: ImmeubleStatus;
 
   @IsNumber()
-  @IsNotEmpty()
-  nbPortesTotal: number;
+  @IsOptional()
+  nbPortesTotal?: number;
+
+  @IsNumber()
+  @IsOptional()
+  nbEtages?: number;
+
+  @IsNumber()
+  @IsOptional()
+  nbPortesParEtage?: number;
 
   @IsEnum(ProspectingMode)
   @IsNotEmpty()

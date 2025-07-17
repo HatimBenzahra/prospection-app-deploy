@@ -44,7 +44,7 @@ export class StatisticsService {
       commentaire: entry.commentaire,
       // Calculate tauxCouverture based on nbPortesVisitees and immeuble.nbPortesTotal
       tauxCouverture:
-        entry.immeuble.nbPortesTotal > 0
+        entry.immeuble.nbPortesTotal !== null && entry.immeuble.nbPortesTotal > 0
           ? Math.min(
               (entry.nbPortesVisitees / entry.immeuble.nbPortesTotal) * 100,
               100,

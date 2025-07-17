@@ -78,7 +78,9 @@ model Immeuble {
   ville                String
   codePostal           String
   status               ImmeubleStatus          @default(A_VISITER)
-  nbPortesTotal        Int
+  nbPortesTotal        Int?
+  nbEtages             Int?
+  nbPortesParEtage     Int?
   prospectingMode      ProspectingMode
   dateDerniereVisite   DateTime?
   createdAt            DateTime @default(now())

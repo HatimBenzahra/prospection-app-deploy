@@ -63,31 +63,44 @@ const ProspectingDoorsPage = () => {
     const [doorToDeleteId, setDoorToDeleteId] = useState<string | null>(null);
 
     const portesGroupedByFloor = useMemo(() => {
-        if (!building) return {};
-
+        if (!building) { // Add this null check
+            return {};
+        }
         const grouped: { [key: number]: Porte[] } = {};
+        // Initialize all floors up to building.nbEtages
+        const numEtages = building.nbEtages || 1; // Provide a fallback value
+        for (let i = 1; i <= numEtages; i++) {
+            grouped[i] = [];
+        }
+
         portes.forEach(porte => {
             const floor = porte.etage;
-            if (!grouped[floor]) {
-                grouped[floor] = [];
+            if (grouped[floor]) { // Only add if the floor exists (within nbEtages)
+                grouped[floor].push(porte);
             }
-            grouped[floor].push(porte);
         });
 
-        // Apply filters to the grouped portes
         const filteredGrouped: { [key: number]: Porte[] } = {};
-        for (const floor in grouped) {
-            let floorPortes = grouped[floor];
+
+        for (let i = 1; i <= numEtages; i++) {
+            let floorPortes = grouped[i];
+
+            // Apply status filters
             if (selectedStatuses.size > 0) {
                 floorPortes = floorPortes.filter(p => selectedStatuses.has(p.statut));
             }
+
+            // Apply repassage filter
             if (showRepassageOnly) {
                 floorPortes = floorPortes.filter(p => (['ABSENT', 'RDV', 'CURIEUX'].includes(p.statut) && p.passage < 3));
             }
-            if (floorPortes.length > 0) {
-                filteredGrouped[floor] = floorPortes;
+
+            // Include floor if it has doors after filtering, or if no filters are applied and it's an empty floor
+            if (floorPortes.length > 0 || (!showRepassageOnly && selectedStatuses.size === 0)) {
+                filteredGrouped[i] = floorPortes;
             }
         }
+
         return filteredGrouped;
     }, [building, portes, selectedStatuses, showRepassageOnly]);
 
@@ -131,17 +144,7 @@ const ProspectingDoorsPage = () => {
 
         immeubleService.getImmeubleDetails(buildingId).then(details => {
             if (details) {
-                const storedDetails = localStorage.getItem(`building_${buildingId}_details`);
-                let nbEtages = Math.floor(details.nbPortesTotal / 10) || 1; // Default if not in localStorage
-                let nbPortesParEtage = details.nbPortesTotal % 10 === 0 ? 10 : details.nbPortesTotal % 10; // Default if not in localStorage
-
-                if (storedDetails) {
-                    const parsedDetails = JSON.parse(storedDetails);
-                    nbEtages = parsedDetails.nbEtages || nbEtages;
-                    nbPortesParEtage = parsedDetails.nbPortesParEtage || nbPortesParEtage;
-                }
-
-                setBuilding({ ...details, nbEtages, nbPortesParEtage });
+                setBuilding({ ...details });
                 if (details.portes && details.portes.length > 0) {
                     const portesFromAPI = details.portes.map((p) => ({
                         id: p.id,
@@ -250,7 +253,7 @@ const ProspectingDoorsPage = () => {
         if (!buildingId || !user?.id || !building) return;
 
         const currentNbEtages = building.nbEtages || 1;
-        const currentNbPortesParEtage = building.nbPortesParEtage || 10;
+        const currentNbPortesParEtage = building?.nbPortesParEtage || 10;
 
         const newNbEtages = currentNbEtages + 1;
         const newNbPortesTotal = newNbEtages * currentNbPortesParEtage;
@@ -400,7 +403,7 @@ const ProspectingDoorsPage = () => {
                             {Object.keys(portesGroupedByFloor).sort((a, b) => parseInt(a) - parseInt(b)).map(floor => (
                                 <details key={floor} className="border rounded-lg p-4 shadow-sm group">
                                     <summary className="flex justify-between items-center cursor-pointer py-2 px-3 -mx-3 -mt-3 mb-4 font-semibold text-lg bg-blue-50 rounded-t-lg text-gray-800 hover:bg-blue-100 transition-colors duration-200">
-                                        <span>Étage {floor} ({portesGroupedByFloor[parseInt(floor)].length} portes)</span>
+                                        <span>Étage {floor} ({portesGroupedByFloor[parseInt(floor)]?.length || 0} portes)</span>
                                         <svg className="h-5 w-5 text-gray-500 transform transition-transform duration-200 group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                                         </svg>

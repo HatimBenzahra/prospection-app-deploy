@@ -4,7 +4,7 @@ import { CreateImmeubleDto } from './dto/create-immeuble.dto';
 import { UpdateImmeubleDto } from './dto/update-immeuble.dto';
 import { CreateCommercialImmeubleDto } from './dto/create-commercial-immeuble.dto';
 import { UpdateCommercialImmeubleDto } from './dto/update-commercial-immeuble.dto';
-import { ImmeubleStatus, ProspectingMode } from '@prisma/client';
+import { ImmeubleStatus, ProspectingMode, PorteStatut } from '@prisma/client';
 
 @Injectable()
 export class ImmeubleService {
@@ -12,12 +12,33 @@ export class ImmeubleService {
 
   // Admin methods
   create(createImmeubleDto: CreateImmeubleDto) {
-    const { prospectorsIds, ...rest } = createImmeubleDto;
+    const { nbEtages, nbPortesParEtage, prospectorsIds, ...rest } = createImmeubleDto;
+    const portesData = [];
+    if (nbEtages && nbPortesParEtage) {
+      for (let etage = 1; etage <= nbEtages; etage++) {
+        for (let porteNum = 1; porteNum <= nbPortesParEtage; porteNum++) {
+          portesData.push({
+            numeroPorte: `Porte ${porteNum}`,
+            etage: etage,
+            statut: PorteStatut.NON_VISITE,
+            passage: 0,
+          });
+        }
+      }
+    }
+
     return this.prisma.immeuble.create({
       data: {
         ...rest,
+        nbEtages: nbEtages,
+        nbPortesParEtage: nbPortesParEtage,
         prospectors: {
           connect: prospectorsIds?.map((id) => ({ id })),
+        },
+        portes: {
+          createMany: {
+            data: portesData,
+          },
         },
       },
     });
@@ -94,14 +115,38 @@ export class ImmeubleService {
       throw new NotFoundException(`No zone found for commercial with ID ${commercialId}. An immeuble must be associated with a zone.`);
     }
 
+    const { nbEtages, nbPortesParEtage, ...rest } = createDto;
+    const calculatedNbPortesTotal = (nbEtages || 0) * (nbPortesParEtage || 0);
+    const portesData = [];
+    if (nbEtages && nbPortesParEtage) {
+      for (let etage = 1; etage <= nbEtages; etage++) {
+        for (let porteNum = 1; porteNum <= nbPortesParEtage; porteNum++) {
+          portesData.push({
+            numeroPorte: `Porte ${porteNum}`,
+            etage: etage,
+            statut: PorteStatut.NON_VISITE,
+            passage: 0,
+          });
+        }
+      }
+    }
+
     return this.prisma.immeuble.create({
       data: {
-        ...createDto,
+        ...rest,
+        nbEtages: nbEtages,
+        nbPortesParEtage: nbPortesParEtage,
+        nbPortesTotal: calculatedNbPortesTotal,
         zoneId: zone.id,
         prospectingMode: ProspectingMode.SOLO,
         status: ImmeubleStatus.A_VISITER,
         prospectors: {
           connect: { id: commercialId },
+        },
+        portes: {
+          createMany: {
+            data: portesData,
+          },
         },
       },
     });

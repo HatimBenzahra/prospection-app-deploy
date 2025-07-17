@@ -25,7 +25,10 @@ export class ProspectionService {
     }
 
     if (mode === ProspectingMode.SOLO) {
-      await this.generateAndAssignPortes(immeubleId, [commercialId], immeuble.nbPortesTotal);
+      if (immeuble.nbPortesTotal === null) {
+        throw new BadRequestException('Immeuble nbPortesTotal is missing.');
+      }
+      await this.generateAndAssignPortes(immeubleId, [commercialId], immeuble.nbPortesTotal as number);
       // Connect the commercial to the immeuble as a prospector
       await this.prisma.immeuble.update({
         where: { id: immeubleId },
@@ -84,10 +87,13 @@ export class ProspectionService {
         data: { status: 'ACCEPTED' },
       });
       console.log(`Request ${requestId} status updated to ACCEPTED.`); // Ajout de ce log
+      if (!request.immeuble.nbPortesTotal) {
+        throw new BadRequestException('Immeuble nbPortesTotal is missing.');
+      }
       await this.generateAndAssignPortes(
         request.immeubleId,
         [request.requesterId, request.partnerId],
-        request.immeuble.nbPortesTotal,
+        request.immeuble.nbPortesTotal as number,
       );
       // Connect both requester and partner to the immeuble as prospectors
       await this.prisma.immeuble.update({
