@@ -1,262 +1,242 @@
-// src/pages/commercial/ProspectingSetupPage.tsx
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui-admin/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-admin/card';
 import { Button } from '@/components/ui-admin/button';
 import { Label } from '@/components/ui-admin/label';
-import { User, Users, ArrowRight, Send, Loader2, ArrowLeft } from 'lucide-react';
+import { User, Users, ArrowRight, Send, Loader2, ArrowLeft, Building, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui-admin/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { commercialService, type CommercialFromAPI } from '@/services/commercial.service';
 import { prospectionService } from '@/services/prospection.service';
-import { immeubleService } from '@/services/immeuble.service';
+import { immeubleService, type ImmeubleFromApi } from '@/services/immeuble.service';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui-admin/Modal';
+import { motion } from 'framer-motion';
+import { Combobox } from '@/components/ui-admin/Combobox';
+import { Skeleton } from '@/components/ui-admin/skeleton';
 
-type ProspectingMode = 'solo' | 'duo';
+type ProspectingMode = 'SOLO' | 'DUO';
+
+const PageSkeleton = () => (
+    <div className="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="space-y-8 animate-pulse max-w-3xl mx-auto">
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-24 w-full rounded-2xl" />
+            <div className="space-y-4">
+                <Skeleton className="h-12 w-1/3" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Skeleton className="h-40 w-full rounded-2xl" />
+                    <Skeleton className="h-40 w-full rounded-2xl" />
+                </div>
+            </div>
+            <Skeleton className="h-14 w-full rounded-lg" />
+        </div>
+    </div>
+);
 
 const ProspectingSetupPage = () => {
     const { buildingId } = useParams<{ buildingId: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const [immeuble, setImmeuble] = useState<ImmeubleFromApi | null>(null);
     const [mode, setMode] = useState<ProspectingMode | null>(null);
     const [commercials, setCommercials] = useState<CommercialFromAPI[]>([]);
     const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
-    const [isLoadingCommercials, setIsLoadingCommercials] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
     const [isSendingInvitation, setIsSendingInvitation] = useState(false);
     const [sentRequestId, setSentRequestId] = useState<string | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
 
     useEffect(() => {
-        const fetchCommercials = async () => {
+        const fetchInitialData = async () => {
+            if (!buildingId || !user?.id) return;
             try {
-                const data = await commercialService.getCommerciaux();
-                // Filter out the current user from the list of potential partners
-                setCommercials(data.filter(c => c.id !== user?.id));
+                setIsLoading(true);
+                const [immeubleData, commercialsData] = await Promise.all([
+                    immeubleService.getImmeubleDetails(buildingId),
+                    commercialService.getCommerciaux(),
+                ]);
+                setImmeuble(immeubleData);
+                setCommercials(commercialsData.filter(c => c.id !== user.id));
             } catch (error) {
-                toast.error("Erreur lors du chargement des commerciaux.");
-                console.error("Error fetching commercials:", error);
-            } finally {
-                setIsLoadingCommercials(false);
+                toast.error("Erreur lors du chargement des données.");
+            }
+            finally {
+                setIsLoading(false);
             }
         };
-        fetchCommercials();
-    }, [user]);
+        fetchInitialData();
+    }, [buildingId, user]);
 
     useEffect(() => {
         let interval: NodeJS.Timeout | undefined;
         if (sentRequestId && isSendingInvitation) {
-            console.log(`Polling for request status for ID: ${sentRequestId}`);
             interval = setInterval(async () => {
                 try {
                     const response = await prospectionService.getRequestStatus(sentRequestId);
-                    console.log(`Polled status for ${sentRequestId}:`, response?.status);
-
-                    if (!response) { // Request not found (e.g., deleted or already handled and removed)
-                        clearInterval(interval);
-                        setIsSendingInvitation(false);
-                        setSentRequestId(null);
-                        toast.info("L'invitation a été traitée ou n'existe plus.");
-                    } else if (response.status !== 'PENDING') {
+                    if (response?.status !== 'PENDING') {
                         clearInterval(interval);
                         setIsSendingInvitation(false);
                         setSentRequestId(null);
                         if (response.status === 'ACCEPTED') {
-                            toast.success("Votre invitation a été acceptée ! Redirection vers la prospection...");
+                            toast.success("Invitation acceptée ! Redirection...");
                             navigate(`/commercial/prospecting/doors/${buildingId}`);
                         } else if (response.status === 'REFUSED') {
-                            toast.info("Votre invitation a été refusée.");
+                            toast.warning("Votre invitation a été refusée.");
                         }
                     }
                 } catch (error) {
-                    console.error("Error polling request status:", error);
                     clearInterval(interval);
                     setIsSendingInvitation(false);
                     setSentRequestId(null);
-                    toast.error("Erreur lors de la vérification du statut de l'invitation.");
+                    toast.error("Erreur de vérification du statut.");
                 }
-            }, 2000); // Poll every 2 seconds
+            }, 2000);
         }
-        return () => { if (interval) clearInterval(interval); };
+        return () => clearInterval(interval);
     }, [sentRequestId, isSendingInvitation, navigate, buildingId]);
 
-    const handleStartSolo = async () => {
-        if (!user?.id || !buildingId) return;
-        try {
-            const immeubleDetails = await immeubleService.getImmeubleDetails(buildingId);
-            if (immeubleDetails && immeubleDetails.portes && immeubleDetails.portes.length > 0) {
-                // Doors already exist, navigate directly to doors page
-                toast.info("Reprise de la prospection existante.");
-                navigate(`/commercial/prospecting/doors/${buildingId}`);
-            } else {
-                // No doors exist, proceed with starting new prospection
-                await prospectionService.startProspection({
+    const handleStartProspection = async () => {
+        if (!user?.id || !buildingId || !mode) return;
+
+        if (mode === 'DUO' && !selectedPartnerId) {
+            toast.error("Veuillez sélectionner un coéquipier.");
+            return;
+        }
+
+        if (mode === 'DUO') {
+            setIsSendingInvitation(true);
+            abortControllerRef.current = new AbortController();
+            try {
+                const response = await prospectionService.startProspection({
                     commercialId: user.id,
                     immeubleId: buildingId,
-                    mode: 'SOLO',
-                });
-                toast.success("Prospection solo démarrée !");
+                    mode: 'DUO',
+                    partnerId: selectedPartnerId!,
+                }, abortControllerRef.current.signal);
+                setSentRequestId(response.requestId);
+                toast.success("Invitation envoyée !");
+            } catch (error: any) {
+                if (error.name !== 'AbortError') toast.error(error.response?.data?.message || "Erreur d'envoi.");
+            } finally {
+                abortControllerRef.current = null;
+            }
+        } else { // Mode SOLO
+            try {
+                await prospectionService.startProspection({ commercialId: user.id, immeubleId: buildingId, mode: 'SOLO' });
+                toast.success("Prospection démarrée !");
                 navigate(`/commercial/prospecting/doors/${buildingId}`);
+            } catch (error: any) {
+                toast.error(error.response?.data?.message || "Erreur de démarrage.");
             }
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || "Erreur lors du démarrage de la prospection solo.");
-            console.error("Error starting solo prospection:", error);
-        }
-    };
-
-    const handleStartDuo = async () => {
-        // Validation améliorée pour des messages d'erreur plus spécifiques
-        if (!user || !user.id) {
-            toast.error("Votre ID utilisateur est manquant. Veuillez vous reconnecter.");
-            return;
-        }
-        if (!buildingId) {
-            toast.error("L'ID de l'immeuble est manquant dans l'URL. Veuillez vérifier l'adresse.");
-            return;
-        }
-        if (!selectedPartnerId) {
-            toast.error("Veuillez sélectionner un coéquipier pour le mode duo.");
-            return;
-        }
-
-        console.log("Setting isSendingInvitation to true");
-        setIsSendingInvitation(true);
-        abortControllerRef.current = new AbortController();
-
-        try {
-            const duoDto = {
-                commercialId: user.id,
-                immeubleId: buildingId,
-                mode: 'DUO' as const, // Ajout de 'as const' pour une meilleure inférence de type
-                partnerId: selectedPartnerId,
-            };
-            // Le console.log que nous avons ajouté précédemment est toujours là pour une vérification visuelle
-            console.log("Sending duo prospection DTO:", duoDto);
-
-            const response = await prospectionService.startProspection(duoDto, abortControllerRef.current.signal);
-            setSentRequestId(response.requestId); // Capture l'ID de la requête
-            toast.success("Invitation de prospection duo envoyée !");
-            // Pas de navigation ici, la modale de chargement se fermera
-        } catch (error: any) {
-            if (error.name === 'AbortError') {
-                toast.info("Envoi de l'invitation annulé.");
-            } else {
-                toast.error(error.response?.data?.message || "Erreur lors de l'envoi de l'invitation duo.");
-                console.error("Error sending duo invitation:", error);
-            }
-        } finally {
-            abortControllerRef.current = null;
         }
     };
 
     const handleCancelInvitation = () => {
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
+        if (abortControllerRef.current) abortControllerRef.current.abort();
         setIsSendingInvitation(false);
+        toast.info("Envoi de l'invitation annulé.");
     };
 
+    if (isLoading) return <PageSkeleton />;
+    if (!immeuble) return <div className="text-center py-10">Immeuble non trouvé.</div>;
+
+    const commercialOptions = commercials.map(c => ({ value: c.id, label: `${c.prenom} ${c.nom}` }));
+
     return (
-        <div className="container mx-auto py-8 p-4">
-            <Button variant="outline" onClick={() => navigate('/commercial/prospecting')} className="mb-4">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Retour à la sélection de l'immeuble
-            </Button>
-            <Card className="max-w-2xl mx-auto">
-                <CardHeader>
-                    <CardTitle className="text-2xl flex items-center gap-3">
-                        <Users className="h-6 w-6 text-primary"/>
-                        Étape 2 : Mode de Prospection
-                    </CardTitle>
-                    <CardDescription>
-                        Allez-vous prospecter seul ou en équipe aujourd'hui ?
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Card 
-                            onClick={() => setMode('solo')}
-                            className={cn(
-                                "p-6 text-center cursor-pointer transition-all border-2",
-                                mode === 'solo' ? 'border-primary shadow-lg scale-105' : 'hover:border-primary/50'
-                            )}
-                        >
-                            <User className="mx-auto h-12 w-12 text-primary" />
-                            <h3 className="mt-4 text-lg font-bold">Mode Solo</h3>
-                            <p className="text-sm text-muted-foreground">Prospectez seul à votre rythme.</p>
-                        </Card>
-                        <Card 
-                            onClick={() => setMode('duo')}
-                            className={cn(
-                                "p-6 text-center cursor-pointer transition-all border-2",
-                                mode === 'duo' ? 'border-primary shadow-lg scale-105' : 'hover:border-primary/50'
-                            )}
-                        >
-                            <Users className="mx-auto h-12 w-12 text-primary" />
-                            <h3 className="mt-4 text-lg font-bold">Mode Duo</h3>
-                            <p className="text-sm text-muted-foreground">Collaborez avec un coéquipier.</p>
-                        </Card>
-                    </div>
-
-                    {mode === 'duo' && (
-                        <div className="space-y-2 animate-in fade-in-0">
-                            <Label htmlFor="partner-select">Sélectionnez un coéquipier</Label>
-                            <Select
-                                onValueChange={setSelectedPartnerId}
-                                value={selectedPartnerId || ''}
-                                disabled={isLoadingCommercials}
-                            >
-                                <SelectTrigger id="partner-select">
-                                    <SelectValue placeholder="Sélectionner un commercial" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {commercials.map(commercial => (
-                                        <SelectItem key={commercial.id} value={commercial.id}>
-                                            {commercial.prenom} {commercial.nom}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Button 
-                                onClick={handleStartDuo}
-                                disabled={!selectedPartnerId}
-                                className="w-full bg-green-600 text-white hover:bg-green-700 mt-4"
-                            >
-                                <Send className="mr-2 h-4 w-4" />
-                                Envoyer l'invitation
-                            </Button>
-                        </div>
-                    )}
-                </CardContent>
-
-                {mode === 'solo' && (
-                    <CardFooter className="flex justify-end">
-                        <Button 
-                            onClick={handleStartSolo}
-                            className="bg-green-600 text-white hover:bg-green-700"
-                        >
-                            Commencer la prospection <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                    </CardFooter>
-                )}
-            </Card>
-
-            <Modal
-                isOpen={isSendingInvitation}
-                onClose={() => {}} // Prevent closing by clicking outside
-                title="Envoi de l'invitation..."
-                maxWidth="max-w-sm"
+        <div className="bg-gray-50 min-h-screen">
+            <motion.div 
+                className="space-y-8 max-w-3xl mx-auto p-4 sm:p-6 lg:p-8 pb-24"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
             >
-                <div className="flex flex-col items-center justify-center py-4">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                    <p className="text-lg font-semibold mb-4">Envoi de l'invitation en cours...</p>
+                <Button variant="outline" onClick={() => navigate('/commercial/prospecting')} className="bg-white shadow-sm">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Retour à la sélection
+                </Button>
+
+                <Card className="rounded-2xl shadow-lg border-none">
+                    <CardHeader>
+                        <CardTitle className="text-2xl font-bold text-gray-800 flex items-start gap-4">
+                            <Building className="h-8 w-8 text-primary" />
+                            <span>{immeuble.adresse}</span>
+                        </CardTitle>
+                        <CardDescription className="text-base text-gray-600 flex items-center gap-2 pt-1">
+                            <MapPin className="h-4 w-4" />
+                            {immeuble.ville}, {immeuble.codePostal}
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+
+                <Card className="rounded-2xl shadow-lg border-none">
+                    <CardHeader>
+                        <CardTitle className="text-xl font-bold text-gray-800">Mode de Prospection</CardTitle>
+                        <CardDescription>Comment souhaitez-vous prospecter cet immeuble ?</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
+                                <Card 
+                                    onClick={() => setMode('SOLO')}
+                                    className={cn(
+                                        "p-6 text-center cursor-pointer transition-all border-2 rounded-xl",
+                                        mode === 'SOLO' ? 'border-blue-500 bg-blue-50 shadow-xl' : 'bg-white hover:border-blue-400'
+                                    )}
+                                >
+                                    <User className="mx-auto h-12 w-12 text-blue-600" />
+                                    <h3 className="mt-4 text-lg font-bold text-gray-800">Mode Solo</h3>
+                                    <p className="text-sm text-gray-600">Prospectez seul à votre rythme.</p>
+                                </Card>
+                            </motion.div>
+                            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
+                                <Card 
+                                    onClick={() => setMode('DUO')}
+                                    className={cn(
+                                        "p-6 text-center cursor-pointer transition-all border-2 rounded-xl",
+                                        mode === 'DUO' ? 'border-purple-500 bg-purple-50 shadow-xl' : 'bg-white hover:border-purple-400'
+                                    )}
+                                >
+                                    <Users className="mx-auto h-12 w-12 text-purple-600" />
+                                    <h3 className="mt-4 text-lg font-bold text-gray-800">Mode Duo</h3>
+                                    <p className="text-sm text-gray-600">Collaborez avec un coéquipier.</p>
+                                </Card>
+                            </motion.div>
+                        </div>
+
+                        {mode === 'DUO' && (
+                            <motion.div className="space-y-4 pt-4 border-t" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                                <Label htmlFor="partner-select" className="font-semibold text-gray-700">Sélectionnez un coéquipier</Label>
+                                <Combobox
+                                    options={commercialOptions}
+                                    value={selectedPartnerId || ''}
+                                    onChange={setSelectedPartnerId}
+                                    placeholder="Rechercher un commercial..."
+                                    emptyMessage="Aucun commercial trouvé."
+                                />
+                            </motion.div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <div className="flex justify-end mt-8">
                     <Button 
-                        variant="outline"
-                        onClick={handleCancelInvitation}
-                        disabled={!abortControllerRef.current} // Disable if no request is active
+                        onClick={handleStartProspection}
+                        disabled={!mode || (mode === 'DUO' && !selectedPartnerId)}
+                        size="lg"
+                        className="w-full md:w-auto font-bold py-3 px-8 rounded-lg text-white transition-all duration-300 flex items-center gap-2 bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl disabled:bg-gray-300 disabled:cursor-not-allowed"
                     >
-                        Annuler
+                        <span>{mode === 'DUO' ? 'Envoyer l\'invitation' : 'Démarrer la Prospection'}</span>
+                        {mode === 'DUO' ? <Send className="h-5 w-5" /> : <ArrowRight className="h-5 w-5" />}
                     </Button>
+                </div>
+            </motion.div>
+
+            <Modal isOpen={isSendingInvitation} onClose={() => {}} title="En attente de réponse..." maxWidth="max-w-sm">
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <Loader2 className="h-16 w-16 animate-spin text-primary mb-6" />
+                    <p className="text-lg font-semibold text-gray-800">Invitation envoyée !</p>
+                    <p className="text-gray-600 mb-6">En attente de l'acceptation de votre coéquipier.</p>
+                    <Button variant="outline" onClick={handleCancelInvitation}>Annuler l'invitation</Button>
                 </div>
             </Modal>
         </div>

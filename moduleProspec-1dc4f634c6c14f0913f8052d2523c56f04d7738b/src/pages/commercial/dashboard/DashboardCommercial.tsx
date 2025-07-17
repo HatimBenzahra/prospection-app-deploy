@@ -9,8 +9,8 @@ import { motion } from 'framer-motion';
 
 // --- Composants UI ---
 import StatCard from '@/components/ui-admin/StatCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
-import { CheckCircle, DoorOpen, MapPin, ZapOff, Percent, BarChart, Building } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
+import { CheckCircle, DoorOpen, MapPin, ZapOff, Percent, BarChart, Building, ArrowRight, History } from 'lucide-react';
 import { GenericLineChart } from '@/components/charts/GenericLineChart';
 import { ZoneFocusMap } from './ZoneFocusMap';
 import { GoalProgressCard } from '@/components/ui-commercial/GoalProgressCard';
@@ -28,30 +28,36 @@ interface ZoneData {
 
 // --- Composant Squelette ---
 const DashboardSkeleton = () => (
-    <div className="space-y-8 animate-pulse">
-        <Skeleton className="h-10 w-1/3" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Skeleton className="h-[400px] w-full" />
-            <Skeleton className="h-[400px] w-full" />
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8 animate-pulse bg-gray-50 min-h-screen">
+        <div className="flex items-center justify-between">
+            <Skeleton className="h-12 w-1/2" />
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+                <Skeleton className="h-[450px] w-full rounded-xl" />
+            </div>
+            <div className="space-y-6">
+                <Skeleton className="h-[210px] w-full rounded-xl" />
+                <Skeleton className="h-[210px] w-full rounded-xl" />
+            </div>
         </div>
-        <Skeleton className="h-96 w-full" />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
+        </div>
+        <Skeleton className="h-96 w-full rounded-xl" />
     </div>
 );
 
 // --- Composant pour Zone non assignée ---
 const NoZoneAssigned = () => (
-    <Card className="h-full flex flex-col items-center justify-center text-center p-6 shadow-lg rounded-lg border-dashed border-2 border-gray-300 bg-gray-50">
+    <Card className="h-full flex flex-col items-center justify-center text-center p-8 shadow-lg rounded-2xl border-dashed border-2 border-gray-300 bg-white">
         <CardHeader className="pb-4">
-            <ZapOff className="mx-auto h-16 w-16 text-gray-400" />
-            <CardTitle className="text-2xl font-semibold text-gray-700">Aucune zone assignée</CardTitle>
+            <ZapOff className="mx-auto h-20 w-20 text-gray-400 mb-4" />
+            <CardTitle className="text-2xl font-bold text-gray-800">Aucune zone de prospection</CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4">
-            <p className="text-gray-500 leading-relaxed">
-                Aucune zone de prospection ne vous est actuellement assignée pour ce mois.<br />
-                Veuillez contacter votre manager pour obtenir une affectation.
+            <p className="text-gray-600 leading-relaxed max-w-sm">
+                Il semble qu'aucune zone ne vous soit assignée pour le moment. Veuillez contacter votre manager pour commencer à prospecter.
             </p>
         </CardContent>
     </Card>
@@ -110,115 +116,121 @@ const CommercialDashboardPage = () => {
         .reverse();
 
     if (loading) return <DashboardSkeleton />;
-    if (error) return <div className="text-center py-8 text-red-500">{error}</div>;
+    if (error) return <div className="text-center py-10 text-red-600 bg-red-50 h-screen">{error}</div>;
 
     const currentStats = stats?.kpis || {};
 
-    return (
-        <motion.div 
-            className="space-y-8 max-w-7xl my-10 mt-4 mx-auto p-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-        >
-            <div className="text-center mb-8">
-                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-800 flex items-center justify-center gap-4">
-                    <BarChart className="h-8 w-8 text-primary"/>
-                    Tableau de Bord
-                </h1>
-                <p className="mt-3 text-lg text-gray-600 max-w-2xl mx-auto">
-                    Bienvenue, {user?.name} ! Voici un résumé de votre activité et vos objectifs.
-                </p>
-            </div>
-
-            <div className="flex flex-col gap-6">
-                <Card className="h-[550px] w-full overflow-hidden rounded-lg shadow-lg">
-                    {assignedZone ? (
-                        <ZoneFocusMap
-                            zone={{
-                                nom: assignedZone.nom,
-                                latlng: [assignedZone.latitude, assignedZone.longitude],
-                                radius: assignedZone.rayonMetres,
-                                color: assignedZone.couleur,
-                            }}
-                            immeubles={immeubles}
-                        />
-                    ) : (
-                        <NoZoneAssigned />
-                    )}
-                </Card>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <GoalProgressCard
-                        title="Objectif du Mois"
-                        description="Progression de votre objectif de contrats mensuel."
-                        value={currentStats.contratsSignes || 0}
-                        total={currentStats.objectifMensuel || 0}
-                    />
-                    <Card className="flex-grow flex flex-col">
-                        <CardHeader className="pb-4">
-                            <CardTitle>Accès Rapide</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex-grow flex flex-col sm:flex-row items-center justify-center gap-4">
-                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Button
-                                    variant="ghost"
-                                    className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-[hsl(var(--winvest-blue-moyen))] text-white hover:bg-blue-700 transition"
-                                    onClick={() => navigate('/commercial/prospecting')}
-                                >
-                                    <MapPin className="h-6 w-6" />
-                                    <span className="text-base font-medium">Prospection</span>
-                                </Button>
-                            </motion.div>
-                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Button
-                                    variant="ghost"
-                                    className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-[hsl(var(--winvest-blue-moyen))] text-white hover:bg-blue-700 transition"
-                                    onClick={() => navigate('/commercial/history')}
-                                >
-                                    <BarChart className="h-6 w-6" />
-                                    <span className="text-base font-medium">Historique</span>
-                                </Button>
-                            </motion.div>
-                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Button
-                                    variant="ghost"
-                                    className="w-full sm:w-auto flex items-center gap-2 px-6 py-4 rounded-xl bg-[hsl(var(--winvest-blue-moyen))] text-white hover:bg-blue-700 transition"
-                                    onClick={() => navigate('/commercial/immeubles')}
-                                >
-                                    <Building className="h-6 w-6" />
-                                    <span className="text-base font-medium">Immeubles</span>
-                                </Button>
-                            </motion.div>
-                        </CardContent>
-                    </Card>
+    const QuickAccessButton = ({ to, icon: Icon, text }: { to: string, icon: React.ElementType, text: string }) => (
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full">
+            <Button
+                variant="outline"
+                className="w-full flex items-center justify-between gap-4 px-6 py-8 rounded-xl bg-white hover:bg-gray-100 hover:shadow-lg transition-all duration-300 shadow-md border-gray-200"
+                onClick={() => navigate(to)}
+            >
+                <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-blue-100 text-blue-600">
+                        <Icon className="h-6 w-6" />
+                    </div>
+                    <span className="text-base font-semibold text-gray-800">{text}</span>
                 </div>
-            </div>
-
-            <div className="space-y-4">
-                <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-                    <BarChart className="h-7 w-7 text-primary" />
-                    Vos Performances Clés
-                </h2>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <StatCard title="Immeubles Visitées" value={currentStats.immeublesVisites || 0} Icon={MapPin} color="text-blue-500" />
-                    <StatCard title="Portes Visitées" value={currentStats.portesVisitees || 0} Icon={DoorOpen} color="text-orange-500" />
-                    <StatCard title="Contrats Signés" value={currentStats.contratsSignes || 0} Icon={CheckCircle} color="text-emerald-500" />
-                    <StatCard title="Taux de Conversion" value={currentStats.tauxDeConversion || 0} Icon={Percent} color="text-violet-500" suffix="%" />
-                </div>
-            </div>
-
-            <GenericLineChart
-                title="Activité de Prospection"
-                data={activitePortesData}
-                xAxisDataKey="name"
-                lines={[
-                    { dataKey: 'Portes Visitées', name: 'Portes', stroke: 'hsl(var(--winvest-blue-profond))' },
-                    { dataKey: 'RDV Pris', name: 'RDV', stroke: 'hsl(var(--winvest-blue-moyen))' },
-                    { dataKey: 'Contrats Signés', name: 'Contrats', stroke: 'hsl(var(--emerald-500))' },
-                ]}
-            />
+                <ArrowRight className="h-5 w-5 text-gray-400" />
+            </Button>
         </motion.div>
+    );
+
+    return (
+        <div className="bg-gray-50 min-h-screen">
+            <motion.div 
+                className="space-y-8 max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+            >
+                {/* En-tête de page amélioré */}
+                <div className="mb-10">
+                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900">
+                        Tableau de Bord
+                    </h1>
+                    <p className="mt-3 text-lg text-gray-600">
+                        Bienvenue, {user?.name} ! Voici un résumé de votre activité et de vos objectifs.
+                    </p>
+                </div>
+
+                {/* Grille principale */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Colonne de gauche (plus large) */}
+                    <div className="lg:col-span-2 space-y-8">
+                        <Card className="h-[500px] w-full overflow-hidden rounded-2xl shadow-lg border-none">
+                            {assignedZone ? (
+                                <ZoneFocusMap
+                                    zone={{
+                                        nom: assignedZone.nom,
+                                        latlng: [assignedZone.latitude, assignedZone.longitude],
+                                        radius: assignedZone.rayonMetres,
+                                        color: assignedZone.couleur,
+                                    }}
+                                    immeubles={immeubles}
+                                />
+                            ) : (
+                                <NoZoneAssigned />
+                            )}
+                        </Card>
+                        <div className="space-y-4">
+                            <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                                <BarChart className="h-8 w-8 text-primary" />
+                                Performances Clés
+                            </h2>
+                            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                                <StatCard title="Immeubles Visitées" value={currentStats.immeublesVisites || 0} Icon={MapPin} color="text-blue-500" />
+                                <StatCard title="Portes Visitées" value={currentStats.portesVisitees || 0} Icon={DoorOpen} color="text-orange-500" />
+                                <StatCard title="Contrats Signés" value={currentStats.contratsSignes || 0} Icon={CheckCircle} color="text-emerald-500" />
+                                <StatCard title="Taux de Conversion" value={currentStats.tauxDeConversion || 0} Icon={Percent} color="text-violet-500" suffix="%" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Colonne de droite */}
+                    <div className="space-y-8">
+                        <GoalProgressCard
+                            title="Objectif du Mois"
+                            description="Progression de votre objectif de contrats mensuel."
+                            value={currentStats.contratsSignes || 0}
+                            total={currentStats.objectifMensuel || 0}
+                        />
+                        <Card className="flex-grow flex flex-col rounded-2xl shadow-lg border-none">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-xl font-bold text-gray-800">Accès Rapide</CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex-grow flex flex-col items-center justify-center gap-4">
+                                <QuickAccessButton to="/commercial/prospecting" icon={MapPin} text="Lancer une Prospection" />
+                                <QuickAccessButton to="/commercial/history" icon={History} text="Voir mon Historique" />
+                                <QuickAccessButton to="/commercial/immeubles" icon={Building} text="Gérer mes Immeubles" />
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                {/* Graphique dans une carte */}
+                <Card className="rounded-2xl shadow-lg border-none">
+                    <CardHeader>
+                        <CardTitle className="text-xl font-bold text-gray-800">Activité de Prospection</CardTitle>
+                        <CardDescription>Evolution de vos visites, RDV et contrats sur la période.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[400px]">
+                        <GenericLineChart
+                            title="Activité de Prospection"
+                            data={activitePortesData}
+                            xAxisDataKey="name"
+                            lines={[
+                                { dataKey: 'Portes Visitées', name: 'Portes', stroke: 'hsl(var(--winvest-blue-profond))' },
+                                { dataKey: 'RDV Pris', name: 'RDV', stroke: 'hsl(var(--winvest-blue-moyen))' },
+                                { dataKey: 'Contrats Signés', name: 'Contrats', stroke: 'hsl(var(--emerald-500))' },
+                            ]}
+                        />
+                    </CardContent>
+                </Card>
+            </motion.div>
+        </div>
     );
 };
 

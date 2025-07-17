@@ -6,13 +6,15 @@ import { zoneService } from '@/services/zone.service';
 import type { ZoneFromApi } from '@/services/zone.service';
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
-import { Building, Calendar, CheckCircle, XCircle, DoorOpen, Percent, Handshake, Phone, MessageSquare } from 'lucide-react';
+import { Building, Calendar, CheckCircle, XCircle, DoorOpen, Percent, Handshake, Phone, MessageSquare, Search, ChevronLeft, ChevronRight, History as HistoryIcon } from 'lucide-react';
 import { Combobox } from '@/components/ui-admin/Combobox';
 import type { DateRange } from 'react-day-picker';
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { Button } from '@/components/ui-admin/button';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { Skeleton } from '@/components/ui-admin/skeleton';
 
 interface HistoryEntry {
   id: string;
@@ -24,11 +26,35 @@ interface HistoryEntry {
   nbRdvPris: number;
   nbRefus: number;
   nbAbsents: number;
-  nbCurieux: number; // Added nbCurieux
+  nbCurieux: number;
   commentaire: string;
   tauxCouverture: number;
   immeuble: { zoneId: string | null };
 }
+
+const PageSkeleton = () => (
+    <div className="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="space-y-8 animate-pulse max-w-screen-xl mx-auto">
+            <div className="flex items-center justify-between">
+                <Skeleton className="h-12 w-1/2" />
+            </div>
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-2xl" />)}
+            </div>
+        </div>
+    </div>
+);
+
+const StatItem = ({ icon: Icon, label, value, colorClass }: { icon: React.ElementType, label: string, value: string | number, colorClass: string }) => (
+    <div className="flex items-start p-3 bg-gray-100 rounded-lg">
+        <Icon className={cn("h-6 w-6 mr-3 flex-shrink-0", colorClass)} />
+        <div>
+            <p className="text-sm font-semibold text-gray-600">{label}</p>
+            <p className="text-lg font-bold text-gray-900">{value}</p>
+        </div>
+    </div>
+);
 
 const HistoriquePage = () => {
   const { user } = useAuth();
@@ -38,9 +64,9 @@ const HistoriquePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedZone, setSelectedZone] = useState<string>('');
-  const [selectedPeriod, setSelectedPeriod] = useState<'WEEK' | 'MONTH' | 'YEAR' | null>('MONTH'); // Default to MONTH
+  const [selectedPeriod, setSelectedPeriod] = useState<'WEEK' | 'MONTH' | 'YEAR' | null>('MONTH');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9; // 3x3 grid
+  const itemsPerPage = 6;
 
   useEffect(() => {
     if (user) {
@@ -85,180 +111,147 @@ const HistoriquePage = () => {
   }, [zones]);
 
   const filteredHistory = useMemo(() => {
-    const filtered = history.filter(item => {
+    return history.filter(item => {
       const itemDate = new Date(item.dateProspection);
       const inDateRange = !dateRange || (dateRange.from && dateRange.to && itemDate >= dateRange.from && itemDate <= dateRange.to);
       const isZoneMatch = !selectedZone || (item.immeuble && item.immeuble.zoneId === selectedZone);
       return inDateRange && isZoneMatch;
     });
+  }, [history, dateRange, selectedZone]);
 
-    // Apply pagination
+  const paginatedHistory = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filtered.slice(startIndex, endIndex);
-  }, [history, dateRange, selectedZone, currentPage, itemsPerPage]);
+    return filteredHistory.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredHistory, currentPage, itemsPerPage]);
 
-  const totalPages = useMemo(() => {
-    const totalFilteredItems = history.filter(item => {
-      const itemDate = new Date(item.dateProspection);
-      const inDateRange = !dateRange || (dateRange.from && dateRange.to && itemDate >= dateRange.from && itemDate <= dateRange.to);
-      const isZoneMatch = !selectedZone || (item.immeuble && item.immeuble.zoneId === selectedZone);
-      return inDateRange && isZoneMatch;
-    }).length;
-    return Math.ceil(totalFilteredItems / itemsPerPage);
-  }, [history, dateRange, selectedZone, itemsPerPage]);
+  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+    if (page > 0 && page <= totalPages) {
+        setCurrentPage(page);
+    }
   };
 
-  if (loading) {
-    return <div className="flex justify-center items-center h-full">Chargement de l'historique...</div>;
-  }
-
-  if (error) {
-    return <div className="text-red-500 text-center">{error}</div>;
-  }
+  if (loading) return <PageSkeleton />;
+  if (error) return <div className="text-red-500 text-center p-4 bg-red-50 h-screen">{error}</div>;
 
   return (
-    <div className="container mx-auto mb-15 mt-4 p-4">
-      <h1 className="text-2xl font-bold mb-6">Historique de Prospection</h1>
-      <Card className="mb-3 w-full">
-        <CardContent className="flex flex-col md:flex-row items-center md:justify-between gap-6 py-3">
-          <div className="w-full md:w-[350px]">
-            <Combobox
-              options={zoneOptions}
-              value={selectedZone}
-              onChange={setSelectedZone}
-              placeholder="Filtrer par zone..."
-              emptyMessage="Aucune zone trouvée."
-            />
-          </div>
-          <div className="flex items-center gap-2 p-1 bg-white rounded-xl shadow-sm border border-gray-200">
-            <Button 
-                variant='ghost' 
-                onClick={() => setSelectedPeriod('WEEK')} 
-                className={cn(
-                    "px-3 py-1.5 text-sm md:px-5 md:py-2 md:text-base rounded-lg font-medium transition-all duration-300", 
-                    selectedPeriod === 'WEEK' 
-                        ? 'bg-[hsl(var(--winvest-blue-moyen))] text-white shadow-md hover:bg-[hsl(var(--winvest-blue-moyen))] hover:text-white' 
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                )}
-            >Cette semaine</Button>
-            <Button 
-                variant='ghost' 
-                onClick={() => setSelectedPeriod('MONTH')} 
-                className={cn(
-                    "px-3 py-1.5 text-sm md:px-5 md:py-2 md:text-base rounded-lg font-medium transition-all duration-300", 
-                    selectedPeriod === 'MONTH' 
-                        ? 'bg-[hsl(var(--winvest-blue-moyen))] text-white shadow-md hover:bg-[hsl(var(--winvest-blue-moyen))] hover:text-white' 
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                )}
-            >Ce mois</Button>
-            <Button 
-                variant='ghost' 
-                onClick={() => setSelectedPeriod('YEAR')} 
-                className={cn(
-                    "px-3 py-1.5 text-sm md:px-5 md:py-2 md:text-base rounded-lg font-medium transition-all duration-300", 
-                    selectedPeriod === 'YEAR' 
-                        ? 'bg-[hsl(var(--winvest-blue-moyen))] text-white shadow-md hover:bg-[hsl(var(--winvest-blue-moyen))] hover:text-white' 
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                )}
-            >Cette année</Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {filteredHistory.length === 0 ? (
-        <div className="text-center text-gray-500 py-10">Aucun historique de prospection ne correspond à vos filtres.</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-6">
-            {filteredHistory.map((item, index) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-                whileHover={{ scale: 1.02, boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.1)" }}
-                className=""
-              >
-                <Card className="flex flex-col p-3">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-lg">
-                    <Building className="mr-2 h-4 w-4" />
-                    {item.adresse}, {item.ville}
-                  </CardTitle>
-                  <CardDescription className="flex items-center">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {new Date(item.dateProspection).toLocaleDateString()}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-2 text-sm flex-grow">
-                  <div className="flex items-center">
-                    <DoorOpen className="mr-2 h-4 w-4 text-blue-500" />
-                    <span>Portes visitées: <strong>{item.nbPortesVisitees}</strong></span>
-                  </div>
-                  <div className="flex items-center">
-                    <Percent className="mr-2 h-4 w-4 text-indigo-500" />
-                    <span>Couverture: <strong>{item.tauxCouverture}%</strong></span>
-                  </div>
-                  <div className="flex items-center">
-                    <Handshake className="mr-2 h-4 w-4 text-green-500" />
-                    <span>Contrats signés: <strong>{item.nbContratsSignes}</strong></span>
-                  </div>
-                  <div className="flex items-center">
-                    <Phone className="mr-2 h-4 w-4 text-yellow-500" />
-                    <span>RDV pris: <strong>{item.nbRdvPris}</strong></span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="mr-2 h-4 w-4 text-gray-500" />
-                    <span>Absents: <strong>{item.nbAbsents}</strong></span>
-                  </div>
-                  <div className="flex items-center">
-                    <XCircle className="mr-2 h-4 w-4 text-red-500" />
-                    <span>Refus: <strong>{item.nbRefus}</strong></span>
-                  </div>
-                  <div className="flex items-center">
-                    <MessageSquare className="mr-2 h-4 w-4 text-purple-500" />
-                    <span>Curieux: <strong>{item.nbCurieux}</strong></span>
-                  </div>
-                  
-                </CardContent>
-              </Card>
-              </motion.div>
-            ))}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center space-x-2 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                Précédent
-              </Button>
-              {[...Array(totalPages)].map((_, index) => (
-                <Button
-                  key={index + 1}
-                  variant={currentPage === index + 1 ? "default" : "outline"}
-                  onClick={() => handlePageChange(index + 1)}
-                >
-                  {index + 1}
-                </Button>
-              ))}
-              <Button
-                variant="outline"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                Suivant
-              </Button>
+    <div className="bg-gray-50 min-h-screen">
+        <motion.div 
+            className="space-y-8 max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 pb-24"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+        >
+            <div className="mb-10">
+                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 flex items-center gap-4">
+                    <HistoryIcon className="h-10 w-10 text-primary"/>
+                    Historique de Prospection
+                </h1>
+                <p className="mt-2 text-lg text-gray-600">Retrouvez le détail de toutes vos activités de prospection passées.</p>
             </div>
-          )}
-        </>
-      )}
+
+            <Card className="rounded-2xl shadow-lg border-none">
+                <CardContent className="flex flex-col md:flex-row items-center justify-between gap-6 p-6">
+                    <div className="w-full md:w-72">
+                        <Combobox
+                            options={zoneOptions}
+                            value={selectedZone}
+                            onChange={setSelectedZone}
+                            placeholder="Filtrer par zone..."
+                            emptyMessage="Aucune zone trouvée."
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-xl shadow-inner">
+                        {(['WEEK', 'MONTH', 'YEAR'] as const).map(period => (
+                            <Button 
+                                key={period}
+                                variant='ghost' 
+                                onClick={() => setSelectedPeriod(period)} 
+                                className={cn(
+                                    "px-4 py-2 text-sm rounded-lg font-semibold transition-all duration-300",
+                                    selectedPeriod === period 
+                                        ? 'bg-white text-blue-600 shadow-md' 
+                                        : 'text-gray-600 hover:bg-white/60'
+                                )}
+                            >{
+                                {WEEK: 'Semaine', MONTH: 'Mois', YEAR: 'Année'}[period]
+                            }</Button>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {paginatedHistory.length === 0 ? (
+                <div className="text-center py-20 col-span-full bg-white rounded-2xl shadow-lg">
+                    <Search className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+                    <p className="text-xl font-semibold text-gray-800">Aucun historique trouvé</p>
+                    <p className="text-gray-500 mt-2">Aucune prospection ne correspond à vos filtres pour cette période.</p>
+                </div>
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {paginatedHistory.map((item, index) => (
+                            <motion.div
+                                key={item.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.4, delay: index * 0.05 }}
+                                className="w-full h-full"
+                            >
+                                <Card className="flex flex-col h-full rounded-2xl bg-white text-card-foreground shadow-lg hover:shadow-2xl transition-all duration-300 border-none transform hover:-translate-y-1">
+                                    <CardHeader className="pb-4">
+                                        <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-800">
+                                            <Building className="h-5 w-5 text-primary flex-shrink-0" />
+                                            {item.adresse}, {item.ville}
+                                        </CardTitle>
+                                        <CardDescription className="flex items-center gap-2 text-sm text-gray-500 pt-1">
+                                            <Calendar className="h-4 w-4" />
+                                            {format(new Date(item.dateProspection), 'd MMMM yyyy', { locale: fr })}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="grid grid-cols-2 gap-4 flex-grow">
+                                        <StatItem icon={DoorOpen} label="Portes visitées" value={item.nbPortesVisitees} colorClass="text-blue-500" />
+                                        <StatItem icon={Percent} label="Couverture" value={`${item.tauxCouverture}%`} colorClass="text-indigo-500" />
+                                        <StatItem icon={Handshake} label="Contrats" value={item.nbContratsSignes} colorClass="text-green-500" />
+                                        <StatItem icon={Phone} label="RDV" value={item.nbRdvPris} colorClass="text-yellow-500" />
+                                        <StatItem icon={XCircle} label="Refus" value={item.nbRefus} colorClass="text-red-500" />
+                                        <StatItem icon={CheckCircle} label="Absents" value={item.nbAbsents} colorClass="text-gray-500" />
+                                        <StatItem icon={MessageSquare} label="Curieux" value={item.nbCurieux} colorClass="text-purple-500" />
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    {totalPages > 1 && (
+                        <div className="flex justify-center items-center space-x-2 mt-8">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="h-10 w-10 rounded-full bg-white shadow-md"
+                            >
+                                <ChevronLeft className="h-5 w-5" />
+                            </Button>
+                            <span className="text-sm font-semibold text-gray-700">
+                                Page {currentPage} sur {totalPages}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className="h-10 w-10 rounded-full bg-white shadow-md"
+                            >
+                                <ChevronRight className="h-5 w-5" />
+                            </Button>
+                        </div>
+                    )}
+                </>
+            )}
+        </motion.div>
     </div>
   );
 };

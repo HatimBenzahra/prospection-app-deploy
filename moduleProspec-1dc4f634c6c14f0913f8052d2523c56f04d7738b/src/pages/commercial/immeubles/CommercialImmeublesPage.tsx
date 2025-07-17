@@ -11,10 +11,11 @@ import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 import { Input } from '../../../components/ui-admin/input';
 import { Checkbox } from '../../../components/ui-admin/checkbox';
 import { Label } from '../../../components/ui-admin/label';
-import { Loader2, PlusCircle, Building, Trash2, Edit, Search, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, PlusCircle, Building, Trash2, Edit, Search, CheckCircle, XCircle, Users, User, MapPin, ArrowUpDown, KeyRound, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui-admin/card';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui-admin/tooltip';
 
 type ImmeubleFormState = {
   adresse: string;
@@ -28,18 +29,24 @@ type ImmeubleFormState = {
   longitude?: number;
 };
 
-const buildingStatusMap: { [key: string]: { label: string; className: string } } = {
-    NON_CONFIGURE: { label: "Non configuré", className: "bg-gray-200 text-gray-700" },
-    NON_COMMENCE: { label: "À commencer", className: "bg-yellow-100 text-yellow-800" },
-    EN_COURS: { label: "En cours", className: "bg-blue-100 text-blue-800" },
-    COMPLET: { label: "Complet", className: "bg-green-100 text-green-800" },
+const buildingStatusMap: { [key: string]: { label: string; className: string; icon: React.ElementType } } = {
+    NON_CONFIGURE: { label: "Non configuré", className: "bg-gray-100 text-gray-600", icon: XCircle },
+    NON_COMMENCE: { label: "À commencer", className: "bg-yellow-100 text-yellow-700", icon: Info },
+    EN_COURS: { label: "En cours", className: "bg-blue-100 text-blue-700", icon: Loader2 },
+    COMPLET: { label: "Complet", className: "bg-green-100 text-green-700", icon: CheckCircle },
 };
 
 const PageSkeleton = () => (
-    <div className="space-y-8 animate-pulse p-4 max-w-7xl mx-auto">
-        <Skeleton className="h-10 w-1/3" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-lg" />)}
+    <div className="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="space-y-8 animate-pulse max-w-screen-xl mx-auto">
+            <div className="flex items-center justify-between">
+                <Skeleton className="h-12 w-1/2" />
+                <Skeleton className="h-12 w-36" />
+            </div>
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-72 w-full rounded-2xl" />)}
+            </div>
         </div>
     </div>
 );
@@ -98,7 +105,8 @@ const CommercialImmeublesPage: React.FC = () => {
         return {
             key: 'EN_COURS',
             label: `En cours (${visitedDoors}/${immeuble.nbPortesTotal})`,
-            className: buildingStatusMap.EN_COURS.className
+            className: buildingStatusMap.EN_COURS.className,
+            icon: buildingStatusMap.EN_COURS.icon
         };
     }
     return { key: 'NON_COMMENCE', ...buildingStatusMap.NON_COMMENCE };
@@ -201,7 +209,7 @@ const CommercialImmeublesPage: React.FC = () => {
       toast.error('Commercial non identifié. Impossible de supprimer l\'immeuble.');
       return;
     }
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet immeuble ?')) {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet immeuble ? Cette action est irréversible.')) {
       try {
         await immeubleService.deleteImmeubleForCommercial(id, user.id);
         toast.success('Immeuble supprimé.');
@@ -213,169 +221,214 @@ const CommercialImmeublesPage: React.FC = () => {
   };
 
   if (loading) return <PageSkeleton />;
-  if (error) return <div className="text-red-500 p-4 text-center">{error}</div>;
+  if (error) return <div className="text-red-500 p-4 text-center bg-red-50 h-screen">{error}</div>;
+
+  const FilterButton = ({ filterKey, label, icon }: { filterKey: string, label: string, icon?: React.ReactNode }) => (
+    <button
+      key={filterKey}
+      onClick={() => setActiveFilter(filterKey)}
+      className={cn(
+        "px-4 py-2 text-sm font-semibold rounded-full flex items-center gap-2 transition-all duration-300 ease-in-out whitespace-nowrap shadow-sm",
+        activeFilter === filterKey
+          ? 'bg-blue-600 text-white shadow-lg'
+          : 'bg-white text-gray-700 hover:bg-gray-100'
+      )}
+    >
+      {icon}
+      {label}
+    </button>
+  );
 
   return (
-    <motion.div 
-        className="space-y-6 max-w-7xl mx-auto p-4 mb-10 mt-4  sm:p-6 lg:p-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-    >
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-800 flex items-center gap-3">
-              <Building className="h-8 w-8 text-primary"/>
-              Gestion des Immeubles
-          </h1>
-          <Button onClick={() => handleOpenModal()} className="bg-[hsl(var(--winvest-blue-moyen))] text-white hover:bg-blue-700 w-full sm:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Ajouter un immeuble</Button>
-      </div>
-
-      <Card>
-        <CardContent className="p-4 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input
-              placeholder="Rechercher par adresse, ville, code postal..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 w-full rounded-md shadow-sm"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
-            {[
-                { key: 'all', label: 'Tous' },
-                { key: 'hasElevator', label: 'Avec Ascenseur', icon: <CheckCircle className="h-4 w-4" /> },
-                { key: 'noElevator', label: 'Sans Ascenseur', icon: <XCircle className="h-4 w-4" /> },
-                ...Object.entries(buildingStatusMap).map(([key, { label }]) => ({ key, label })),
-                { key: 'SOLO', label: 'Solo' },
-                { key: 'DUO', label: 'Duo' },
-            ].map(
-              ({ key, label, icon }: { key: string; label: string; icon?: React.ReactNode }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveFilter(key)}
-                  className={cn(
-                    "px-4 py-2 text-sm font-semibold rounded-full flex items-center gap-2 transition-all duration-200 ease-in-out whitespace-nowrap",
-                    activeFilter === key
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  )}
-                >
-                  {icon && icon}
-                  {label}
-                </button>
-              )
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredImmeubles.map((immeuble, index) => (
-          <motion.div
-            key={immeuble.id}
+    <div className="bg-gray-50 min-h-screen">
+        <motion.div 
+            className="space-y-8 max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.05 }}
-            whileHover={{ scale: 1.02, boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.1)" }}
-            className="w-full"
-          >
-            <Card className="flex flex-col h-full rounded-lg bg-card text-card-foreground shadow-md hover:shadow-xl transition-shadow duration-300">
-              <CardHeader className="flex-row items-start justify-between pb-2">
-                <div className="flex-1">
-                    <CardTitle className="text-base font-bold break-words">{immeuble.adresse}</CardTitle>
-                    <CardDescription className="text-xs">
-                      {immeuble.ville}, {immeuble.codePostal}
-                    </CardDescription>
+            transition={{ duration: 0.5 }}
+        >
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 flex items-center gap-4">
+                        <Building className="h-10 w-10 text-primary"/>
+                        Mes Immeubles
+                    </h1>
+                    <p className="mt-2 text-lg text-gray-600">Consultez, modifiez et ajoutez les immeubles qui vous sont assignés.</p>
                 </div>
-                <Building className="h-5 w-5 text-muted-foreground ml-2" />
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground flex-grow space-y-2">
-                  <p><strong>Statut:</strong> <span className="font-medium text-blue-600">{getProspectingStatus(immeuble).label}</span></p>
-                  <p><strong>Zone:</strong> <span className="font-medium text-purple-600">{immeuble.zone?.nom ?? 'N/A'}</span></p>
-                  <p><strong>Portes:</strong> <span className="font-medium text-green-600">{immeuble.nbPortesTotal}</span></p>
-                  <p><strong>Ascenseur:</strong> <span className="font-medium text-orange-600">{immeuble.hasElevator ? 'Oui' : 'Non'}</span></p>
-                  {immeuble.digicode && <p><strong>Digicode:</strong> <span className="font-medium text-red-600">{immeuble.digicode}</span></p>}
-                  <p><strong>Mode:</strong> <span className="font-medium text-indigo-600">{immeuble.prospectingMode}</span></p>
-              </CardContent>
-              <div className="flex justify-end items-center p-2 gap-2 border-t mt-2">
-                <Button variant="ghost" size="icon" onClick={() => handleOpenModal(immeuble)}><Edit className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(immeuble.id)} className="text-red-500 hover:text-red-600"><Trash2 className="h-4 w-4" /></Button>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-      {filteredImmeubles.length === 0 && !loading && (
-        <div className="text-center py-12 text-muted-foreground col-span-full">
-          <p className="text-lg">Aucun immeuble ne correspond à vos filtres.</p>
-        </div>
-      )}
-
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-lg bg-white">
-          <DialogHeader>
-            <DialogTitle>{editingImmeuble ? 'Modifier' : 'Ajouter'} un immeuble</DialogTitle>
-            <DialogDescription>Renseignez les informations de l'immeuble. La latitude et longitude sont calculées automatiquement.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="adresse">Adresse</Label>
-              <AddressInput
-                initialValue={formState.adresse}
-                onSelect={(selection) => {
-                  setFormState((prev) => ({
-                    ...prev,
-                    adresse: selection.address,
-                    ville: selection.city,
-                    codePostal: selection.postalCode,
-                    latitude: selection.latitude,
-                    longitude: selection.longitude,
-                  }));
-                }}
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="ville">Ville</Label>
-                <Input id="ville" name="ville" value={formState.ville} onChange={handleFormChange} placeholder="Ville" required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="codePostal">Code Postal</Label>
-                <Input id="codePostal" name="codePostal" value={formState.codePostal} onChange={handleFormChange} placeholder="Code Postal" required />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="digicode">Digicode (optionnel)</Label>
-                <Input id="digicode" name="digicode" value={formState.digicode} onChange={handleFormChange} placeholder="Digicode (optionnel)" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="nbEtages">Nombre d'étages</Label>
-                <Input id="nbEtages" type="number" name="nbEtages" value={formState.nbEtages} onChange={handleFormChange} placeholder="Nb. Étages" required min="1" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="nbPortesParEtage">Portes par étage</Label>
-                <Input id="nbPortesParEtage" type="number" name="nbPortesParEtage" value={formState.nbPortesParEtage} onChange={handleFormChange} placeholder="Portes par étage" required min="1" />
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Checkbox id="hasElevator" name="hasElevator" checked={formState.hasElevator} onCheckedChange={(checked) => setFormState(prev => ({ ...prev, hasElevator: !!checked }))} />
-              <Label htmlFor="hasElevator">Ascenseur présent</Label>
-            </div>
-            <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Annuler</Button>
-                <Button type="submit" disabled={isSubmitting} className="bg-[hsl(var(--winvest-blue-moyen))] text-white hover:bg-[hsl(var(--winvest-blue-fonce))]">
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {editingImmeuble ? 'Mettre à jour' : 'Créer'}
+                <Button onClick={() => handleOpenModal()} className="bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg transition-all duration-300 rounded-lg px-6 py-3 w-full sm:w-auto">
+                    <PlusCircle className="mr-2 h-5 w-5" /> 
+                    Ajouter un immeuble
                 </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </motion.div>
+            </div>
+
+            <Card className="rounded-2xl shadow-lg border-none">
+                <CardContent className="p-6 space-y-6">
+                    <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <Input
+                            placeholder="Rechercher par adresse, ville, code postal..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-12 pr-4 py-3 w-full rounded-xl shadow-inner bg-gray-100 border-transparent focus:ring-2 focus:ring-blue-500 transition"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-3 overflow-x-auto pb-2 -mx-6 px-6">
+                        <FilterButton filterKey="all" label="Tous" />
+                        <FilterButton filterKey="hasElevator" label="Ascenseur" icon={<ArrowUpDown className="h-4 w-4" />} />
+                        {Object.entries(buildingStatusMap).map(([key, { label, icon: Icon }]) => (
+                            <FilterButton key={key} filterKey={key} label={label} icon={<Icon className={cn("h-4 w-4", key === 'EN_COURS' && 'animate-spin')} />} />
+                        ))}
+                        <FilterButton filterKey="SOLO" label="Solo" icon={<User className="h-4 w-4" />} />
+                        <FilterButton filterKey="DUO" label="Duo" icon={<Users className="h-4 w-4" />} />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                {filteredImmeubles.map((immeuble, index) => {
+                    const status = getProspectingStatus(immeuble);
+                    const StatusIcon = status.icon;
+                    return (
+                        <motion.div
+                            key={immeuble.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4, delay: index * 0.05 }}
+                            className="w-full h-full"
+                        >
+                            <Card className="flex flex-col h-full rounded-2xl bg-white text-card-foreground shadow-lg hover:shadow-2xl transition-all duration-300 border-none transform hover:-translate-y-1">
+                                <CardHeader className="pb-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className={cn("px-3 py-1 text-xs font-bold rounded-full flex items-center gap-2", status.className)}>
+                                            <StatusIcon className={cn("h-4 w-4", status.key === 'EN_COURS' && 'animate-spin')} />
+                                            {status.label}
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-gray-100" onClick={() => handleOpenModal(immeuble)}><Edit className="h-4 w-4 text-gray-500" /></Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>Modifier</p></TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50 hover:text-red-600" onClick={() => handleDelete(immeuble.id)}><Trash2 className="h-4 w-4" /></Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>Supprimer</p></TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                    </div>
+                                    <CardTitle className="text-lg font-bold break-words text-gray-800">{immeuble.adresse}</CardTitle>
+                                    <CardDescription className="text-sm text-gray-500 flex items-center gap-2">
+                                        <MapPin className="h-4 w-4" />
+                                        {immeuble.ville}, {immeuble.codePostal}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="text-sm text-muted-foreground flex-grow space-y-4 pt-2">
+                                    <div className="grid grid-cols-2 gap-4 text-center">
+                                        <div className="p-3 bg-gray-50 rounded-lg">
+                                            <p className="font-semibold text-gray-800 text-xl">{immeuble.nbPortesTotal}</p>
+                                            <p className="text-xs text-gray-500">Portes</p>
+                                        </div>
+                                        <div className="p-3 bg-gray-50 rounded-lg">
+                                            <p className="font-semibold text-gray-800 text-xl">{immeuble.hasElevator ? 'Oui' : 'Non'}</p>
+                                            <p className="text-xs text-gray-500">Ascenseur</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <span className="font-semibold text-gray-600 flex items-center gap-2">
+                                            {immeuble.prospectingMode === 'SOLO' ? <User className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+                                            Mode
+                                        </span>
+                                        <span className="font-bold text-gray-800">{immeuble.prospectingMode}</span>
+                                    </div>
+                                    {immeuble.digicode && (
+                                        <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                                            <span className="font-semibold text-red-600 flex items-center gap-2"><KeyRound className="h-4 w-4" />Digicode</span>
+                                            <span className="font-bold text-red-800">{immeuble.digicode}</span>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )
+                })}
+            </div>
+            {filteredImmeubles.length === 0 && !loading && (
+                <div className="text-center py-20 col-span-full bg-white rounded-2xl shadow-lg">
+                    <Search className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+                    <p className="text-xl font-semibold text-gray-800">Aucun immeuble trouvé</p>
+                    <p className="text-gray-500 mt-2">Essayez de modifier vos filtres ou d'ajouter un nouvel immeuble.</p>
+                </div>
+            )}
+
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogContent className="sm:max-w-lg bg-white rounded-2xl">
+                    <DialogHeader className="px-6 pt-6">
+                        <DialogTitle className="text-2xl font-bold text-gray-800">{editingImmeuble ? 'Modifier l\'immeuble' : 'Ajouter un nouvel immeuble'}</DialogTitle>
+                        <DialogDescription className="text-gray-600">Renseignez les informations de l'immeuble. La latitude et la longitude seront calculées automatiquement à partir de l'adresse.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSubmit} className="grid gap-6 p-6">
+                        <div className="grid gap-3">
+                            <Label htmlFor="adresse" className="font-semibold">Adresse</Label>
+                            <AddressInput
+                                initialValue={formState.adresse}
+                                onSelect={(selection) => {
+                                setFormState((prev) => ({
+                                    ...prev,
+                                    adresse: selection.address,
+                                    ville: selection.city,
+                                    codePostal: selection.postalCode,
+                                    latitude: selection.latitude,
+                                    longitude: selection.longitude,
+                                }));
+                                }}
+                            />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid gap-3">
+                                <Label htmlFor="ville" className="font-semibold">Ville</Label>
+                                <Input id="ville" name="ville" value={formState.ville} onChange={handleFormChange} placeholder="Ex: Paris" required className="py-3" />
+                            </div>
+                            <div className="grid gap-3">
+                                <Label htmlFor="codePostal" className="font-semibold">Code Postal</Label>
+                                <Input id="codePostal" name="codePostal" value={formState.codePostal} onChange={handleFormChange} placeholder="Ex: 75001" required className="py-3" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="grid gap-3">
+                                <Label htmlFor="nbEtages" className="font-semibold">Étages</Label>
+                                <Input id="nbEtages" type="number" name="nbEtages" value={formState.nbEtages} onChange={handleFormChange} placeholder="Nb." required min="1" className="py-3" />
+                            </div>
+                            <div className="grid gap-3">
+                                <Label htmlFor="nbPortesParEtage" className="font-semibold">Portes / étage</Label>
+                                <Input id="nbPortesParEtage" type="number" name="nbPortesParEtage" value={formState.nbPortesParEtage} onChange={handleFormChange} placeholder="Nb." required min="1" className="py-3" />
+                            </div>
+                            <div className="grid gap-3">
+                                <Label htmlFor="digicode" className="font-semibold">Digicode</Label>
+                                <Input id="digicode" name="digicode" value={formState.digicode} onChange={handleFormChange} placeholder="Optionnel" className="py-3" />
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-3 pt-2">
+                            <Checkbox id="hasElevator" name="hasElevator" checked={formState.hasElevator} onCheckedChange={(checked) => setFormState(prev => ({ ...prev, hasElevator: !!checked }))} className="h-5 w-5" />
+                            <Label htmlFor="hasElevator" className="font-semibold text-base">Présence d'un ascenseur</Label>
+                        </div>
+                        <DialogFooter className="pt-6">
+                            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="px-6 py-3 rounded-lg">Annuler</Button>
+                            <Button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white hover:bg-blue-700 rounded-lg px-6 py-3">
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {editingImmeuble ? 'Mettre à jour' : 'Créer l\'immeuble'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        </motion.div>
+    </div>
   );
 };
 

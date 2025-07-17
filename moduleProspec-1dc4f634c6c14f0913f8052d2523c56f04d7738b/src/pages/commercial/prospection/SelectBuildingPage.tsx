@@ -1,51 +1,43 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui-admin/button';
-import { Card, CardContent } from '@/components/ui-admin/card';
-import { ArrowRight, Building, MapPin, Calendar as CalendarIcon, Search, Clock, ClipboardList } from 'lucide-react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
+import { ArrowRight, Building, MapPin, Search, Clock, ClipboardList, DoorOpen, CheckCircle, Info, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { immeubleService } from '@/services/immeuble.service';
 import { assignmentGoalsService } from '@/services/assignment-goals.service';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui-admin/skeleton';
-import { RadioGroup, RadioGroupItem } from '@/components/ui-admin/radio-group';
-import { Label } from '@/components/ui-admin/label';
 import { Input } from '@/components/ui-admin/input';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-// Assurez-vous que ce type est correct et correspond à ce que votre API renvoie
 import type { ImmeubleFromApi as ImmeubleFromApiBase } from '@/services/immeuble.service';
 type ImmeubleFromApi = ImmeubleFromApiBase & { zone: { id: string; nom: string } | null };
 type AssignedZone = { id: string; nom: string };
 
 const PageSkeleton = () => (
-    <div className="w-full max-w-5xl mx-auto px-4 py-8 md:py-12">
-        <div className="text-center mb-8 md:mb-12">
-            <Skeleton className="h-10 w-3/4 mx-auto mb-4" />
-            <Skeleton className="h-6 w-1/2 mx-auto" />
-        </div>
-        <div className="relative mb-4 md:mb-6">
-            <Skeleton className="h-16 w-full rounded-full" />
-        </div>
-        <div className="mb-8 md:mb-12">
-            <Skeleton className="h-10 w-full" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Skeleton className="h-40 w-full rounded-2xl" />
-            <Skeleton className="h-40 w-full rounded-2xl" />
-            <Skeleton className="h-40 w-full rounded-2xl" />
+    <div className="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="space-y-8 animate-pulse max-w-screen-xl mx-auto">
+            <Skeleton className="h-12 w-1/2" />
+            <Skeleton className="h-16 w-full rounded-xl" />
+            <div className="flex gap-4">
+                <Skeleton className="h-10 w-32 rounded-full" />
+                <Skeleton className="h-10 w-32 rounded-full" />
+                <Skeleton className="h-10 w-32 rounded-full" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-60 w-full rounded-2xl" />)}
+            </div>
         </div>
     </div>
 );
 
-const buildingStatusMap: { [key: string]: { label: string; className: string } } = {
-    NON_CONFIGURE: { label: "Non configuré", className: "bg-gray-200 text-gray-700" },
-    NON_COMMENCE: { label: "À commencer", className: "bg-yellow-100 text-yellow-800" },
-    EN_COURS: { label: "En cours", className: "bg-blue-100 text-blue-800" },
-    COMPLET: { label: "Complet", className: "bg-green-100 text-green-800" },
+const buildingStatusMap: { [key: string]: { label: string; className: string; icon: React.ElementType } } = {
+    NON_CONFIGURE: { label: "À configurer", className: "bg-gray-100 text-gray-600", icon: Info },
+    NON_COMMENCE: { label: "Prêt", className: "bg-green-100 text-green-700", icon: CheckCircle },
+    EN_COURS: { label: "En cours", className: "bg-blue-100 text-blue-700", icon: Loader2 },
+    COMPLET: { label: "Terminé", className: "bg-zinc-100 text-zinc-600 line-through", icon: CheckCircle },
 };
 
 const SelectBuildingPage = () => {
@@ -54,9 +46,8 @@ const SelectBuildingPage = () => {
     const [allImmeubles, setAllImmeubles] = useState<ImmeubleFromApi[]>([]);
     const [assignedZone, setAssignedZone] = useState<AssignedZone | null>(null);
     const [loading, setLoading] = useState(true);
-    const [selectedBuildingId, setSelectedBuildingId] = useState<string | undefined>(undefined);
     const [searchTerm, setSearchTerm] = useState<string>('');
-    const [activeFilter, setActiveFilter] = useState<string>('recent'); // 'recent', 'incomplete', or 'my_zone'
+    const [activeFilter, setActiveFilter] = useState<string>('all');
 
     const fetchInitialData = useCallback(async () => {
         if (!user?.id) return;
@@ -66,226 +57,172 @@ const SelectBuildingPage = () => {
                 immeubleService.getImmeublesForCommercial(user.id),
                 assignmentGoalsService.getAssignedZonesForCommercial(user.id)
             ]);
-
             const sortedImmeubles = immeublesData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
             setAllImmeubles(sortedImmeubles as ImmeubleFromApi[]);
-
-            if (zonesData && zonesData.length > 0) {
-                setAssignedZone(zonesData[0]);
-            }
-
+            if (zonesData && zonesData.length > 0) setAssignedZone(zonesData[0]);
         } catch (err) {
             toast.error('Impossible de charger les données.');
-            console.error(err);
         } finally {
             setLoading(false);
         }
     }, [user]);
 
-    useEffect(() => {
-        fetchInitialData();
-    }, [fetchInitialData]);
+    useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
     const getProspectingStatus = (immeuble: ImmeubleFromApi) => {
-        if (!immeuble.portes || immeuble.portes.length === 0) {
-            return { key: 'NON_CONFIGURE', ...buildingStatusMap.NON_CONFIGURE };
-        }
-        const visitedDoors = immeuble.portes.filter(porte => porte.statut !== 'NON_VISITE').length;
-        if (visitedDoors === immeuble.nbPortesTotal) {
-            return { key: 'COMPLET', ...buildingStatusMap.COMPLET };
-        }
-        if (visitedDoors > 0) {
-            return {
-                key: 'EN_COURS',
-                label: `En cours (${visitedDoors}/${immeuble.nbPortesTotal})`,
-                className: buildingStatusMap.EN_COURS.className
-            };
-        }
+        if (!immeuble.portes || immeuble.portes.length === 0) return { key: 'NON_CONFIGURE', ...buildingStatusMap.NON_CONFIGURE };
+        const visitedDoors = immeuble.portes.filter(p => p.statut !== 'NON_VISITE').length;
+        if (visitedDoors === immeuble.nbPortesTotal) return { key: 'COMPLET', ...buildingStatusMap.COMPLET };
+        if (visitedDoors > 0) return { key: 'EN_COURS', label: `En cours (${visitedDoors}/${immeuble.nbPortesTotal})`, className: buildingStatusMap.EN_COURS.className, icon: buildingStatusMap.EN_COURS.icon };
         return { key: 'NON_COMMENCE', ...buildingStatusMap.NON_COMMENCE };
     };
 
     const displayedImmeubles = useMemo(() => {
-        let textFiltered = allImmeubles.filter(immeuble => 
-            immeuble.adresse.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            immeuble.ville.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            immeuble.codePostal.toLowerCase().includes(searchTerm.toLowerCase())
+        let filtered = allImmeubles.filter(im => 
+            im.adresse.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            im.ville.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            im.codePostal.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
         if (activeFilter === 'incomplete') {
-            return textFiltered.filter(im => getProspectingStatus(im).key === 'EN_COURS');
-        } 
-        
-        if (activeFilter === 'my_zone') {
-            if (!assignedZone) return [];
-            return textFiltered.filter(im => im.zone?.id === assignedZone.id);
+            filtered = filtered.filter(im => getProspectingStatus(im).key === 'EN_COURS');
+        } else if (activeFilter === 'my_zone' && assignedZone) {
+            filtered = filtered.filter(im => im.zone?.id === assignedZone.id);
         }
-
-        // Default filter: 'recent'
-        if (searchTerm) {
-            return textFiltered;
-        }
-        return textFiltered.slice(0, 3);
-
+        return filtered;
     }, [allImmeubles, searchTerm, activeFilter, assignedZone]);
 
-    const handleNext = () => {
-        if (selectedBuildingId) {
-            const selectedBuilding = allImmeubles.find(b => b.id === selectedBuildingId);
-            if (selectedBuilding && selectedBuilding.prospectingMode && selectedBuilding.portes && selectedBuilding.portes.length > 0) {
-                navigate(`doors/${selectedBuildingId}`);
-            } else {
-                navigate(`setup/${selectedBuildingId}`);
-            }
+    const handleSelectBuilding = (buildingId: string) => {
+        const selectedBuilding = allImmeubles.find(b => b.id === buildingId);
+        if (!selectedBuilding) return;
+
+        const status = getProspectingStatus(selectedBuilding);
+        if (status.key === 'COMPLET') {
+            toast.info("Cet immeuble a déjà été entièrement prospecté.");
+            return;
+        }
+
+        if (status.key === 'NON_CONFIGURE') {
+            navigate(`setup/${buildingId}`);
+        } else {
+            navigate(`doors/${buildingId}`);
         }
     };
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-white flex items-center justify-center">
-                 <PageSkeleton />
-            </div>
-        );
-    }
+    if (loading) return <PageSkeleton />;
 
-    const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
-    const itemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } };
-
-    const filterOptions = [
-        { id: 'recent', label: 'Plus récents', icon: Clock },
-        { id: 'incomplete', label: 'À compléter', icon: ClipboardList },
-    ];
-    if (assignedZone) {
-        filterOptions.push({ id: 'my_zone', label: `Ma Zone (${assignedZone.nom})`, icon: MapPin });
-    }
+    const FilterButton = ({ filterKey, label, icon }: { filterKey: string, label: string, icon?: React.ElementType }) => (
+        <button
+            key={filterKey}
+            onClick={() => setActiveFilter(filterKey)}
+            className={cn(
+                "px-4 py-2 text-sm font-semibold rounded-full flex items-center gap-2 transition-all duration-300 ease-in-out whitespace-nowrap shadow-sm",
+                activeFilter === filterKey ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-100'
+            )}
+        >
+            {icon && <icon className="h-4 w-4" />}
+            {label}
+        </button>
+    );
 
     return (
-        <div className="min-h-screen mt-2 lg:my-20 mb-20 bg-white">
+        <div className="bg-gray-50 min-h-screen">
             <motion.div 
-                className="w-full max-w-5xl mx-auto px-4 py-8 md:py-12"
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
+                className="space-y-8 max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 pb-24"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
             >
-                <motion.div className="text-center mb-8" variants={itemVariants}>
-                    <h1 className="text-3xl md:text-5xl text-start lg:text-center font-bold tracking-tight mb-6 justify-start text-gray-800 flex items-center lg:justify-center gap-4">
-                        <Building className="h-10 w-10 text-primary"/>
-                        Sélection de l'immeuble
+                <div className="mb-10">
+                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 flex items-center gap-4">
+                        <MapPin className="h-10 w-10 text-primary"/>
+                        Lancer une Prospection
                     </h1>
-                    <p className="mt-3 text-lg text-gray-600 max-w-2xl mx-auto">
-                        Choisissez un immeuble à prospecter ou utilisez les filtres pour affiner votre recherche.
-                    </p>
-                </motion.div>
+                    <p className="mt-2 text-lg text-gray-600">Choisissez un immeuble pour commencer ou continuer votre travail.</p>
+                </div>
 
-                <motion.div className="relative mb-4" variants={itemVariants}>
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-gray-400" />
-                    <Input
-                        placeholder="Rechercher par adresse, ville, code postal..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="h-16 pl-16 pr-6 w-full text-lg rounded-full shadow-lg bg-white border-gray-200 focus-visible:ring-primary focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                    />
-                </motion.div>
+                <Card className="rounded-2xl shadow-lg border-none">
+                    <CardContent className="p-6 space-y-6">
+                        <div className="relative">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                            <Input
+                                placeholder="Rechercher une adresse, ville, ou code postal..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-12 pr-4 py-3 w-full rounded-xl shadow-inner bg-gray-100 border-transparent focus:ring-2 focus:ring-blue-500 transition"
+                            />
+                        </div>
+                        <div className="flex items-center gap-3 overflow-x-auto pb-2 -mx-6 px-6">
+                            <FilterButton filterKey="all" label="Tous les immeubles" />
+                            <FilterButton filterKey="incomplete" label="En cours" icon={Clock} />
+                            {assignedZone && <FilterButton filterKey="my_zone" label={`Ma Zone: ${assignedZone.nom}`} icon={MapPin} />}
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <motion.div className="mb-8 flex items-center gap-2 overflow-x-auto pb-4" variants={itemVariants}>
-                    {filterOptions.map(opt => (
-                        <button
-                            key={opt.id}
-                            onClick={() => setActiveFilter(opt.id)}
-                            className={cn(
-                                "px-4 py-2 text-sm font-semibold rounded-full flex items-center gap-2 transition-all duration-200 ease-in-out whitespace-nowrap",
-                                activeFilter === opt.id
-                                    ? 'bg-primary text-primary-foreground shadow-md'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            )}
-                        >
-                            <opt.icon className="h-4 w-4" />
-                            {opt.label}
-                        </button>
-                    ))}
-                </motion.div>
+                {displayedImmeubles.length === 0 ? (
+                    <div className="text-center py-20 col-span-full bg-white rounded-2xl shadow-lg">
+                        <Search className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+                        <p className="text-xl font-semibold text-gray-800">Aucun immeuble trouvé</p>
+                        <p className="text-gray-500 mt-2">Essayez de modifier vos filtres ou d'ajouter un nouvel immeuble.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {displayedImmeubles.map((immeuble, index) => {
+                            const status = getProspectingStatus(immeuble);
+                            const StatusIcon = status.icon;
+                            const isComplete = status.key === 'COMPLET';
 
-                <motion.div variants={itemVariants}>
-                    <AnimatePresence mode="wait">
-                        {displayedImmeubles.length === 0 ? (
-                            <motion.div
-                                key="no-results"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                className="text-center text-gray-500 py-16"
-                            >
-                                <p className="text-lg">{searchTerm ? "Aucun immeuble ne correspond à votre recherche." : "Aucun immeuble ne correspond à ce filtre."}</p>
-                            </motion.div>
-                        ) : (
-                            <RadioGroup onValueChange={setSelectedBuildingId} value={selectedBuildingId} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {displayedImmeubles.map((immeuble) => {
-                                    const prospectingStatus = getProspectingStatus(immeuble);
-                                    const isSelected = selectedBuildingId === immeuble.id;
-                                    return (
-                                        <motion.div
-                                            key={immeuble.id}
-                                            layout
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.9 }}
-                                            whileHover={{ y: -5, scale: 1.03 }}
-                                            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                                            className={`rounded-2xl transition-all duration-300 ${isSelected ? 'ring-2 ring-primary ring-offset-4 ring-offset-white' : ''}`}
-                                        >
-                                            <Card 
-                                                className={`h-full w-full cursor-pointer rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 bg-white`}
-                                                onClick={() => setSelectedBuildingId(immeuble.id)}
+                            return (
+                                <motion.div
+                                    key={immeuble.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.4, delay: index * 0.05 }}
+                                    className="w-full h-full"
+                                >
+                                    <Card 
+                                        className={cn(
+                                            "flex flex-col h-full rounded-2xl bg-white text-card-foreground shadow-lg hover:shadow-2xl transition-all duration-300 border-none transform hover:-translate-y-1",
+                                            isComplete ? 'opacity-60' : 'cursor-pointer'
+                                        )}
+                                        onClick={() => handleSelectBuilding(immeuble.id)}
+                                    >
+                                        <CardHeader className="pb-4">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className={cn("px-3 py-1 text-xs font-bold rounded-full flex items-center gap-2", status.className)}>
+                                                    <StatusIcon className={cn("h-4 w-4", status.key === 'EN_COURS' && 'animate-spin')} />
+                                                    {status.label}
+                                                </span>
+                                                <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                                    <DoorOpen className="h-5 w-5 text-gray-500" />
+                                                    {immeuble.nbPortesTotal}
+                                                </div>
+                                            </div>
+                                            <CardTitle className="text-lg font-bold break-words text-gray-800">{immeuble.adresse}</CardTitle>
+                                            <CardDescription className="text-sm text-gray-500 flex items-center gap-2">
+                                                <MapPin className="h-4 w-4" />
+                                                {immeuble.ville}, {immeuble.codePostal}
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="flex-grow flex flex-col justify-end">
+                                            <Button 
+                                                className={cn(
+                                                    "w-full mt-4 font-bold py-3 rounded-lg text-white transition-all duration-300 flex items-center gap-2",
+                                                    isComplete ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'
+                                                )}
+                                                disabled={isComplete}
                                             >
-                                                <CardContent className="p-6 flex flex-col justify-between h-full">
-                                                    <div>
-                                                        <div className="flex justify-between items-start mb-3">
-                                                            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${prospectingStatus.className}`}>
-                                                                {prospectingStatus.label}
-                                                            </span>
-                                                            <RadioGroupItem value={immeuble.id} id={immeuble.id} />
-                                                        </div>
-                                                        <Label htmlFor={immeuble.id} className="cursor-pointer">
-                                                            <h3 className="text-xl font-bold text-gray-800 flex items-start gap-3">
-                                                                <MapPin className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                                                                <span>{immeuble.adresse}, {immeuble.ville}</span>
-                                                            </h3>
-                                                        </Label>
-                                                    </div>
-                                                    <div className="mt-4 pt-4 border-t border-gray-100 text-sm text-gray-500 space-y-2">
-                                                         <div className="flex items-center justify-between">
-                                                            <span>Mode de prospection:</span>
-                                                            <span className="font-medium text-gray-700">
-                                                                {immeuble.prospectingMode === 'DUO' ? `Duo (${Math.ceil(immeuble.nbPortesTotal / 2)} visites)` : `Solo (${immeuble.nbPortesTotal} portes)`}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center justify-between">
-                                                            <span>Ajouté le:</span>
-                                                            <span className="font-medium text-gray-700 flex items-center gap-1.5">
-                                                                <CalendarIcon className="h-4 w-4" />
-                                                                {format(new Date(immeuble.createdAt), "d MMM yyyy", { locale: fr })}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        </motion.div>
-                                    );
-                                })}
-                            </RadioGroup>
-                        )}
-                    </AnimatePresence>
-                </motion.div>
-
-                <motion.div layout className="flex justify-center mt-10 md:mt-16">
-                    <Button 
-                        onClick={handleNext} 
-                        disabled={!selectedBuildingId} 
-                        size="lg"
-                        className="h-14 px-10 text-lg font-bold rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:scale-100 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                    >
-                        Suivant <ArrowRight className="ml-3 h-6 w-6" />
-                    </Button>
-                </motion.div>
+                                                {status.key === 'NON_CONFIGURE' ? 'Configurer' : (status.key === 'COMPLET' ? 'Terminé' : 'Continuer')}
+                                                {!isComplete && <ArrowRight className="h-5 w-5" />}
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                )}
             </motion.div>
         </div>
     );
