@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { statisticsService } from '@/services/statistics.service';
 import StatCard from '@/components/ui-admin/StatCard';
@@ -56,24 +56,35 @@ const CommercialStatisticsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (user?.id) {
-      const fetchData = async () => {
-        try {
-          setLoading(true);
-          const statsData = await statisticsService.getStatsForCommercial(user.id);
-          setStats(statsData);
-          setError(null);
-        } catch (err) {
-          setError('Erreur lors de la récupération des données.');
-          console.error(err);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchData();
+      try {
+        setLoading(true);
+        const statsData = await statisticsService.getStatsForCommercial(user.id);
+        setStats(statsData);
+        setError(null);
+      } catch (err) {
+        setError('Erreur lors de la récupération des données.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     }
   }, [user]);
+
+  useEffect(() => {
+    fetchData();
+
+    const handleFocus = () => {
+        fetchData();
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+        window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchData]);
 
   const pieData = useMemo(() => {
     if (!stats) return [];

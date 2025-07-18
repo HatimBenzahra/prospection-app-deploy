@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui-admin/skeleton';
 import { Label } from '@/components/ui-admin/label';
 import { immeubleService, type ImmeubleDetailsFromApi } from '@/services/immeuble.service';
 import { porteService } from '@/services/porte.service';
+import { statisticsService } from '@/services/statistics.service';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -202,9 +203,14 @@ const ProspectingDoorsPage = () => {
                 statut: updatedDoor.statut,
                 commentaire: updatedDoor.commentaire || '',
                 numeroPorte: updatedDoor.numero,
+                passage: newPassage,
             });
             // Re-fetch all data to ensure consistency after saving a door
-            await fetchData(buildingId);
+            
+            if(buildingId){
+                await fetchData(buildingId);
+                await statisticsService.triggerHistoryUpdate(user.id, buildingId);
+            }
             setIsModalOpen(false);
             setEditingDoor(null);
         } catch (error) {

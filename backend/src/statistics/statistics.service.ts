@@ -75,6 +75,7 @@ export class StatisticsService {
         acc.rdvPris += history.nbRdvPris;
         acc.refus += history.nbRefus;
         acc.absents += history.nbAbsents;
+        acc.curieux += history.nbCurieux;
         return acc;
       },
       {
@@ -84,6 +85,7 @@ export class StatisticsService {
         rdvPris: 0,
         refus: 0,
         absents: 0,
+        curieux: 0,
       },
     );
 
@@ -97,6 +99,8 @@ export class StatisticsService {
       [PorteStatut.CONTRAT_SIGNE]: aggregatedStats.contratsSignes,
       [PorteStatut.REFUS]: aggregatedStats.refus,
       [PorteStatut.ABSENT]: aggregatedStats.absents,
+      [PorteStatut.CURIEUX]: aggregatedStats.curieux,
+      [PorteStatut.RDV]: aggregatedStats.rdvPris,
     };
 
     return {
@@ -378,5 +382,65 @@ export class StatisticsService {
         name,
         performance: data.rdv > 0 ? (data.contrats / data.rdv) * 100 : 0,
       }));
+  }
+
+  async triggerHistoryUpdate(commercialId: string, immeubleId: string) {
+    const portes = await this.prisma.porte.findMany({
+      where: { immeubleId },
+    });
+
+    const stats = portes.reduce(
+      (acc, porte) => {
+        if (porte.statut !== 'NON_VISITE') {
+          acc.nbPortesVisitees++;
+        }
+        if (porte.statut === 'CONTRAT_SIGNE') {
+          acc.nbContratsSignes++;
+        }
+        if (porte.statut === 'RDV') {
+          acc.nbRdvPris++;
+        }
+        if (porte.statut === 'REFUS') {
+          acc.nbRefus++;
+        }
+        if (porte.statut === 'ABSENT') {
+          acc.nbAbsents++;
+        }
+        if (porte.statut === 'CURIEUX') {
+          acc.nbCurieux++;
+        }
+        return acc;
+      },
+      {
+        nbPortesVisitees: 0,
+        nbContratsSignes: 0,
+        nbRdvPris: 0,
+        nbRefus: 0,
+        nbAbsents: 0,
+        nbCurieux: 0,
+      },
+    );
+
+    const history = await this.prisma.historiqueProspection.findFirst({
+      where: {
+        commercialId,
+        immeubleId,
+      },
+    });
+
+    if (history) {
+      await this.prisma.historiqueProspection.update({
+        where: { id: history.id },
+        data: stats,
+      });
+    } else {
+      await this.prisma.historiqueProspection.create({
+        data: {
+          ...stats,
+          commercialId,
+          immeubleId,
+        },
+      });
+    }
   }
 }

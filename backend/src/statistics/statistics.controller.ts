@@ -1,10 +1,15 @@
-import { Controller, Get, Query, Param } from '@nestjs/common';
+import { Controller, Get, Query, Param, Post, Body } from '@nestjs/common';
 import { StatisticsService } from './statistics.service';
 import { PeriodType, StatEntityType } from '@prisma/client';
 
 @Controller('statistics')
 export class StatisticsController {
   constructor(private readonly statisticsService: StatisticsService) {}
+
+  @Post('commercial/trigger-history-update')
+  triggerHistoryUpdate(@Body() body: { commercialId: string, immeubleId: string }) {
+    return this.statisticsService.triggerHistoryUpdate(body.commercialId, body.immeubleId);
+  }
 
   @Get('commercial/:id/history')
   getCommercialHistory(@Param('id') id: string) {

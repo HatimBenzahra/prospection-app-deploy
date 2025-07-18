@@ -41,10 +41,21 @@ const getManagerPerformanceHistory = async (managerId: string) => {
   return response.data;
 };
 
+const triggerHistoryUpdate = async (commercialId: string, immeubleId: string) => {
+  try {
+    await axios.post(`${API_URL}/commercial/trigger-history-update`, { commercialId, immeubleId });
+  } catch (error) {
+    console.error('Failed to trigger history update:', error);
+    // Optionally, you can decide how to handle the error, e.g., by re-throwing it or returning a specific value.
+    throw error;
+  }
+};
+
 export const statisticsService = {
   getStatistics,
   getStatsForCommercial,
   getCommercialHistory,
   getStatsForManager,
   getManagerPerformanceHistory,
+  triggerHistoryUpdate,
 };
