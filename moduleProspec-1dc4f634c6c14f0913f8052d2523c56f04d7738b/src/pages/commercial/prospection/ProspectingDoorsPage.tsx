@@ -523,11 +523,11 @@ const ProspectingDoorsPage = () => {
                 className="w-full col-span-full mt-8"
             >
                 <Card 
-                    className="flex flex-col h-full cursor-pointer bg-card hover:bg-blue-50 transition-colors items-center justify-center border-dashed border-2 border-blue-300 py-8"
+                    className="flex flex-col h-full cursor-pointer bg-card hover:bg-muted/50 transition-colors items-center justify-center border-dashed border-2 border-gray-300 py-8"
                     onClick={handleAddFloor}
                 >
-                    <Plus className="h-16 w-16 text-blue-400" />
-                    <p className="mt-4 text-xl font-semibold text-blue-600">Ajouter un étage</p>
+                    <Plus className="h-16 w-16 text-gray-400" />
+                    <p className="mt-4 text-xl font-semibold text-gray-600">Ajouter un étage</p>
                 </Card>
             </motion.div>
 
@@ -563,7 +563,7 @@ const ProspectingDoorsPage = () => {
                                                 "w-full py-3 px-2 text-sm font-semibold rounded-md flex items-center justify-center gap-2 transition-all duration-200 ease-in-out border",
                                                 isSelected
                                                     ? `${config.buttonClassName} text-white shadow-lg ring-2 ring-offset-2 ring-blue-500`
-                                                    : `bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm`
+                                                    : `${config.badgeClassName} hover:shadow-md hover:brightness-105`
                                             )}
                                         >
                                             <config.icon className="h-4 w-4" />
