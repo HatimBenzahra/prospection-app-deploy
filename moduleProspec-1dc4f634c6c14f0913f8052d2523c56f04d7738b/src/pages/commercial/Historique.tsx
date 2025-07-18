@@ -136,7 +136,7 @@ const HistoriquePage = () => {
   if (error) return <div className="text-red-500 text-center p-4 bg-red-50 h-screen">{error}</div>;
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-gray-50 min-h-screen hide-scrollbar">
         <motion.div 
             className="space-y-8 max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 pb-24"
             initial={{ opacity: 0, y: 20 }}
@@ -212,7 +212,7 @@ const HistoriquePage = () => {
                                     </CardHeader>
                                     <CardContent className="grid grid-cols-2 gap-4 flex-grow mt-4">
                                         <StatItem icon={DoorOpen} label="Portes visitées" value={item.nbPortesVisitees} colorClass="text-blue-500" />
-                                        <StatItem icon={Percent} label="Couverture" value={`${item.tauxCouverture}%`} colorClass="text-indigo-500" />
+                                        <StatItem icon={Percent} label="Couverture" value={`${Number(item.tauxCouverture).toFixed(2)}%`} colorClass="text-indigo-500" />
                                         <StatItem icon={Handshake} label="Contrats" value={item.nbContratsSignes} colorClass="text-green-500" />
                                         <StatItem icon={Phone} label="RDV" value={item.nbRdvPris} colorClass="text-yellow-500" />
                                         <StatItem icon={XCircle} label="Refus" value={item.nbRefus} colorClass="text-red-500" />

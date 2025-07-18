@@ -207,15 +207,25 @@ const ProspectingDoorsPage = () => {
             });
             // Re-fetch all data to ensure consistency after saving a door
             
-            if(buildingId){
-                await fetchData(buildingId);
+            // Update the local state directly for fluidity
+            setPortes(prevPortes =>
+                prevPortes.map(p =>
+                    p.id === updatedDoor.id ? { ...updatedDoor, passage: newPassage } : p
+                )
+            );
+
+            // Trigger history update (this can remain as it's a separate backend call)
+            if(buildingId && user.id){ // Ensure user.id is checked here too
                 await statisticsService.triggerHistoryUpdate(user.id, buildingId);
             }
+            
             setIsModalOpen(false);
             setEditingDoor(null);
+            toast.success("Statut de la porte mis à jour avec succès !"); // Add success toast
         } catch (error) {
             setSaveError("Erreur lors de la sauvegarde. Veuillez réessayer.");
             console.error("Erreur lors de la mise à jour de la porte:", error);
+            toast.error("Erreur lors de la mise à jour de la porte."); // Add error toast
         } finally {
             setIsSaving(false);
         }
@@ -352,7 +362,7 @@ const ProspectingDoorsPage = () => {
                                     className={cn(
                                         "px-3 py-1.5 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all duration-200 ease-in-out",
                                         isSelected 
-                                            ? `${config.badgeClassName} ring-2 ring-offset-2 ring-blue-500`
+                                            ? `${config.badgeClassName} ring-2 ring-offset-2 ring-blue-500 shadow-md`
                                             : `bg-gray-100 text-gray-600 hover:bg-gray-200`, 
                                         config.badgeClassName
                                     )}
@@ -574,10 +584,10 @@ const ProspectingDoorsPage = () => {
                             />
                         </div>
 
-                        <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="flex items-center justify-between rounded-lg border p-3 bg-blue-50 shadow-sm">
                             <div className="flex items-center gap-2">
-                                <Repeat className="h-5 w-5 text-muted-foreground" />
-                                <span className="font-medium">Prochain Passage</span>
+                                <Repeat className="h-5 w-5 text-blue-600" />
+                                <span className="font-medium text-sm text-gray-700">Prochain Passage</span>
                             </div>
                             <span className="font-bold text-lg">
                                 {editingDoor.passage >= 3 ? "Non" : editingDoor.passage + 1}

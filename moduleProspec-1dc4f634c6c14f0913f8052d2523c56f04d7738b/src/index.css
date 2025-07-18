@@ -191,3 +191,13 @@
   background-color: hsl(var(--accent));
   color: hsl(var(--accent-foreground));
 }
+
+/* Styles pour masquer la barre de défilement */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera*/
+}
