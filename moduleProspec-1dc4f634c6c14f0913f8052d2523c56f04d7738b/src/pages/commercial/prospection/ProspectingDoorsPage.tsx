@@ -339,19 +339,19 @@ const ProspectingDoorsPage = () => {
                 <ArrowLeft className="mr-2 h-4 w-4" /> Retour à la sélection de l'immeuble
             </Button>
             <Card>
-                <CardHeader>
-                    <CardTitle className="text-2xl flex items-center gap-3">
-                        <Building className="h-6 w-6 text-primary" />
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-t-lg shadow-inner">
+                    <CardTitle className="text-2xl flex items-center gap-3 text-gray-900">
+                        <Building className="h-6 w-6 text-blue-600" />
                         Prospection : {building.adresse}
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-gray-700">
                         Voici la liste des {building.nbPortesTotal} portes à prospecter. Mettez à jour leur statut au fur et à mesure.
                     </CardDescription>
-                    <CardDescription className="mt-2 text-lg font-semibold">
+                    <CardDescription className="mt-2 text-lg font-semibold text-blue-800">
                         Couverture: {visitedDoorsCount} / {building.nbPortesTotal} portes visitées ({coveragePercentage}%)
                     </CardDescription>
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium text-muted-foreground">Filtrer par statut:</span>
+                    <div className="mt-4 flex flex-wrap items-center gap-2 pt-4 border-t border-blue-200">
+                        <span className="text-sm font-medium text-gray-600">Filtrer par statut:</span>
                         {statusList.map(status => {
                             const config = statusConfig[status];
                             const isSelected = selectedStatuses.has(status);
@@ -377,7 +377,7 @@ const ProspectingDoorsPage = () => {
                             className={cn(
                                 "px-3 py-1.5 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-all duration-200 ease-in-out",
                                 showRepassageOnly
-                                    ? 'bg-yellow-500 text-white ring-2 ring-offset-2 ring-yellow-600'
+                                    ? 'bg-yellow-500 text-white ring-2 ring-offset-2 ring-yellow-600 shadow-md'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             )}
                         >
@@ -415,7 +415,7 @@ const ProspectingDoorsPage = () => {
                                                     className="h-full"
                                                 >
                                                     <Card 
-                                                        className="flex flex-col h-full cursor-pointer bg-card hover:bg-muted/50 transition-colors"
+                                                        className="flex flex-col h-full cursor-pointer bg-card hover:bg-muted/50 transition-colors border border-gray-200 shadow-sm"
                                                         onClick={() => handleEdit(porte.id)}
                                                     >
                                                         <CardHeader>
@@ -523,11 +523,11 @@ const ProspectingDoorsPage = () => {
                 className="w-full col-span-full mt-8"
             >
                 <Card 
-                    className="flex flex-col h-full cursor-pointer bg-card hover:bg-muted/50 transition-colors items-center justify-center border-dashed border-2 border-gray-300 py-8"
+                    className="flex flex-col h-full cursor-pointer bg-card hover:bg-blue-50 transition-colors items-center justify-center border-dashed border-2 border-blue-300 py-8"
                     onClick={handleAddFloor}
                 >
-                    <Plus className="h-16 w-16 text-gray-400" />
-                    <p className="mt-4 text-xl font-semibold text-gray-600">Ajouter un étage</p>
+                    <Plus className="h-16 w-16 text-blue-400" />
+                    <p className="mt-4 text-xl font-semibold text-blue-600">Ajouter un étage</p>
                 </Card>
             </motion.div>
 
@@ -563,7 +563,7 @@ const ProspectingDoorsPage = () => {
                                                 "w-full py-3 px-2 text-sm font-semibold rounded-md flex items-center justify-center gap-2 transition-all duration-200 ease-in-out border",
                                                 isSelected
                                                     ? `${config.buttonClassName} text-white shadow-lg ring-2 ring-offset-2 ring-blue-500`
-                                                    : `${config.badgeClassName} hover:shadow-md hover:brightness-105`
+                                                    : `bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm`
                                             )}
                                         >
                                             <config.icon className="h-4 w-4" />
