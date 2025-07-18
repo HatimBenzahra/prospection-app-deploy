@@ -1,7 +1,7 @@
 // src/pages/commercial/ZoneFocusMap.tsx
 import Map, { Marker, Popup, Source, Layer, NavigationControl, FullscreenControl, useControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Building, MapPin, Pin } from 'lucide-react';
+import { Building, MapPin, Pin, Lock, Unlock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
 import type { MapRef } from 'react-map-gl';
@@ -64,6 +64,69 @@ const ThreeDControl = ({ onClick, position }: { onClick: () => void, position: '
   return null;
 };
 
+const LockMapControl = ({ isLocked, onClick, position }: { isLocked: boolean, onClick: () => void, position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' }) => {
+  const controlRef = useRef<any>(null); // Ref to store the CustomControl instance
+
+  useControl(() => {
+    class CustomControl {
+      _container!: HTMLDivElement;
+      _button!: HTMLButtonElement;
+
+      onAdd() {
+        this._container = document.createElement('div');
+        this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+
+        this._button = document.createElement('button');
+        this._button.className = 'mapboxgl-ctrl-icon';
+        this._button.type = 'button';
+        this._button.style.width = '29px';
+        this._button.style.height = '29px';
+        this._button.style.display = 'flex';
+        this._button.style.alignItems = 'center';
+        this._button.style.justifyContent = 'center';
+        this._button.onclick = onClick;
+
+        this._container.appendChild(this._button);
+
+        // Store a reference to the button element on the control instance
+        if (controlRef.current) {
+          controlRef.current._button = this._button;
+        }
+
+        // Initial render of the icon
+        this.updateIcon(isLocked); 
+
+        return this._container;
+      }
+
+      onRemove() {
+        this._container.parentNode?.removeChild(this._container);
+      }
+
+      // Method to update the icon based on the locked state
+      updateIcon(locked: boolean) {
+        if (this._button) {
+          this._button.innerHTML = locked ? '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-unlock"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>';
+          this._button.title = locked ? 'Unlock Map' : 'Lock Map';
+        }
+      }
+    }
+    const controlInstance = new CustomControl();
+    controlRef.current = controlInstance; // Store the instance
+    return controlInstance;
+  }, { position });
+
+  // This useEffect will run whenever isLocked changes
+  useEffect(() => {
+    if (controlRef.current && controlRef.current._button) {
+      // Call the updateIcon method on the CustomControl instance
+      controlRef.current.updateIcon(isLocked);
+    }
+  }, [isLocked]); // Dependency array includes isLocked
+
+  return null;
+};
+
 interface ZoneFocusMapProps {
   zone: {
     nom: string;
@@ -78,6 +141,7 @@ interface ZoneFocusMapProps {
 export const ZoneFocusMap = ({ zone, immeubles, className }: ZoneFocusMapProps) => {
   const [selectedImmeuble, setSelectedImmeuble] = useState<ImmeubleFromApi | null>(null);
   const [show3D, setShow3D] = useState(false);
+  const [isMapLocked, setIsMapLocked] = useState(true); // Map locked by default
   const mapRef = useRef<MapRef>(null);
 
   useEffect(() => {
@@ -116,10 +180,17 @@ export const ZoneFocusMap = ({ zone, immeubles, className }: ZoneFocusMapProps) 
               style={{ width: '100%', height: '100%' }}
               mapStyle="mapbox://styles/mapbox/streets-v12"
               onClick={() => setSelectedImmeuble(null)}
+              dragPan={!isMapLocked}
+              dragRotate={!isMapLocked}
+              scrollZoom={!isMapLocked}
+              touchZoom={!isMapLocked}
+              touchRotate={!isMapLocked}
+              keyboard={!isMapLocked}
           >
               <NavigationControl position="top-right" />
               <FullscreenControl position="top-right" />
               <ThreeDControl position="top-right" onClick={() => setShow3D(s => !s)} />
+              <LockMapControl position="top-right" isLocked={isMapLocked} onClick={() => setIsMapLocked(s => !s)} />
               {show3D && (
                   <Source
                       id="mapbox-dem"

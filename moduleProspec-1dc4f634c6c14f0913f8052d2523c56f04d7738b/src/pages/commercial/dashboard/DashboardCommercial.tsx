@@ -157,40 +157,23 @@ const CommercialDashboardPage = () => {
                 </div>
 
                 {/* Grille principale */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Colonne de gauche (plus large) */}
-                    <div className="lg:col-span-2 space-y-8">
-                        <Card className="h-[500px] w-full overflow-hidden rounded-2xl shadow-lg border-none">
-                            {assignedZone ? (
-                                <ZoneFocusMap
-                                    zone={{
-                                        nom: assignedZone.nom,
-                                        latlng: [assignedZone.latitude, assignedZone.longitude],
-                                        radius: assignedZone.rayonMetres,
-                                        color: assignedZone.couleur,
-                                    }}
-                                    immeubles={immeubles}
-                                />
-                            ) : (
-                                <NoZoneAssigned />
-                            )}
-                        </Card>
-                        <div className="space-y-4">
-                            <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                                <BarChart className="h-8 w-8 text-primary" />
-                                Performances Clés
-                            </h2>
-                            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                                <StatCard title="Immeubles Visitées" value={currentStats.immeublesVisites || 0} Icon={MapPin} color="text-blue-500" />
-                                <StatCard title="Portes Visitées" value={currentStats.portesVisitees || 0} Icon={DoorOpen} color="text-orange-500" />
-                                <StatCard title="Contrats Signés" value={currentStats.contratsSignes || 0} Icon={CheckCircle} color="text-emerald-500" />
-                                <StatCard title="Taux de Conversion" value={currentStats.tauxDeConversion || 0} Icon={Percent} color="text-violet-500" suffix="%" />
-                            </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Colonne de gauche (Performances Clés) */}
+                    <div className="lg:col-span-2 space-y-4">
+                        <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                            <BarChart className="h-8 w-8 text-primary" />
+                            Performances Clés
+                        </h2>
+                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                            <StatCard title="Immeubles Visitées" value={currentStats.immeublesVisites || 0} Icon={MapPin} color="text-blue-500" />
+                            <StatCard title="Portes Visitées" value={currentStats.portesVisitees || 0} Icon={DoorOpen} color="text-orange-500" />
+                            <StatCard title="Contrats Signés" value={currentStats.contratsSignes || 0} Icon={CheckCircle} color="text-emerald-500" />
+                            <StatCard title="Taux de Conversion" value={currentStats.tauxDeConversion || 0} Icon={Percent} color="text-violet-500" suffix="%" />
                         </div>
                     </div>
 
-                    {/* Colonne de droite */}
-                    <div className="space-y-8">
+                    {/* Colonne de droite (Objectif et Accès Rapide) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:col-span-2">
                         <GoalProgressCard
                             title="Objectif du Mois"
                             description="Progression de votre objectif de contrats mensuel."
@@ -209,6 +192,23 @@ const CommercialDashboardPage = () => {
                         </Card>
                     </div>
                 </div>
+
+                {/* Carte déplacée en bas */}
+                <Card className="h-[500px] w-full overflow-hidden rounded-2xl shadow-lg border-none">
+                    {assignedZone ? (
+                        <ZoneFocusMap
+                            zone={{
+                                nom: assignedZone.nom,
+                                latlng: [assignedZone.latitude, assignedZone.longitude],
+                                radius: assignedZone.rayonMetres,
+                                color: assignedZone.couleur,
+                            }}
+                            immeubles={immeubles}
+                        />
+                    ) : (
+                        <NoZoneAssigned />
+                    )}
+                </Card>
 
                 {/* Graphique dans une carte */}
                 <Card className="rounded-2xl shadow-lg border-none">
