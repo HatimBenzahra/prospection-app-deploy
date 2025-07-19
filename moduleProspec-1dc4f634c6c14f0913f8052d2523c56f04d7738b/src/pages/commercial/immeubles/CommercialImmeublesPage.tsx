@@ -257,9 +257,10 @@ const CommercialImmeublesPage: React.FC = () => {
     </button>
   );
 
-  const getBuildingDetails = (immeuble: ImmeubleFromApi) => {
-    return { nbEtages: immeuble.nbEtages, nbPortesParEtage: immeuble.nbPortesParEtage };
-  };
+  const getBuildingDetails = (immeuble: ImmeubleFromApi) => ({
+    nbEtages: (immeuble as any).nbEtages ?? 1,
+    nbPortesParEtage: (immeuble as any).nbPortesParEtage ?? 10,
+  });
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -311,7 +312,6 @@ const CommercialImmeublesPage: React.FC = () => {
                 {filteredImmeubles.map((immeuble, index) => {
                     const status = getProspectingStatus(immeuble);
                     const StatusIcon = status.icon;
-                    const details = getBuildingDetails(immeuble);
                     return (
                         <motion.div
                             key={immeuble.id}
@@ -353,7 +353,7 @@ const CommercialImmeublesPage: React.FC = () => {
                                 <CardContent className="text-sm text-muted-foreground flex-grow space-y-4 pt-2">
                                     <div className="grid grid-cols-3 gap-2 text-center">
                                         <div className="p-2 bg-gray-50 rounded-lg">
-                                            <p className="font-semibold text-gray-800 text-lg">{details.nbEtages}</p>
+                                            <p className="font-semibold text-gray-800 text-lg">{getBuildingDetails(immeuble).nbEtages}</p>
                                             <p className="text-xs text-gray-500">Étages</p>
                                         </div>
                                         <div className="p-2 bg-gray-50 rounded-lg">

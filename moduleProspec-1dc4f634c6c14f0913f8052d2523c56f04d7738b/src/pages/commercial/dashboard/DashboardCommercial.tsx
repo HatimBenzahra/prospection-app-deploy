@@ -3,14 +3,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { statisticsService } from '@/services/statistics.service';
 import { assignmentGoalsService } from '@/services/assignment-goals.service';
 import { immeubleService, type ImmeubleFromApi } from '@/services/immeuble.service';
-import { Button } from '@/components/ui-admin/button';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 // --- Composants UI ---
 import StatCard from '@/components/ui-admin/StatCard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
-import { CheckCircle, DoorOpen, MapPin, ZapOff, Percent, BarChart, Building, ArrowRight, History, TrendingUp } from 'lucide-react';
+import { CheckCircle, DoorOpen, MapPin, ZapOff, Percent, Building, ArrowRight, History } from 'lucide-react';
 import { GenericLineChart } from '@/components/charts/GenericLineChart';
 import { ZoneFocusMap } from './ZoneFocusMap';
 import { GoalProgressCard } from '@/components/ui-commercial/GoalProgressCard';
