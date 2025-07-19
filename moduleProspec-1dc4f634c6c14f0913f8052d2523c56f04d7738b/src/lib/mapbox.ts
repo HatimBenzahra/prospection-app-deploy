@@ -1,5 +1,5 @@
 import mapboxgl from 'mapbox-gl';
 
-mapboxgl.accessToken = 'pk.eyJ1IjoiYmVuemFocmEiLCJhIjoiY21heG85dnd0MDBjbTJuc2RhbWhhOWxsMyJ9.XZm932vHWSs-cHO9lmtmKg';
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
 export default mapboxgl;
