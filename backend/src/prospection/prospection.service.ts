@@ -20,28 +20,21 @@ export class ProspectionService {
       throw new NotFoundException(`Immeuble with ID ${immeubleId} not found.`);
     }
 
-    
-
     if (mode === ProspectingMode.SOLO) {
       if (immeuble.nbEtages === null || immeuble.nbPortesParEtage === null) {
         throw new BadRequestException('Immeuble nbEtages or nbPortesParEtage is missing.');
       }
       await this.generateAndAssignPortes(immeubleId, [commercialId], immeuble.nbEtages, immeuble.nbPortesParEtage);
-      // Connect the commercial to the immeuble as a prospector
       await this.prisma.immeuble.update({
         where: { id: immeubleId },
-        data: {
-          prospectors: {
-            connect: { id: commercialId },
-          },
-        },
+        data: { prospectors: { connect: { id: commercialId } } },
       });
-      return { message: 'Solo prospection started and portes generated.' }; else if (mode === ProspectingMode.DUO) {
+      return { message: 'Solo prospection started and portes generated.' };
+    } else if (mode === ProspectingMode.DUO) {
       if (!partnerId) {
         throw new BadRequestException('Partner ID is required for DUO mode.');
       }
 
-      // Check if partner exists and is in the same team
       const requester = await this.prisma.commercial.findUnique({ where: { id: commercialId } });
       const partner = await this.prisma.commercial.findUnique({ where: { id: partnerId } });
 
@@ -49,7 +42,6 @@ export class ProspectionService {
         throw new BadRequestException('Invalid partner or partner not in the same team.');
       }
 
-      // Create a prospection request
       const newRequest = await this.prisma.prospectionRequest.create({
         data: {
           immeubleId,
@@ -59,7 +51,6 @@ export class ProspectionService {
         },
       });
 
-      // Send email notification to partner
       await this.sendEmail(partner.email, 'Prospection Invitation', `You have been invited to a duo prospection for immeuble ${immeuble.adresse}.`);
 
       return { message: 'Duo prospection invitation sent.', requestId: newRequest.id };
@@ -83,85 +74,95 @@ export class ProspectionService {
         where: { id: requestId },
         data: { status: 'ACCEPTED' },
       });
-      console.log(`Request ${requestId} status updated to ACCEPTED.`); // Ajout de ce log
+
       if (!request.immeuble.nbEtages || !request.immeuble.nbPortesParEtage) {
         throw new BadRequestException('Immeuble nbEtages or nbPortesParEtage is missing.');
       }
+
       await this.generateAndAssignPortes(
         request.immeubleId,
         [request.requesterId, request.partnerId],
-        request.immeuble.nbEtages as number,
-        request.immeuble.nbPortesParEtage as number,
+        request.immeuble.nbEtages,
+        request.immeuble.nbPortesParEtage,
       );
-      // Connect both requester and partner to the immeuble as prospectors
+
       await this.prisma.immeuble.update({
         where: { id: request.immeubleId },
         data: {
           prospectors: {
-            connect: [
-              { id: request.requesterId },
-              { id: request.partnerId },
-            ],
+            connect: [{ id: request.requesterId }, { id: request.partnerId }],
           },
         },
       });
+
       return { message: 'Prospection request accepted and portes generated.', immeubleId: request.immeubleId };
     } else {
       await this.prisma.prospectionRequest.update({
         where: { id: requestId },
         data: { status: 'REFUSED' },
       });
-      console.log(`Request ${requestId} status updated to REFUSED.`); // Ajout de ce log
       return { message: 'Prospection request refused.' };
     }
   }
 
   private async generateAndAssignPortes(immeubleId: string, commercialIds: string[], nbEtages: number, nbPortesParEtage: number) {
     const portesToCreate = [];
-    if (commercialIds.length === 0) {
-      throw new BadRequestException('No commercial IDs provided for door assignment.');
+    const [hostId, partnerId] = commercialIds;
+
+    if (commercialIds.length === 1) { // Solo Mode
+        for (let etage = 1; etage <= nbEtages; etage++) {
+            for (let porteNum = 1; porteNum <= nbPortesParEtage; porteNum++) {
+                portesToCreate.push({
+                    numeroPorte: `Porte ${porteNum}`,
+                    etage,
+                    statut: PorteStatut.NON_VISITE,
+                    passage: 0,
+                    immeubleId,
+                    assigneeId: hostId,
+                });
+            }
+        }
+    } else { // Duo Mode
+        if (nbEtages > 1) {
+            const midFloor = Math.ceil(nbEtages / 2);
+            for (let etage = 1; etage <= nbEtages; etage++) {
+                const assigneeId = etage <= midFloor ? hostId : partnerId;
+                for (let porteNum = 1; porteNum <= nbPortesParEtage; porteNum++) {
+                    portesToCreate.push({
+                        numeroPorte: `Porte ${porteNum}`,
+                        etage,
+                        statut: PorteStatut.NON_VISITE,
+                        passage: 0,
+                        immeubleId,
+                        assigneeId,
+                    });
+                }
+            }
+        } else {
+            const midPorte = Math.ceil(nbPortesParEtage / 2);
+            for (let porteNum = 1; porteNum <= nbPortesParEtage; porteNum++) {
+                const assigneeId = porteNum <= midPorte ? hostId : partnerId;
+                portesToCreate.push({
+                    numeroPorte: `Porte ${porteNum}`,
+                    etage: 1,
+                    statut: PorteStatut.NON_VISITE,
+                    passage: 0,
+                    immeubleId,
+                    assigneeId,
+                });
+            }
+        }
     }
 
-    const totalPortes = nbEtages * nbPortesParEtage;
-
-    // Ensure there are at least two commercials for duo mode, otherwise default to solo logic
-    const hostCommercialId = commercialIds[0];
-    const duoCommercialId = commercialIds.length > 1 ? commercialIds[1] : null;
-
-    const midpoint = Math.ceil(totalPortes / 2); // First half for the host
-
-    for (let i = 0; i < totalPortes; i++) {
-      const etage = Math.floor(i / nbPortesParEtage) + 1;
-      const porteNum = (i % nbPortesParEtage) + 1;
-      const numeroPorte = `Porte ${porteNum}`;
-      let assigneeId: string;
-
-      if (duoCommercialId && i < midpoint) {
-        // Assign first half to the host
-        assigneeId = hostCommercialId;
-      } else if (duoCommercialId && i >= midpoint) {
-        // Assign second half to the duo
-        assigneeId = duoCommercialId;
-      } else {
-        // Fallback to host if no duo or only one commercial
-        assigneeId = hostCommercialId;
-      }
-
-      portesToCreate.push({
-        numeroPorte: numeroPorte,
-        etage: etage,
-        statut: PorteStatut.NON_VISITE,
-        passage: 0,
-        immeubleId: immeubleId,
-        assigneeId: assigneeId,
-      });
+    if (portesToCreate.length > 0) {
+        await this.prisma.porte.createMany({ data: portesToCreate });
     }
+  }
 
   private async sendEmail(to: string, subject: string, text: string) {
     console.log(`Sending email to: ${to}`);
     console.log(`Subject: ${subject}`);
     console.log(`Body: ${text}`);
-    // In a real application, use a library like nodemailer here
   }
 
   async getAllProspectionRequests() {
@@ -182,11 +183,9 @@ export class ProspectionService {
   }
 
   async getRequestStatus(requestId: string) {
-    const result = await this.prisma.prospectionRequest.findUnique({
+    return this.prisma.prospectionRequest.findUnique({
       where: { id: requestId },
       select: { status: true },
     });
-    console.log(`Backend getRequestStatus for ${requestId}:`, result);
-    return result;
   }
 }
