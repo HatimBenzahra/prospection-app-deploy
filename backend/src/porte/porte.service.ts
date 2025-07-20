@@ -3,10 +3,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreatePorteDto } from './dto/create-porte.dto';
 import { UpdatePorteDto } from './dto/update-porte.dto';
 import { PorteStatut } from '@prisma/client';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class PorteService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private eventsGateway: EventsGateway) {}
 
   async create(createPorteDto: CreatePorteDto) {
     const newPorte = await this.prisma.porte.create({ data: createPorteDto });
@@ -122,6 +123,13 @@ export class PorteService {
           });
         }
       }
+
+      // Emit WebSocket event for real-time update
+      this.eventsGateway.sendToRoom(
+        existingPorte.immeubleId,
+        'porteUpdated',
+        updatedPorte,
+      );
 
       return updatedPorte;
     });

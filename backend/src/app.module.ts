@@ -11,6 +11,7 @@ import { PorteModule } from './porte/porte.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { AssignmentGoalsModule } from './assignment-goals/assignment-goals.module';
 import { ProspectionModule } from './prospection/prospection.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ProspectionModule } from './prospection/prospection.module';
     StatisticsModule,
     AssignmentGoalsModule,
     ProspectionModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -234,7 +234,7 @@ const SelectBuildingPage = () => {
                                     className="bg-white hover:bg-slate-100 text-slate-700 font-semibold py-2.5 px-6 rounded-full shadow-sm border-slate-200 transition-all duration-300"
                                 >
                                     <ChevronDown className="mr-2 h-5 w-5" />
-                                    Voir plus d'immeubles ({filteredImmeuvres.length - 6} restants)
+                                    Voir plus d'immeubles ({filteredImmeubles.length - 6} restants)
                                 </Button>
                             </div>
                         )}

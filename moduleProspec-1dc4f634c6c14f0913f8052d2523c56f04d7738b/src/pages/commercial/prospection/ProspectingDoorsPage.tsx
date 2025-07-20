@@ -1,4 +1,3 @@
-// src/pages/commercial/ProspectingDoorsPage.tsx
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,7 +25,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui-admin/alert-dialog";
+import { io } from 'socket.io-client';
 
+const socket = io('http://localhost:3000'); // Replace with your backend URL
 
 const LoadingSkeleton = () => (
     <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
@@ -65,6 +66,23 @@ const ProspectingDoorsPage = () => {
     const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
     const [doorToDeleteId, setDoorToDeleteId] = useState<string | null>(null);
     const [openFloor, setOpenFloor] = useState<number | null>(1);
+
+    useEffect(() => {
+        if (!buildingId) return;
+
+        socket.emit('joinRoom', buildingId);
+
+        socket.on('porteUpdated', (updatedPorte: Porte) => {
+            setPortes(prevPortes =>
+                prevPortes.map(p => (p.id === updatedPorte.id ? updatedPorte : p))
+            );
+        });
+
+        return () => {
+            socket.emit('leaveRoom', buildingId);
+            socket.off('porteUpdated');
+        };
+    }, [buildingId]);
 
     const portesGroupedByFloor = useMemo(() => {
         if (!building) return {};
@@ -181,11 +199,7 @@ const ProspectingDoorsPage = () => {
                 numeroPorte: updatedDoor.numero,
                 passage: newPassage,
             });
-            setPortes(prevPortes =>
-                prevPortes.map(p =>
-                    p.id === updatedDoor.id ? { ...updatedDoor, passage: newPassage } : p
-                )
-            );
+            // The porteUpdated event from the backend will handle updating the state
             if(buildingId && user.id){
                 await statisticsService.triggerHistoryUpdate(user.id, buildingId);
             }
