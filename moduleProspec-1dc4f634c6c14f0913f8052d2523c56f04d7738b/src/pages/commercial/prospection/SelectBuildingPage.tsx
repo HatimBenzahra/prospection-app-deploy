@@ -17,25 +17,25 @@ type ImmeubleFromApi = ImmeubleFromApiBase & { zone: { id: string; nom: string }
 type AssignedZone = { id: string; nom: string };
 
 const PageSkeleton = () => (
-    <div className="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8">
-        <div className="space-y-8 animate-pulse max-w-screen-xl mx-auto">
-            <Skeleton className="h-12 w-1/2" />
-            <Skeleton className="h-16 w-full rounded-xl" />
+    <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="space-y-8 animate-pulse max-w-screen-2xl mx-auto">
+            <Skeleton className="h-12 w-1/2 bg-slate-200 rounded-lg" />
+            <Skeleton className="h-16 w-full rounded-xl bg-slate-200" />
             <div className="flex gap-4">
-                <Skeleton className="h-10 w-32 rounded-full" />
-                <Skeleton className="h-10 w-32 rounded-full" />
-                <Skeleton className="h-10 w-32 rounded-full" />
+                <Skeleton className="h-10 w-32 rounded-full bg-slate-200" />
+                <Skeleton className="h-10 w-32 rounded-full bg-slate-200" />
+                <Skeleton className="h-10 w-32 rounded-full bg-slate-200" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-60 w-full rounded-2xl" />)}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-60 w-full rounded-2xl bg-slate-200" />)}
             </div>
         </div>
     </div>
 );
 
 const buildingStatusMap: { [key: string]: { label: string; className: string; icon: React.ElementType } } = {
-    NON_CONFIGURE: { label: "À configurer", className: "bg-gray-100 text-gray-600", icon: Info },
-    NON_COMMENCE: { label: "Prêt", className: "bg-green-100 text-green-700", icon: CheckCircle },
+    NON_CONFIGURE: { label: "À configurer", className: "bg-slate-100 text-slate-600", icon: Info },
+    NON_COMMENCE: { label: "Prêt", className: "bg-emerald-100 text-emerald-700", icon: CheckCircle },
     EN_COURS: { label: "En cours", className: "bg-blue-100 text-blue-700", icon: Loader2 },
     COMPLET: { label: "Terminé", className: "bg-zinc-100 text-zinc-600 line-through", icon: CheckCircle },
 };
@@ -94,7 +94,7 @@ const SelectBuildingPage = () => {
     }, [allImmeubles, searchTerm, activeFilter, assignedZone]);
 
     const displayedImmeubles = useMemo(() => {
-        return showAll ? filteredImmeubles : filteredImmeubles.slice(0, 3);
+        return showAll ? filteredImmeubles : filteredImmeubles.slice(0, 6);
     }, [filteredImmeubles, showAll]);
 
     const handleSelectBuilding = (buildingId: string) => {
@@ -107,11 +107,7 @@ const SelectBuildingPage = () => {
             return;
         }
 
-        if (status.key === 'NON_CONFIGURE') {
-            navigate(`setup/${buildingId}`);
-        } else {
-            navigate(`doors/${buildingId}`);
-        }
+        navigate(`setup/${buildingId}`);
     };
 
     if (loading) return <PageSkeleton />;
@@ -121,8 +117,10 @@ const SelectBuildingPage = () => {
             key={filterKey}
             onClick={() => setActiveFilter(filterKey)}
             className={cn(
-                "px-4 py-2 text-sm font-semibold rounded-full flex items-center gap-2 transition-all duration-300 ease-in-out whitespace-nowrap shadow-sm",
-                activeFilter === filterKey ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-100'
+                "px-3 py-1.5 text-sm rounded-md font-semibold transition-colors duration-200 flex items-center gap-2 whitespace-nowrap",
+                activeFilter === filterKey
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-200/60'
             )}
         >
             {Icon && <Icon className="h-4 w-4" />}
@@ -131,33 +129,33 @@ const SelectBuildingPage = () => {
     );
 
     return (
-        <div className="bg-gray-50 min-h-screen">
+        <div className="bg-slate-50 min-h-screen">
             <motion.div 
-                className="space-y-8 max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 pb-24"
+                className="space-y-8 max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
             >
-                <div className="mb-10">
-                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-gray-900 flex items-center gap-4">
-                        <MapPin className="h-10 w-10 text-primary"/>
+                <div>
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+                        <MapPin className="h-8 w-8 text-blue-500"/>
                         Lancer une Prospection
                     </h1>
-                    <p className="mt-2 text-lg text-gray-600">Choisissez un immeuble pour commencer ou continuer votre travail.</p>
+                    <p className="mt-2 text-lg text-slate-600">Choisissez un immeuble pour commencer ou continuer votre travail.</p>
                 </div>
 
-                <Card className="rounded-2xl shadow-lg border-none">
-                    <CardContent className="p-6 space-y-6">
+                <Card className="rounded-2xl bg-white border border-slate-200 shadow-sm">
+                    <CardContent className="p-4 space-y-4">
                         <div className="relative">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                             <Input
                                 placeholder="Rechercher une adresse, ville, ou code postal..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-12 pr-4 py-3 w-full rounded-xl shadow-inner bg-gray-100 border-transparent focus:ring-2 focus:ring-blue-500 transition"
+                                className="pl-10 pr-4 py-2 w-full rounded-lg bg-slate-100 border-transparent focus:ring-2 focus:ring-blue-500 transition"
                             />
                         </div>
-                        <div className="flex items-center gap-3 overflow-x-auto pb-2 -mx-6 px-6">
+                        <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-lg overflow-x-auto">
                             <FilterButton filterKey="all" label="Tous les immeubles" />
                             <FilterButton filterKey="incomplete" label="En cours" icon={Clock} />
                             {assignedZone && <FilterButton filterKey="my_zone" label={`Ma Zone: ${assignedZone.nom}`} icon={MapPin} />}
@@ -166,14 +164,14 @@ const SelectBuildingPage = () => {
                 </Card>
 
                 {displayedImmeubles.length === 0 ? (
-                    <div className="text-center py-20 col-span-full bg-white rounded-2xl shadow-lg">
-                        <Search className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-                        <p className="text-xl font-semibold text-gray-800">Aucun immeuble trouvé</p>
-                        <p className="text-gray-500 mt-2">Essayez de modifier vos filtres ou d'ajouter un nouvel immeuble.</p>
+                    <div className="text-center py-20 col-span-full bg-white rounded-2xl border border-slate-200 shadow-sm">
+                        <Search className="mx-auto h-16 w-16 text-slate-400 mb-4" />
+                        <p className="text-xl font-semibold text-slate-800">Aucun immeuble trouvé</p>
+                        <p className="text-slate-500 mt-2">Essayez de modifier vos filtres ou d'ajouter un nouvel immeuble.</p>
                     </div>
                 ) : (
-                    <div className="space-y-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {displayedImmeubles.map((immeuble, index) => {
                                 const status = getProspectingStatus(immeuble);
                                 const StatusIcon = status.icon;
@@ -189,24 +187,24 @@ const SelectBuildingPage = () => {
                                     >
                                         <Card 
                                             className={cn(
-                                                "flex flex-col h-full rounded-2xl bg-white text-card-foreground shadow-lg hover:shadow-2xl transition-all duration-300 border-none transform hover:-translate-y-1",
-                                                isComplete ? 'opacity-60' : 'cursor-pointer'
+                                                "flex flex-col h-full rounded-2xl bg-white text-card-foreground shadow-sm border border-slate-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300",
+                                                isComplete ? 'opacity-70 bg-slate-50' : 'cursor-pointer'
                                             )}
                                             onClick={() => handleSelectBuilding(immeuble.id)}
                                         >
                                             <CardHeader className="pb-4">
                                                 <div className="flex items-center justify-between mb-3">
-                                                    <span className={cn("px-3 py-1 text-xs font-bold rounded-full flex items-center gap-2", status.className)}>
-                                                        <StatusIcon className={cn("h-4 w-4", status.key === 'EN_COURS' && 'animate-spin')} />
+                                                    <span className={cn("px-2.5 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5", status.className)}>
+                                                        <StatusIcon className={cn("h-3.5 w-3.5", status.key === 'EN_COURS' && 'animate-spin')} />
                                                         {status.label}
                                                     </span>
-                                                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                                                        <DoorOpen className="h-5 w-5 text-gray-500" />
+                                                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                                        <DoorOpen className="h-5 w-5 text-slate-500" />
                                                         {immeuble.nbPortesTotal}
                                                     </div>
                                                 </div>
-                                                <CardTitle className="text-lg font-bold break-words text-gray-800">{immeuble.adresse}</CardTitle>
-                                                <CardDescription className="text-sm text-gray-500 flex items-center gap-2">
+                                                <CardTitle className="text-md font-bold break-words text-slate-800">{immeuble.adresse}</CardTitle>
+                                                <CardDescription className="text-sm text-slate-500 flex items-center gap-2 pt-1">
                                                     <MapPin className="h-4 w-4" />
                                                     {immeuble.ville}, {immeuble.codePostal}
                                                 </CardDescription>
@@ -214,8 +212,8 @@ const SelectBuildingPage = () => {
                                             <CardContent className="flex-grow flex flex-col justify-end">
                                                 <Button 
                                                     className={cn(
-                                                        "w-full mt-4 font-bold py-3 rounded-lg text-white transition-all duration-300 flex items-center gap-2",
-                                                        isComplete ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'
+                                                        "w-full mt-4 font-semibold py-2.5 rounded-lg text-white transition-all duration-200 flex items-center justify-center gap-2",
+                                                        isComplete ? 'bg-slate-400' : 'bg-blue-600 hover:bg-blue-700'
                                                     )}
                                                     disabled={isComplete}
                                                 >
@@ -228,15 +226,15 @@ const SelectBuildingPage = () => {
                                 );
                             })}
                         </div>
-                        {filteredImmeubles.length > 3 && !showAll && (
+                        {filteredImmeubles.length > 6 && !showAll && (
                             <div className="text-center mt-8">
                                 <Button 
                                     variant="outline"
                                     onClick={() => setShowAll(true)}
-                                    className="bg-white hover:bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-md transition-all duration-300"
+                                    className="bg-white hover:bg-slate-100 text-slate-700 font-semibold py-2.5 px-6 rounded-full shadow-sm border-slate-200 transition-all duration-300"
                                 >
                                     <ChevronDown className="mr-2 h-5 w-5" />
-                                    Voir plus d'immeubles ({filteredImmeubles.length - 3} restants)
+                                    Voir plus d'immeubles ({filteredImmeuvres.length - 6} restants)
                                 </Button>
                             </div>
                         )}

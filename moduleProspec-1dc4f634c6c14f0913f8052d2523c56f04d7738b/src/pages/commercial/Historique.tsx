@@ -1,5 +1,3 @@
-
-
 import { useEffect, useState, useMemo } from 'react';
 import { statisticsService } from '@/services/statistics.service';
 import { zoneService } from '@/services/zone.service';
@@ -32,26 +30,41 @@ interface HistoryEntry {
   immeuble: { zoneId: string | null };
 }
 
+// --- Animation Variants ---
+const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.05,
+        }
+    }
+};
+
+const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+};
+
+
 const PageSkeleton = () => (
-    <div className="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8">
-        <div className="space-y-8 animate-pulse max-w-screen-xl mx-auto">
-            <div className="flex items-center justify-between">
-                <Skeleton className="h-12 w-1/2" />
-            </div>
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-2xl" />)}
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8 bg-slate-50 min-h-screen">
+        <div className="max-w-screen-2xl mx-auto">
+            <Skeleton className="h-10 w-1/3 bg-slate-200 rounded-lg mb-6" />
+            <Skeleton className="h-24 w-full rounded-xl bg-slate-200 mb-8" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-2xl bg-slate-200" />)}
             </div>
         </div>
     </div>
 );
 
 const StatItem = ({ icon: Icon, label, value, colorClass }: { icon: React.ElementType, label: string, value: string | number, colorClass: string }) => (
-    <div className="flex items-start p-3 bg-gray-100 rounded-lg">
-        <Icon className={cn("h-6 w-6 mr-3 flex-shrink-0", colorClass)} />
+    <div className="flex items-center p-3 bg-slate-100 rounded-lg">
+        <Icon className={cn("h-5 w-5 mr-3 flex-shrink-0", colorClass)} />
         <div>
-            <p className="text-sm font-semibold text-gray-600">{label}</p>
-            <p className="text-lg font-bold text-gray-900">{value}</p>
+            <p className="text-sm font-medium text-slate-600">{label}</p>
+            <p className="text-lg font-bold text-slate-900">{value}</p>
         </div>
     </div>
 );
@@ -133,91 +146,93 @@ const HistoriquePage = () => {
   };
 
   if (loading) return <PageSkeleton />;
-  if (error) return <div className="text-red-500 text-center p-4 bg-red-50 h-screen">{error}</div>;
+  if (error) return <div className="text-center py-10 text-red-600 bg-red-50 h-screen flex items-center justify-center">{error}</div>;
 
   return (
-    <div className="bg-gray-50 min-h-screen hide-scrollbar">
-        <motion.div 
-            className="space-y-8 max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 pb-24"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+    <div className="bg-slate-50 text-slate-800 min-h-screen">
+        <motion.div
+            className="space-y-8 max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
         >
-            <div className="mb-10 py-8 sm:py-12 lg:py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl shadow-md text-center md:text-left">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-gray-900 flex items-center justify-center md:justify-start gap-4">
-                    <HistoryIcon className="h-12 w-12 text-blue-600"/>
+            <motion.div variants={itemVariants}>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+                    <HistoryIcon className="h-8 w-8 text-blue-500"/>
                     Historique de Prospection
                 </h1>
-                <p className="mt-4 text-xl text-gray-700 max-w-3xl mx-auto md:mx-0">Retrouvez le détail de toutes vos activités de prospection passées.</p>
-            </div>
+                <p className="mt-2 text-lg text-slate-600">
+                    Retrouvez le détail de toutes vos activités de prospection passées.
+                </p>
+            </motion.div>
 
-            <Card className="rounded-2xl shadow-lg border-none">
-                <CardContent className="flex flex-col md:flex-row items-center justify-between gap-6 p-6">
-                    <div className="w-full md:w-72">
-                        <Combobox
-                            options={zoneOptions}
-                            value={selectedZone}
-                            onChange={setSelectedZone}
-                            placeholder="Filtrer par zone..."
-                            emptyMessage="Aucune zone trouvée."
-                        />
-                    </div>
-                    <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-xl shadow-inner">
-                        {(['WEEK', 'MONTH', 'YEAR'] as const).map(period => (
-                            <Button 
-                                key={period}
-                                variant='ghost' 
-                                onClick={() => setSelectedPeriod(period)} 
-                                className={cn(
-                                    "px-4 py-2 text-sm rounded-lg font-semibold transition-all duration-300",
-                                    selectedPeriod === period 
-                                        ? 'bg-white text-blue-600 shadow-md' 
-                                        : 'text-gray-600 hover:bg-white/60'
-                                )}
-                            >{
-                                {WEEK: 'Semaine', MONTH: 'Mois', YEAR: 'Année'}[period]
-                            }</Button>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
+            <motion.div variants={itemVariants}>
+                <Card className="rounded-2xl bg-white border border-slate-200 shadow-sm">
+                    <CardContent className="flex flex-col md:flex-row items-center justify-between gap-4 p-4">
+                        <div className="w-full md:w-64">
+                            <Combobox
+                                options={zoneOptions}
+                                value={selectedZone}
+                                onChange={setSelectedZone}
+                                placeholder="Filtrer par zone..."
+                                emptyMessage="Aucune zone trouvée."
+                            />
+                        </div>
+                        <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-lg">
+                            {(['WEEK', 'MONTH', 'YEAR'] as const).map(period => (
+                                <Button
+                                    key={period}
+                                    variant='ghost'
+                                    onClick={() => setSelectedPeriod(period)}
+                                    className={cn(
+                                        "px-3 py-1.5 text-sm rounded-md font-semibold transition-colors duration-200",
+                                        selectedPeriod === period
+                                            ? 'bg-white text-blue-600 shadow-sm'
+                                            : 'text-slate-600 hover:bg-slate-200/60'
+                                    )}
+                                >{
+                                    {WEEK: 'Semaine', MONTH: 'Mois', YEAR: 'Année'}[period]
+                                }</Button>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            </motion.div>
 
             {paginatedHistory.length === 0 ? (
-                <div className="text-center py-20 col-span-full bg-white rounded-2xl shadow-lg">
-                    <Search className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-                    <p className="text-xl font-semibold text-gray-800">Aucun historique trouvé</p>
-                    <p className="text-gray-500 mt-2">Aucune prospection ne correspond à vos filtres pour cette période.</p>
-                </div>
+                <motion.div variants={itemVariants} className="text-center py-20 col-span-full bg-white rounded-2xl border border-slate-200 shadow-sm">
+                    <Search className="mx-auto h-16 w-16 text-slate-400 mb-4" />
+                    <p className="text-xl font-semibold text-slate-800">Aucun historique trouvé</p>
+                    <p className="text-slate-500 mt-2">Aucune prospection ne correspond à vos filtres pour cette période.</p>
+                </motion.div>
             ) : (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {paginatedHistory.map((item, index) => (
                             <motion.div
                                 key={item.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.4, delay: index * 0.05 }}
+                                variants={itemVariants}
                                 className="w-full h-full"
                             >
-                                <Card className="flex flex-col h-full rounded-2xl bg-white text-card-foreground shadow-lg hover:shadow-2xl transition-all duration-300 border-none transform hover:-translate-y-1">
-                                    <CardHeader className="pt-4 pb-3 px-6 bg-blue-50 rounded-t-2xl border-b border-blue-100">
-                                        <CardTitle className="flex items-center gap-3 text-2xl font-extrabold text-gray-900 overflow-hidden">
-                                            <Building className="h-7 w-7 text-primary flex-shrink-0" />
-                                            <span className="truncate min-w-0">{item.adresse}, {item.ville}</span>
+                                <Card className="flex flex-col h-full rounded-2xl bg-white text-card-foreground shadow-sm border border-slate-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                                    <CardHeader className="pt-5 pb-4 px-5 bg-slate-50 rounded-t-2xl border-b border-slate-200">
+                                        <CardTitle className="flex items-center gap-3 text-xl font-bold text-slate-900">
+                                            <Building className="h-6 w-6 text-blue-500 flex-shrink-0" />
+                                            <span className="truncate">{item.adresse}, {item.ville}</span>
                                         </CardTitle>
-                                        <CardDescription className="flex items-center gap-2 text-sm font-medium text-gray-600 mt-2">
+                                        <CardDescription className="flex items-center gap-2 text-sm text-slate-500 pt-1">
                                             <Calendar className="h-4 w-4" />
                                             {format(new Date(item.dateProspection), 'd MMMM yyyy', { locale: fr })}
                                         </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="grid grid-cols-2 gap-4 flex-grow mt-4">
+                                    <CardContent className="p-5 grid grid-cols-2 gap-x-4 gap-y-3 flex-grow">
                                         <StatItem icon={DoorOpen} label="Portes visitées" value={item.nbPortesVisitees} colorClass="text-blue-500" />
-                                        <StatItem icon={Percent} label="Couverture" value={`${Number(item.tauxCouverture).toFixed(2)}%`} colorClass="text-indigo-500" />
-                                        <StatItem icon={Handshake} label="Contrats" value={item.nbContratsSignes} colorClass="text-green-500" />
-                                        <StatItem icon={Phone} label="RDV" value={item.nbRdvPris} colorClass="text-yellow-500" />
+                                        <StatItem icon={Percent} label="Couverture" value={`${Number(item.tauxCouverture).toFixed(1)}%`} colorClass="text-purple-500" />
+                                        <StatItem icon={Handshake} label="Contrats" value={item.nbContratsSignes} colorClass="text-emerald-500" />
+                                        <StatItem icon={Phone} label="RDV" value={item.nbRdvPris} colorClass="text-orange-500" />
                                         <StatItem icon={XCircle} label="Refus" value={item.nbRefus} colorClass="text-red-500" />
-                                        <StatItem icon={CheckCircle} label="Absents" value={item.nbAbsents} colorClass="text-gray-500" />
-                                        <StatItem icon={MessageSquare} label="Curieux" value={item.nbCurieux} colorClass="text-purple-500" />
+                                        <StatItem icon={CheckCircle} label="Absents" value={item.nbAbsents} colorClass="text-slate-500" />
+                                        <StatItem icon={MessageSquare} label="Curieux" value={item.nbCurieux} colorClass="text-sky-500" />
                                     </CardContent>
                                 </Card>
                             </motion.div>
@@ -225,17 +240,17 @@ const HistoriquePage = () => {
                     </div>
 
                     {totalPages > 1 && (
-                        <div className="flex justify-center items-center space-x-2 mt-8">
+                        <motion.div variants={itemVariants} className="flex justify-center items-center space-x-3 mt-8">
                             <Button
                                 variant="outline"
                                 size="icon"
                                 onClick={() => handlePageChange(currentPage - 1)}
                                 disabled={currentPage === 1}
-                                className="h-10 w-10 rounded-full bg-white shadow-md"
+                                className="h-9 w-9 rounded-full bg-white shadow-sm border-slate-200 hover:bg-slate-100"
                             >
                                 <ChevronLeft className="h-5 w-5" />
                             </Button>
-                            <span className="text-sm font-semibold text-gray-700">
+                            <span className="text-sm font-medium text-slate-700">
                                 Page {currentPage} sur {totalPages}
                             </span>
                             <Button
@@ -243,11 +258,11 @@ const HistoriquePage = () => {
                                 size="icon"
                                 onClick={() => handlePageChange(currentPage + 1)}
                                 disabled={currentPage === totalPages}
-                                className="h-10 w-10 rounded-full bg-white shadow-md"
+                                className="h-9 w-9 rounded-full bg-white shadow-sm border-slate-200 hover:bg-slate-100"
                             >
                                 <ChevronRight className="h-5 w-5" />
                             </Button>
-                        </div>
+                        </motion.div>
                     )}
                 </>
             )}

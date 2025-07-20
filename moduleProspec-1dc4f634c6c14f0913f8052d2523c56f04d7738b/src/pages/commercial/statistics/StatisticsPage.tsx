@@ -4,7 +4,7 @@ import { statisticsService } from '@/services/statistics.service';
 import StatCard from '@/components/ui-admin/StatCard';
 import { GenericPieChart } from '@/components/charts/GenericPieChart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
-import { Building, DoorOpen, Handshake, BarChart, Phone, Percent } from 'lucide-react';
+import { Building, DoorOpen, Handshake, BarChart, Phone, Percent, Search } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui-admin/tooltip';
 import { motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui-admin/skeleton';
@@ -23,28 +23,21 @@ interface CommercialStats {
 }
 
 const PageSkeleton = () => (
-    <div className="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8">
-        <div className="space-y-8 animate-pulse max-w-screen-xl mx-auto">
-            <Skeleton className="h-12 w-1/2" />
+    <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="space-y-8 animate-pulse max-w-screen-2xl mx-auto">
+            <Skeleton className="h-10 w-1/2 bg-slate-200 rounded-lg" />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
+                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-xl bg-slate-200" />)}
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                <div className="lg:col-span-3">
-                    <Skeleton className="h-[500px] w-full rounded-2xl" />
-                </div>
-                <div className="lg:col-span-2">
-                    <Skeleton className="h-[500px] w-full rounded-2xl" />
-                </div>
-            </div>
+            <Skeleton className="h-[500px] w-full rounded-2xl bg-slate-200" />
         </div>
     </div>
 );
 
 const statusColors: { [key: string]: string } = {
-    CONTRAT: '#22c55e',      // green-500
-    RDV: '#f59e0b',            // amber-500
-    ABSENT: '#6b7280',         // gray-500
+    CONTRAT: '#10b981',      // emerald-500
+    RDV: '#f97316',            // orange-500
+    ABSENT: '#64748b',         // slate-500
     REFUS: '#ef4444',          // red-500
     CURIEUX: '#8b5cf6',        // violet-500
     NON_VISITE: '#a1a1aa',     // zinc-400
@@ -74,23 +67,15 @@ const CommercialStatisticsPage = () => {
 
   useEffect(() => {
     fetchData();
-
-    const handleFocus = () => {
-        fetchData();
-    };
-
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-        window.removeEventListener('focus', handleFocus);
-    };
+    window.addEventListener('focus', fetchData);
+    return () => window.removeEventListener('focus', fetchData);
   }, [fetchData]);
 
   const pieData = useMemo(() => {
     if (!stats) return [];
     return Object.entries(stats.repartitionStatuts)
         .map(([name, value]) => ({ name, value: value as number }))
-        .filter(item => item.value > 0); // Ne pas afficher les statuts à 0
+        .filter(item => item.value > 0);
   }, [stats]);
 
   const pieColors = useMemo(() => {
@@ -99,34 +84,33 @@ const CommercialStatisticsPage = () => {
 
   if (loading) return <PageSkeleton />;
   if (error) return <div className="text-red-500 text-center p-4 bg-red-50 h-screen">{error}</div>;
-  if (!stats) return <div className="text-center py-20 bg-white rounded-2xl shadow-lg">Aucune statistique disponible.</div>;
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-slate-50 min-h-screen">
         <motion.div 
-            className="space-y-8 max-w-screen-xl mx-auto p-4 sm:p-6 lg:p-8 pb-24"
+            className="space-y-8 max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
         >
-            <div className="mb-10 py-8 sm:py-12 lg:py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl shadow-md text-center md:text-left">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-gray-900 flex items-center justify-center md:justify-start gap-4">
-                    <BarChart className="h-12 w-12 text-blue-600"/>
+            <div>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+                    <BarChart className="h-8 w-8 text-blue-500"/>
                     Statistiques de Performance
                 </h1>
-                <p className="mt-4 text-xl text-gray-700 max-w-3xl mx-auto md:mx-0">Analysez vos résultats et suivez votre progression.</p>
+                <p className="mt-2 text-lg text-slate-600">Analysez vos résultats et suivez votre progression.</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                <StatCard title="Immeubles Visitées" value={stats.kpis.immeublesVisites} Icon={Building} color="text-blue-500" />
-                <StatCard title="Portes Visitées" value={stats.kpis.portesVisitees} Icon={DoorOpen} color="text-orange-500" />
-                <StatCard title="Contrats Signés" value={stats.kpis.contratsSignes} Icon={Handshake} color="text-green-500" />
-                <StatCard title="RDV Pris" value={stats.kpis.rdvPris} Icon={Phone} color="text-yellow-500" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
+                <StatCard title="Immeubles Visitées" value={stats?.kpis.immeublesVisites || 0} Icon={Building} color="text-blue-500" />
+                <StatCard title="Portes Visitées" value={stats?.kpis.portesVisitees || 0} Icon={DoorOpen} color="text-orange-500" />
+                <StatCard title="Contrats Signés" value={stats?.kpis.contratsSignes || 0} Icon={Handshake} color="text-emerald-500" />
+                <StatCard title="RDV Pris" value={stats?.kpis.rdvPris || 0} Icon={Phone} color="text-yellow-500" />
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div className="cursor-help">
-                                <StatCard title="Taux de Conversion" value={stats.kpis.tauxDeConversion} Icon={Percent} suffix="%" color="text-violet-500" />
+                                <StatCard title="Taux de Conversion" value={stats?.kpis.tauxDeConversion || 0} Icon={Percent} suffix="%" color="text-purple-500" />
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -136,9 +120,9 @@ const CommercialStatisticsPage = () => {
                 </TooltipProvider>
             </div>
 
-            <Card className="rounded-2xl shadow-lg border-none">
+            <Card className="rounded-2xl bg-white border border-slate-200 shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-xl font-bold text-gray-800">Répartition des Statuts</CardTitle>
+                    <CardTitle className="text-xl font-bold text-slate-900">Répartition des Statuts</CardTitle>
                     <CardDescription>
                         Visualisez la proportion de chaque statut sur l'ensemble de vos portes prospectées.
                     </CardDescription>
@@ -155,9 +139,10 @@ const CommercialStatisticsPage = () => {
                             />
                         </div>
                     ) : (
-                        <div className="text-center py-20">
-                            <p className="text-lg font-semibold text-gray-700">Aucune donnée de répartition</p>
-                            <p className="text-gray-500">Commencez la prospection pour voir vos statistiques.</p>
+                        <div className="text-center py-20 col-span-full bg-white rounded-2xl border border-slate-200 shadow-sm">
+                            <Search className="mx-auto h-16 w-16 text-slate-400 mb-4" />
+                            <p className="text-xl font-semibold text-slate-800">Aucune donnée de répartition</p>
+                            <p className="text-slate-500 mt-2">Commencez la prospection pour voir vos statistiques.</p>
                         </div>
                     )}
                 </CardContent>
@@ -168,4 +153,3 @@ const CommercialStatisticsPage = () => {
 };
 
 export default CommercialStatisticsPage;
-

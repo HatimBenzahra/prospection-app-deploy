@@ -13,19 +13,6 @@ export class ImmeubleService {
   // Admin methods
   create(createImmeubleDto: CreateImmeubleDto) {
     const { nbEtages, nbPortesParEtage, prospectorsIds, ...rest } = createImmeubleDto;
-    const portesData = [];
-    if (nbEtages && nbPortesParEtage) {
-      for (let etage = 1; etage <= nbEtages; etage++) {
-        for (let porteNum = 1; porteNum <= nbPortesParEtage; porteNum++) {
-          portesData.push({
-            numeroPorte: `Porte ${porteNum}`,
-            etage: etage,
-            statut: PorteStatut.NON_VISITE,
-            passage: 0,
-          });
-        }
-      }
-    }
 
     return this.prisma.immeuble.create({
       data: {
@@ -34,11 +21,6 @@ export class ImmeubleService {
         nbPortesParEtage: nbPortesParEtage,
         prospectors: {
           connect: prospectorsIds?.map((id) => ({ id })),
-        },
-        portes: {
-          createMany: {
-            data: portesData,
-          },
         },
       },
     });
@@ -117,19 +99,6 @@ export class ImmeubleService {
 
     const { nbEtages, nbPortesParEtage, ...rest } = createDto;
     const calculatedNbPortesTotal = (nbEtages || 0) * (nbPortesParEtage || 0);
-    const portesData = [];
-    if (nbEtages && nbPortesParEtage) {
-      for (let etage = 1; etage <= nbEtages; etage++) {
-        for (let porteNum = 1; porteNum <= nbPortesParEtage; porteNum++) {
-          portesData.push({
-            numeroPorte: `Porte ${porteNum}`,
-            etage: etage,
-            statut: PorteStatut.NON_VISITE,
-            passage: 0,
-          });
-        }
-      }
-    }
 
     return this.prisma.immeuble.create({
       data: {
@@ -142,11 +111,6 @@ export class ImmeubleService {
         status: ImmeubleStatus.A_VISITER,
         prospectors: {
           connect: { id: commercialId },
-        },
-        portes: {
-          createMany: {
-            data: portesData,
-          },
         },
       },
     });

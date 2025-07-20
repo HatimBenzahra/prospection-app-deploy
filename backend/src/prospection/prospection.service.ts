@@ -20,15 +20,13 @@ export class ProspectionService {
       throw new NotFoundException(`Immeuble with ID ${immeubleId} not found.`);
     }
 
-    if (immeuble.portes.length > 0) {
-      throw new BadRequestException('Portes for this immeuble have already been generated.');
-    }
+    
 
     if (mode === ProspectingMode.SOLO) {
-      if (immeuble.nbPortesTotal === null) {
-        throw new BadRequestException('Immeuble nbPortesTotal is missing.');
+      if (immeuble.nbEtages === null || immeuble.nbPortesParEtage === null) {
+        throw new BadRequestException('Immeuble nbEtages or nbPortesParEtage is missing.');
       }
-      await this.generateAndAssignPortes(immeubleId, [commercialId], immeuble.nbPortesTotal as number);
+      await this.generateAndAssignPortes(immeubleId, [commercialId], immeuble.nbEtages, immeuble.nbPortesParEtage);
       // Connect the commercial to the immeuble as a prospector
       await this.prisma.immeuble.update({
         where: { id: immeubleId },
@@ -38,8 +36,7 @@ export class ProspectionService {
           },
         },
       });
-      return { message: 'Solo prospection started and portes generated.' };
-    } else if (mode === ProspectingMode.DUO) {
+      return { message: 'Solo prospection started and portes generated.' }; else if (mode === ProspectingMode.DUO) {
       if (!partnerId) {
         throw new BadRequestException('Partner ID is required for DUO mode.');
       }
@@ -87,13 +84,14 @@ export class ProspectionService {
         data: { status: 'ACCEPTED' },
       });
       console.log(`Request ${requestId} status updated to ACCEPTED.`); // Ajout de ce log
-      if (!request.immeuble.nbPortesTotal) {
-        throw new BadRequestException('Immeuble nbPortesTotal is missing.');
+      if (!request.immeuble.nbEtages || !request.immeuble.nbPortesParEtage) {
+        throw new BadRequestException('Immeuble nbEtages or nbPortesParEtage is missing.');
       }
       await this.generateAndAssignPortes(
         request.immeubleId,
         [request.requesterId, request.partnerId],
-        request.immeuble.nbPortesTotal as number,
+        request.immeuble.nbEtages as number,
+        request.immeuble.nbPortesParEtage as number,
       );
       // Connect both requester and partner to the immeuble as prospectors
       await this.prisma.immeuble.update({
@@ -118,14 +116,13 @@ export class ProspectionService {
     }
   }
 
-  private async generateAndAssignPortes(immeubleId: string, commercialIds: string[], totalPortes: number) {
+  private async generateAndAssignPortes(immeubleId: string, commercialIds: string[], nbEtages: number, nbPortesParEtage: number) {
     const portesToCreate = [];
     if (commercialIds.length === 0) {
       throw new BadRequestException('No commercial IDs provided for door assignment.');
     }
 
-    // TODO: Fetch nbPortesParEtage from the immeuble and use it here.
-    const nbPortesParEtage = 10;
+    const totalPortes = nbEtages * nbPortesParEtage;
 
     // Ensure there are at least two commercials for duo mode, otherwise default to solo logic
     const hostCommercialId = commercialIds[0];
@@ -134,8 +131,9 @@ export class ProspectionService {
     const midpoint = Math.ceil(totalPortes / 2); // First half for the host
 
     for (let i = 0; i < totalPortes; i++) {
-      const numeroPorte = `Porte ${i + 1}`;
       const etage = Math.floor(i / nbPortesParEtage) + 1;
+      const porteNum = (i % nbPortesParEtage) + 1;
+      const numeroPorte = `Porte ${porteNum}`;
       let assigneeId: string;
 
       if (duoCommercialId && i < midpoint) {
@@ -158,11 +156,6 @@ export class ProspectionService {
         assigneeId: assigneeId,
       });
     }
-
-    await this.prisma.porte.createMany({
-      data: portesToCreate,
-    });
-  }
 
   private async sendEmail(to: string, subject: string, text: string) {
     console.log(`Sending email to: ${to}`);
