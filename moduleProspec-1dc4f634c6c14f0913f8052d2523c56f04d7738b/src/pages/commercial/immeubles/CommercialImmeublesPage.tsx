@@ -11,11 +11,13 @@ import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 import { Input } from '../../../components/ui-admin/input';
 import { Checkbox } from '../../../components/ui-admin/checkbox';
 import { Label } from '../../../components/ui-admin/label';
-import { Loader2, PlusCircle, Building, Trash2, Edit, Search, CheckCircle, XCircle, Users, User, MapPin, ArrowUpDown, KeyRound, Info, ArrowLeft } from 'lucide-react';
+import { Loader2, PlusCircle, Building, Trash2, Edit, Search, CheckCircle, XCircle, Users, User, MapPin, ArrowUpDown, KeyRound, Info, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui-admin/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui-admin/tooltip';
+import { useNavigate } from 'react-router-dom';
+import { statusConfig, type PorteStatus } from '../prospection/doors-columns';
 
 type ImmeubleFormState = {
   adresse: string;
@@ -27,6 +29,13 @@ type ImmeubleFormState = {
   digicode?: string;
   latitude?: number;
   longitude?: number;
+};
+
+type PorteWithEtage = {
+    id: string;
+    numeroPorte: string;
+    statut: PorteStatus;
+    etage: number;
 };
 
 const buildingStatusMap: { [key: string]: { label: string; className: string; icon: React.ElementType } } = {
@@ -53,10 +62,13 @@ const PageSkeleton = () => (
 
 const CommercialImmeublesPage: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [immeubles, setImmeubles] = useState<ImmeubleFromApi[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedImmeuble, setSelectedImmeuble] = useState<ImmeubleFromApi | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingImmeuble, setEditingImmeuble] = useState<ImmeubleFromApi | null>(null);
   const [formState, setFormState] = useState<ImmeubleFormState>({} as ImmeubleFormState);
@@ -170,6 +182,22 @@ const CommercialImmeublesPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handleOpenDetailsModal = (immeuble: ImmeubleFromApi) => {
+    setSelectedImmeuble(immeuble);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleGoToProspecting = () => {
+    if (!selectedImmeuble) return;
+    const status = getProspectingStatus(selectedImmeuble);
+    setIsDetailsModalOpen(false);
+    if (status.key === 'NON_CONFIGURE') {
+        navigate(`/commercial/prospecting/setup/${selectedImmeuble.id}`);
+    } else {
+        navigate(`/commercial/prospecting/doors/${selectedImmeuble.id}`);
+    }
+  };
+
   const handleNextStep = () => {
     if (formStep === 1) {
         if (!formState.adresse || !formState.ville || !formState.codePostal) {
@@ -262,6 +290,73 @@ const CommercialImmeublesPage: React.FC = () => {
     nbPortesParEtage: (immeuble as any).nbPortesParEtage ?? 10,
   });
 
+  const ImmeubleDetailsModal = () => {
+    if (!selectedImmeuble) return null;
+
+    const status = getProspectingStatus(selectedImmeuble);
+
+    const portesByFloor = useMemo(() => {
+        const grouped: { [key: string]: PorteWithEtage[] } = {};
+        if (!selectedImmeuble.portes) return grouped;
+        for (const porte of selectedImmeuble.portes) {
+            const floor = (porte as any).etage || 'N/A';
+            if (!grouped[floor]) {
+                grouped[floor] = [];
+            }
+            grouped[floor].push(porte as PorteWithEtage);
+        }
+        return grouped;
+    }, [selectedImmeuble]);
+
+    return (
+        <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+            <DialogContent className="sm:max-w-2xl bg-white rounded-2xl">
+                <DialogHeader className="p-6">
+                    <DialogTitle className="text-2xl font-bold text-slate-800">{selectedImmeuble.adresse}</DialogTitle>
+                    <DialogDescription>{selectedImmeuble.ville}, {selectedImmeuble.codePostal}</DialogDescription>
+                </DialogHeader>
+                
+                <div className="py-4 max-h-[60vh] overflow-y-auto px-6">
+                    {status.key === 'NON_CONFIGURE' ? (
+                        <div className="text-center p-8 bg-slate-50 rounded-lg">
+                            <Info className="mx-auto h-12 w-12 text-slate-400 mb-4" />
+                            <h3 className="text-lg font-semibold text-slate-700">Immeuble non configuré</h3>
+                            <p className="text-slate-500 mt-1">Vous devez configurer cet immeuble avant de pouvoir commencer la prospection.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {Object.keys(portesByFloor).sort((a,b) => Number(a) - Number(b)).map(floor => (
+                                <div key={floor}>
+                                    <h4 className="font-bold text-slate-700 mb-2 border-b pb-2">Étage {floor}</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-2">
+                                        {portesByFloor[floor].map(porte => {
+                                            const config = statusConfig[porte.statut as keyof typeof statusConfig];
+                                            return (
+                                                <div key={porte.id} className={cn("p-2 rounded-md text-sm", config?.badgeClassName)}>
+                                                    <p className="font-semibold">{porte.numeroPorte}</p>
+                                                    <p className="capitalize">{config?.label || porte.statut.toLowerCase().replace('_', ' ')}</p>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <DialogFooter className="p-6 pt-4 flex justify-end gap-3 bg-slate-50 rounded-b-2xl">
+                    <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>Fermer</Button>
+                    <Button onClick={handleGoToProspecting} className="bg-blue-600 text-white hover:bg-blue-700">
+                        {status.key === 'NON_CONFIGURE' ? 'Configurer la prospection' : 'Passer à la prospection'}
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+  };
+
   return (
     <div className="bg-slate-50 text-slate-800 min-h-screen">
         <motion.div 
@@ -322,7 +417,10 @@ const CommercialImmeublesPage: React.FC = () => {
                             transition={{ duration: 0.4, delay: index * 0.05 }}
                             className="w-full h-full"
                         >
-                            <Card className="flex flex-col h-full rounded-2xl bg-white text-card-foreground shadow-sm border border-slate-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                            <Card 
+                                className="flex flex-col h-full rounded-2xl bg-white text-card-foreground shadow-sm border border-slate-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                                onClick={() => handleOpenDetailsModal(immeuble)}
+                            >
                                 <CardHeader className="pb-3 px-5 pt-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <span className={cn("px-2.5 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5", status.className)}>
@@ -333,13 +431,13 @@ const CommercialImmeublesPage: React.FC = () => {
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-slate-100" onClick={() => handleOpenModal(immeuble)}><Edit className="h-4 w-4 text-slate-500" /></Button>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-slate-100" onClick={(e) => { e.stopPropagation(); handleOpenModal(immeuble);}}><Edit className="h-4 w-4 text-slate-500" /></Button>
                                                     </TooltipTrigger>
                                                     <TooltipContent><p>Modifier</p></TooltipContent>
                                                 </Tooltip>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50 hover:text-red-600" onClick={() => handleDelete(immeuble.id)}><Trash2 className="h-4 w-4" /></Button>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-red-500 hover:bg-red-50 hover:text-red-600" onClick={(e) => { e.stopPropagation(); handleDelete(immeuble.id);}}><Trash2 className="h-4 w-4" /></Button>
                                                     </TooltipTrigger>
                                                     <TooltipContent><p>Supprimer</p></TooltipContent>
                                                 </Tooltip>
@@ -505,6 +603,7 @@ const CommercialImmeublesPage: React.FC = () => {
                     </AnimatePresence>
                 </DialogContent>
             </Dialog>
+            <ImmeubleDetailsModal />
         </motion.div>
     </div>
   );
