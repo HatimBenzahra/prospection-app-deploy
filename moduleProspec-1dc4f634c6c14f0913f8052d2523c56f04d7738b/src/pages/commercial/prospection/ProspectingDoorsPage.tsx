@@ -309,10 +309,7 @@ const ProspectingDoorsPage = () => {
                 </motion.div>
                 <Card className="rounded-2xl bg-white border border-slate-200 shadow-sm">
                     <CardHeader className="p-6">
-                        <CardTitle className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
-                            <Building className="h-7 w-7 text-blue-500" />
-                            Prospection : {building.adresse}
-                        </CardTitle>
+                        
                         <CardDescription className="text-slate-600 mt-2">
                             {building.nbPortesTotal} portes à prospecter. Mettez à jour leur statut au fur et à mesure.
                         </CardDescription>

@@ -93,13 +93,7 @@ const CommercialStatisticsPage = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
         >
-            <div>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
-                    <BarChart className="h-8 w-8 text-blue-500"/>
-                    Statistiques de Performance
-                </h1>
-                <p className="mt-2 text-lg text-slate-600">Analysez vos résultats et suivez votre progression.</p>
-            </div>
+            
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
                 <StatCard title="Immeubles Visitées" value={stats?.kpis.immeublesVisites || 0} Icon={Building} color="text-blue-500" />

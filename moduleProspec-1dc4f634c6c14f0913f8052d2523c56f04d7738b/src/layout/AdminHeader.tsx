@@ -4,7 +4,7 @@ import { Button } from '@/components/ui-admin/button';
 import { Sheet, SheetContent, SheetHeader, SheetTrigger } from '@/components/ui-admin/sheet';
 import { Menu } from 'lucide-react';
 import { AdminNavContent } from './AdminNavContent';
-import { BrandLogo } from '@/components/ui-commercial/BrandLogo';
+
 import { DateTimeDisplay } from './DateTimeDisplay';
 import { UserNav } from './UserNav';
 
@@ -23,7 +23,7 @@ const AdminHeader = () => {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[250px] p-0 bg-white">
-              <SheetHeader className='p-4 border-b'><BrandLogo /></SheetHeader>
+              <SheetHeader className='p-4 border-b'></SheetHeader>
               <div className="py-4">
                 <AdminNavContent isCollapsed={false} onLinkClick={() => setIsSheetOpen(false)} />
               </div>

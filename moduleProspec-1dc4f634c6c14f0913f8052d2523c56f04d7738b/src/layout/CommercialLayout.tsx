@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui-admin/Modal';
 import { Button } from '@/components/ui-admin/button';
 import { toast } from 'sonner';
 import { CommercialBottomBar } from './CommercialBottomBar';
+import CommercialHeader from './CommercialHeader';
 
 const CommercialLayout = () => {
   const { user } = useAuth();
@@ -63,6 +64,7 @@ const CommercialLayout = () => {
 
   return (
     <div className="flex flex-col h-screen bg-muted/40">
+      <CommercialHeader />
       <main ref={mainContentRef} className="flex-1 overflow-y-auto pb-16">
         <Outlet />
       </main>

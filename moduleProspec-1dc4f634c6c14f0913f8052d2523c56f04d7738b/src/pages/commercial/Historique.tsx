@@ -156,15 +156,7 @@ const HistoriquePage = () => {
             initial="hidden"
             animate="visible"
         >
-            <motion.div variants={itemVariants}>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
-                    <HistoryIcon className="h-8 w-8 text-blue-500"/>
-                    Historique de Prospection
-                </h1>
-                <p className="mt-2 text-lg text-slate-600">
-                    Retrouvez le détail de toutes vos activités de prospection passées.
-                </p>
-            </motion.div>
+            
 
             <motion.div variants={itemVariants}>
                 <Card className="rounded-2xl bg-white border border-slate-200 shadow-sm">

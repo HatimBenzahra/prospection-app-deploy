@@ -136,13 +136,7 @@ const SelectBuildingPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
             >
-                <div>
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
-                        <MapPin className="h-8 w-8 text-blue-500"/>
-                        Lancer une Prospection
-                    </h1>
-                    <p className="mt-2 text-lg text-slate-600">Choisissez un immeuble pour commencer ou continuer votre travail.</p>
-                </div>
+                
 
                 <Card className="rounded-2xl bg-white border border-slate-200 shadow-sm">
                     <CardContent className="p-4 space-y-4">

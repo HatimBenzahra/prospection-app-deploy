@@ -149,15 +149,7 @@ const CommercialDashboardPage = () => {
                 initial="hidden"
                 animate="visible"
             >
-                {/* En-tête */}
-                <motion.div variants={itemVariants} className="mb-6">
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
-                        Tableau de Bord
-                    </h1>
-                    <p className="mt-2 text-lg text-slate-600">
-                        Bienvenue, {user?.name} ! Prêt à atteindre vos objectifs ?
-                    </p>
-                </motion.div>
+                
 
                 {/* KPIs */}
                 <motion.div variants={itemVariants} className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
