@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui-admin/card';
 import { type Porte, statusConfig, statusList, type PorteStatus } from './doors-columns';
@@ -29,6 +29,13 @@ import { io } from 'socket.io-client';
 
 const socket = io('http://localhost:3000'); // Replace with your backend URL
 
+interface LayoutControls {
+    hideHeader: () => void;
+    showHeader: () => void;
+    hideBottomBar: () => void;
+    showBottomBar: () => void;
+  }
+
 const LoadingSkeleton = () => (
     <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
         <div className="max-w-screen-2xl mx-auto space-y-8">
@@ -54,6 +61,17 @@ const ProspectingDoorsPage = () => {
     const { buildingId } = useParams<{ buildingId: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const layoutControls = useOutletContext<LayoutControls>();
+
+    useEffect(() => {
+        layoutControls.hideHeader();
+        layoutControls.hideBottomBar();
+        return () => {
+          layoutControls.showHeader();
+          layoutControls.showBottomBar();
+        };
+      }, [layoutControls]);
+
     const [building, setBuilding] = useState<ImmeubleDetailsFromApi | null>(null);
     const [portes, setPortes] = useState<Porte[]>([]);
     const [isLoading, setIsLoading] = useState(true);

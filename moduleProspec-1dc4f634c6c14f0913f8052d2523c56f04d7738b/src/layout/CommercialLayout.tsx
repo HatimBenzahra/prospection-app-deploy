@@ -16,6 +16,16 @@ const CommercialLayout = () => {
   const { pathname } = useLocation();
   const mainContentRef = useRef<HTMLDivElement>(null);
 
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [isBottomBarVisible, setIsBottomBarVisible] = useState(true);
+
+  const layoutControls = {
+    hideHeader: () => setIsHeaderVisible(false),
+    showHeader: () => setIsHeaderVisible(true),
+    hideBottomBar: () => setIsBottomBarVisible(false),
+    showBottomBar: () => setIsBottomBarVisible(true),
+  };
+
   useEffect(() => {
     if (mainContentRef.current) {
       mainContentRef.current.scrollTo(0, 0);
@@ -64,11 +74,11 @@ const CommercialLayout = () => {
 
   return (
     <div className="flex flex-col h-screen bg-muted/40">
-      <CommercialHeader />
+      {isHeaderVisible && <CommercialHeader />}
       <main ref={mainContentRef} className="flex-1 overflow-y-auto pb-16">
-        <Outlet />
+        <Outlet context={layoutControls} />
       </main>
-      <CommercialBottomBar />
+      {isBottomBarVisible && <CommercialBottomBar />}
 
       {pendingRequest && (
         <Modal
