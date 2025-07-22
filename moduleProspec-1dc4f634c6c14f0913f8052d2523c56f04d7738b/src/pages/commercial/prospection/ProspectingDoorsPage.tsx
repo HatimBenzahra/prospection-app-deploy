@@ -199,6 +199,12 @@ const ProspectingDoorsPage = () => {
                 numeroPorte: updatedDoor.numero,
                 passage: newPassage,
             });
+
+            const finalUpdatedPorte = { ...updatedDoor, passage: newPassage };
+            setPortes(prevPortes =>
+                prevPortes.map(p => (p.id === finalUpdatedPorte.id ? finalUpdatedPorte : p))
+            );
+
             // The porteUpdated event from the backend will handle updating the state
             if(buildingId && user.id){
                 await statisticsService.triggerHistoryUpdate(user.id, buildingId);

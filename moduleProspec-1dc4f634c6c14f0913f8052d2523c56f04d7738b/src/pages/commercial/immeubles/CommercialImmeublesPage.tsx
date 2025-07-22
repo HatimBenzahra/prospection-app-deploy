@@ -11,7 +11,7 @@ import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 import { Input } from '../../../components/ui-admin/input';
 import { Checkbox } from '../../../components/ui-admin/checkbox';
 import { Label } from '../../../components/ui-admin/label';
-import { Loader2, PlusCircle, Building, Trash2, Edit, Search, CheckCircle, XCircle, Users, User, MapPin, ArrowUpDown, KeyRound, Info, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Edit, Search, CheckCircle, XCircle, Users, User, MapPin, ArrowUpDown, KeyRound, Info, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui-admin/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
