@@ -23,8 +23,8 @@ type ImmeubleFormState = {
   adresse: string;
   ville: string;
   codePostal: string;
-  nbEtages: number;
-  nbPortesParEtage: number;
+  nbEtages?: number;
+  nbPortesParEtage?: number;
   hasElevator: boolean;
   digicode?: string;
   latitude?: number;
@@ -154,16 +154,16 @@ const CommercialImmeublesPage: React.FC = () => {
     setEditingImmeuble(immeuble);
     if (immeuble) {
       const storedDetails = localStorage.getItem(`building_${immeuble.id}_details`);
-      let nbEtages = 1;
-      let nbPortesParEtage = 10;
+      let nbEtages: number | undefined = undefined;
+      let nbPortesParEtage: number | undefined = undefined;
 
       if (storedDetails) {
         const parsedDetails = JSON.parse(storedDetails);
         nbEtages = parsedDetails.nbEtages || nbEtages;
         nbPortesParEtage = parsedDetails.nbPortesParEtage || nbPortesParEtage;
       } else {
-        nbEtages = Math.floor(immeuble.nbPortesTotal / 10) || 1;
-        nbPortesParEtage = immeuble.nbPortesTotal % 10 === 0 ? 10 : immeuble.nbPortesTotal % 10;
+        nbEtages = undefined;
+        nbPortesParEtage = undefined;
       }
 
       setFormState({
@@ -175,7 +175,7 @@ const CommercialImmeublesPage: React.FC = () => {
       });
     } else {
       setFormState({
-        adresse: '', ville: '', codePostal: '', nbEtages: 1, nbPortesParEtage: 10, hasElevator: false,
+        adresse: '', ville: '', codePostal: '', nbEtages: undefined, nbPortesParEtage: undefined, hasElevator: false,
         digicode: '', latitude: undefined, longitude: undefined,
       });
     }
@@ -211,7 +211,7 @@ const CommercialImmeublesPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id) return;
-    if (!editingImmeuble && (formState.nbEtages <= 0 || formState.nbPortesParEtage <= 0)) {
+    if (!editingImmeuble && (!formState.nbEtages || formState.nbEtages <= 0 || !formState.nbPortesParEtage || formState.nbPortesParEtage <= 0)) {
         toast.error("Le nombre d'étages et de portes doit être supérieur à zéro.");
         return;
     }
@@ -286,8 +286,8 @@ const CommercialImmeublesPage: React.FC = () => {
   );
 
   const getBuildingDetails = (immeuble: ImmeubleFromApi) => ({
-    nbEtages: (immeuble as any).nbEtages ?? 1,
-    nbPortesParEtage: (immeuble as any).nbPortesParEtage ?? 10,
+    nbEtages: (immeuble as any).nbEtages ?? '-',
+    nbPortesParEtage: (immeuble as any).nbPortesParEtage ?? '-',
   });
 
   const ImmeubleDetailsModal = () => {
