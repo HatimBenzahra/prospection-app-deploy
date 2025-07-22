@@ -58,7 +58,7 @@ const SelectBuildingPage = () => {
                 immeubleService.getImmeublesForCommercial(user.id),
                 assignmentGoalsService.getAssignedZonesForCommercial(user.id)
             ]);
-            const sortedImmeubles = immeublesData.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            const sortedImmeubles = immeublesData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
             setAllImmeubles(sortedImmeubles as ImmeubleFromApi[]);
             if (zonesData && zonesData.length > 0) setAssignedZone(zonesData[0]);
         } catch (err) {
