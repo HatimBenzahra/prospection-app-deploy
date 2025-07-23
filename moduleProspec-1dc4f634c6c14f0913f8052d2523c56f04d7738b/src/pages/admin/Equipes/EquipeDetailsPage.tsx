@@ -110,13 +110,13 @@ const EquipeDetailsPage = () => {
         onAddEntity={() => setIsAddCommercialModalOpen(true)}
       />
 
-      <Modal isOpen={isAddCommercialModalOpen} onClose={() => setIsAddCommercialModalOpen(false)} title="Ajouter un commercial à l'équipe">
-        <h2 className="text-lg font-semibold mb-4">Sélectionner un commercial</h2>
-        <div className="grid gap-4">
+      <Modal isOpen={isAddCommercialModalOpen} onClose={() => setIsAddCommercialModalOpen(false)} title="Ajouter un commercial à l'équipe" maxWidth="max-w-sm">
+        <p className="text-sm text-muted-foreground mb-4">Sélectionnez un commercial dans la liste ci-dessous pour l'ajouter à cette équipe.</p>
+        <div className="grid gap-2 py-2">
           <div className="space-y-1">
             <Label htmlFor="commercialId">Commercial</Label>
-            <Select onValueChange={(value) => setSelectedCommercialId(value)}>
-              <SelectTrigger id="commercialId"><SelectValue placeholder="Sélectionner un commercial" /></SelectTrigger>
+            <Select onValueChange={(value) => setSelectedCommercialId(value)} value={selectedCommercialId || ""}>
+              <SelectTrigger id="commercialId" className="w-full"><SelectValue placeholder="Sélectionner un commercial" /></SelectTrigger>
               <SelectContent>
                 {allCommerciaux.filter(c => c.equipeId !== equipeId).map((commercial) => (
                   <SelectItem key={commercial.id} value={commercial.id}>{commercial.prenom} {commercial.nom}</SelectItem>
@@ -125,30 +125,27 @@ const EquipeDetailsPage = () => {
             </Select>
           </div>
         </div>
-        <div className="flex justify-end gap-2 mt-6">
+        <div className="flex justify-end gap-2 mt-2">
           <Button variant="outline" onClick={() => setIsAddCommercialModalOpen(false)}>Annuler</Button>
           <Button onClick={async () => {
             if (selectedCommercialId && equipeId) {
-              const commercialToUpdate = allCommerciaux.find(c => c.id === selectedCommercialId);
-              if (commercialToUpdate) {
-                await commercialService.updateCommercial(selectedCommercialId, { ...commercialToUpdate, equipeId });
-                setIsAddCommercialModalOpen(false);
-                // Refresh data
-                setLoading(true);
-                equipeService.getEquipeDetails(equipeId)
-                  .then(data => {
-                    setEquipeDetails(data);
-                  })
-                  .catch(error => {
-                    console.error("Erreur lors de la récupération des détails de l'équipe:", error);
-                    setEquipeDetails(null); // Reset in case of error
-                  })
-                  .finally(() => {
-                    setLoading(false);
-                  });
-              }
+              await commercialService.updateCommercial(selectedCommercialId, { equipeId });
+              setIsAddCommercialModalOpen(false);
+              // Refresh data
+              setLoading(true);
+              equipeService.getEquipeDetails(equipeId)
+                .then(data => {
+                  setEquipeDetails(data);
+                })
+                .catch(error => {
+                  console.error("Erreur lors de la récupération des détails de l'équipe:", error);
+                  setEquipeDetails(null); // Reset in case of error
+                })
+                .finally(() => {
+                  setLoading(false);
+                });
             }
-          }} className="bg-green-600 text-white hover:bg-green-700">Ajouter</Button>
+          }} disabled={!selectedCommercialId} className="bg-green-600 text-white hover:bg-green-700">Ajouter</Button>
         </div>
       </Modal>
     </div>
