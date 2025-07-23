@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { motion } from 'framer-motion';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area } from 'recharts';
 import { Info } from 'lucide-react';
 
 // --- Types ---
@@ -72,7 +71,7 @@ export const GenericLineChart = ({ data, xAxisDataKey, lines }: GenericLineChart
         <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '3 3' }} />
         <Legend 
           wrapperStyle={{ fontSize: '0.875rem' }} 
-          onMouseEnter={(e) => setHoveredLine(e.dataKey)}
+          onMouseEnter={(e) => setHoveredLine(e.dataKey as string)}
           onMouseLeave={() => setHoveredLine(null)}
         />
         {lines.map(line => (
@@ -87,7 +86,6 @@ export const GenericLineChart = ({ data, xAxisDataKey, lines }: GenericLineChart
                 dot={{ r: 0 }}
                 activeDot={{ r: 5, strokeWidth: 2, fill: '#fff' }}
                 name={line.name || line.dataKey}
-                transition={{ duration: 0.3 }}
             />
         ))}
          {lines.map(line => (

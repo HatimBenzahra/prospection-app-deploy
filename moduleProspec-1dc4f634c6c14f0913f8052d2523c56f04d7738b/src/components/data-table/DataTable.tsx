@@ -112,7 +112,10 @@ export function DataTable<TData extends { id: string }, TValue>({
             <Input
               placeholder={filterPlaceholder}
               value={filterValue}
-              onChange={e => table.getColumn(filterColumnId)?.setFilterValue(e.target.value)}
+              onChange={e => setColumnFilters(prev => {
+                const newFilters = prev.filter(f => f.id !== filterColumnId);
+                return [...newFilters, { id: filterColumnId, value: e.target.value }];
+              })}
               className="pl-10 w-full min-w-[280px] md:min-w-[320px]"
               onFocus={()=>setSearchFocused(true)}
               onBlur={()=>setSearchFocused(false)}
@@ -137,7 +140,7 @@ export function DataTable<TData extends { id: string }, TValue>({
               </>
             ) : (
               <>
-                <Button variant="destructive" disabled={selectedRowsData.length===0} onClick={()=>onConfirmDelete(selectedRowsData)} className="bg-red-600 text-white hover:bg-red-700 border border-red-600 focus:ring-2 focus:ring-red-400 focus:outline-none">
+                <Button variant="destructive" disabled={selectedRowsData.length===0} onClick={() => onConfirmDelete && onConfirmDelete(selectedRowsData)} className="bg-red-600 text-white hover:bg-red-700 border border-red-600 focus:ring-2 focus:ring-red-400 focus:outline-none">
                   <Trash2 className="mr-2 h-4 w-4" />Supprimer ({selectedRowsData.length})
                 </Button>
                 <Button variant="outline" onClick={onToggleDeleteMode} className="focus:ring-2 focus:ring-muted/30 focus:outline-none">

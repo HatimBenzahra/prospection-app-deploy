@@ -1,7 +1,7 @@
 // src/pages/commercial/ZoneFocusMap.tsx
 import Map, { Marker, Popup, Source, Layer, NavigationControl, FullscreenControl, useControl } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Building, MapPin, Pin, Lock, Unlock } from 'lucide-react';
+import { Building, MapPin, Pin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
 import type { MapRef } from 'react-map-gl';
@@ -183,8 +183,6 @@ export const ZoneFocusMap = ({ zone, immeubles, className }: ZoneFocusMapProps) 
               dragPan={!isMapLocked}
               dragRotate={!isMapLocked}
               scrollZoom={!isMapLocked}
-              touchZoom={!isMapLocked}
-              touchRotate={!isMapLocked}
               keyboard={!isMapLocked}
           >
               <NavigationControl position="top-right" />

@@ -30,7 +30,6 @@ const AssignmentGoalsPage = () => {
   const [error, setError] = useState<string | null>(null);
   
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
-  const [isMapReady, setIsMapReady] = useState(false);
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -42,7 +41,21 @@ const AssignmentGoalsPage = () => {
           zoneService.getZones(),
           managerService.getManagers(),
         ]);
-        setData({ commercials: commercialsData, zones: zonesData, managers: managersData });
+
+        const formattedZones = zonesData.map(zone => ({
+          id: zone.id,
+          name: zone.nom,
+          assignedTo: '', // This will be populated later if needed
+          color: zone.couleur,
+          latlng: [zone.longitude, zone.latitude] as [number, number],
+          radius: zone.rayonMetres,
+          dateCreation: zone.createdAt,
+          nbImmeubles: 0, // This will be populated later if needed
+          totalContratsSignes: 0, // This will be populated later if needed
+          totalRdvPris: 0, // This will be populated later if needed
+        }));
+
+        setData({ commercials: commercialsData, zones: formattedZones, managers: managersData });
       } catch (err) {
         console.error("Failed to fetch initial data:", err);
         setError("Impossible de charger les données. Veuillez rafraîchir la page.");
@@ -68,6 +81,7 @@ const AssignmentGoalsPage = () => {
   };
 
   const handleSetGoal = async (commercialId: string, goal: number) => {
+    // Calculate month and year internally
     const currentMonth = new Date().getMonth() + 1;
     const currentYear = new Date().getFullYear();
     try {
@@ -134,7 +148,7 @@ const AssignmentGoalsPage = () => {
         
         {/* Colonne de droite avec la carte */}
         <div className="lg:col-span-2">
-           <ZoneMapViewer zones={data.zones} focusedZone={selectedZone} onMapLoad={() => setIsMapReady(true)} />
+           <ZoneMapViewer zones={data.zones} focusedZone={selectedZone} />
         </div>
       </div>
     </div>

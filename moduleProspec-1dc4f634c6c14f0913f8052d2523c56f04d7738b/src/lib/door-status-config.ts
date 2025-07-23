@@ -1,3 +1,5 @@
+import { BellOff, Eye, User, Smile, Frown, Check, Landmark } from 'lucide-react';
+
 export type PorteStatus = "NON_VISITE" | "VISITE" | "ABSENT" | "REFUS" | "CURIEUX" | "RDV" | "CONTRAT_SIGNE";
 
 export type Porte = {

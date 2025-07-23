@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils"
 
 interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> {
   indicatorClassName?: string;
+  className?: string;
+  value?: number;
 }
 
 const Progress = React.forwardRef<

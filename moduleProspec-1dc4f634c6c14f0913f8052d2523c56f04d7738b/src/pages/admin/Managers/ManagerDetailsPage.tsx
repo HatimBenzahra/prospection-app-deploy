@@ -207,7 +207,6 @@ const ManagerDetailsPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-2">
                     <GenericLineChart 
-                        title="Évolution de la Performance Globale"
                         data={perfHistory} 
                         xAxisDataKey="name" 
                         lines={[{ dataKey: 'performance', stroke: '#3b82f6', name: 'Performance (%)' }]} 

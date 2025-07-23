@@ -79,17 +79,17 @@ const MapComponent: React.FC<MapComponentProps> = ({ zones, focusedZoneId, onLoa
         map.removeSource(sourceId);
       }
 
-      const circleGeoJSON = createGeoJSONCircle([zone.longitude, zone.latitude], zone.rayonMetres);
+      const circleGeoJSON = createGeoJSONCircle([zone.latlng[0], zone.latlng[1]], zone.radius);
       map.addSource(sourceId, { type: 'geojson', data: circleGeoJSON });
-      map.addLayer({ id: fillLayerId, type: 'fill', source: sourceId, paint: { 'fill-color': zone.couleur, 'fill-opacity': 0.2 } });
-      map.addLayer({ id: outlineLayerId, type: 'line', source: sourceId, paint: { 'line-color': zone.couleur, 'line-width': 2 } });
+      map.addLayer({ id: fillLayerId, type: 'fill', source: sourceId, paint: { 'fill-color': zone.color, 'fill-opacity': 0.2 } });
+      map.addLayer({ id: outlineLayerId, type: 'line', source: sourceId, paint: { 'line-color': zone.color, 'line-width': 2 } });
     });
 
     // Focus on a specific zone or fit all zones
     if (focusedZoneId) {
       const zone = zones.find(z => z.id === focusedZoneId);
       if (zone) {
-        const circleGeoJSON = createGeoJSONCircle([zone.longitude, zone.latitude], zone.rayonMetres);
+        const circleGeoJSON = createGeoJSONCircle([zone.latlng[0], zone.latlng[1]], zone.radius);
         const coordinates = circleGeoJSON.geometry.coordinates[0];
         const bounds = new mapboxgl.LngLatBounds(coordinates[0] as mapboxgl.LngLatLike, coordinates[0] as mapboxgl.LngLatLike);
         for (const coord of coordinates) {
@@ -100,7 +100,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ zones, focusedZoneId, onLoa
     } else if (zones.length > 0) {
       const bounds = new mapboxgl.LngLatBounds();
       zones.forEach(zone => {
-        const circleGeoJSON = createGeoJSONCircle([zone.longitude, zone.latitude], zone.rayonMetres);
+        const circleGeoJSON = createGeoJSONCircle([zone.latlng[0], zone.latlng[1]], zone.radius);
         const coordinates = circleGeoJSON.geometry.coordinates[0];
         for (const coord of coordinates) {
           bounds.extend(coord as mapboxgl.LngLatLike);

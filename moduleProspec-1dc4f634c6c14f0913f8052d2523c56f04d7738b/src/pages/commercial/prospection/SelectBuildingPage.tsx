@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui-admin/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
-import { ArrowRight, Building, MapPin, Search, Clock, ClipboardList, DoorOpen, CheckCircle, Info, Loader2, ChevronDown } from 'lucide-react';
+import { ArrowRight, MapPin, Search, Clock, DoorOpen, CheckCircle, Info, Loader2, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { immeubleService } from '@/services/immeuble.service';
 import { assignmentGoalsService } from '@/services/assignment-goals.service';

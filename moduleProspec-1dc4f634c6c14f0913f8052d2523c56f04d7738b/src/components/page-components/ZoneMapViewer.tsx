@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
 import MapComponent from '@/components/MapComponent';
-import { Map, Pin } from 'lucide-react';
+import { Pin } from 'lucide-react';
 import type { Zone } from '@/types/types';
 
 interface ZoneMapViewerProps {
@@ -17,7 +17,7 @@ export const ZoneMapViewer = ({ zones, focusedZone, onMapLoad }: ZoneMapViewerPr
           <Pin className="mr-3 h-6 w-6" /> Visualisation des Zones
         </CardTitle>
         <CardDescription>
-          {focusedZone ? `Zone sélectionnée : ${focusedZone.nom}` : 'Vue d\'ensemble des zones'}
+          {focusedZone ? `Zone sélectionnée : ${focusedZone.name}` : 'Vue d\'ensemble des zones'}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-grow rounded-b-lg overflow-hidden p-0">

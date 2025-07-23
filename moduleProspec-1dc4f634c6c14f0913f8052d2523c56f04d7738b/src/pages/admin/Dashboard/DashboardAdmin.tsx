@@ -244,7 +244,7 @@ const DashboardAdmin = () => {
 
             <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-7 animate-in fade-in-0 [animation-delay:500ms] duration-500">
                 <div className="lg:col-span-4">
-                  <GenericLineChart title="Activité de prospection" data={currentData.portesTopeesData} xAxisDataKey="name" lines={[ { dataKey: 'Visites', name: "Visites", stroke: 'hsl(var(--chart-1))' }, { dataKey: 'RDV', name: "RDV", stroke: 'hsl(var(--chart-2))' }, { dataKey: 'Refus', name: "Refus", stroke: 'hsl(var(--chart-3))' } ]}/>
+                  <GenericLineChart data={currentData.portesTopeesData} xAxisDataKey="name" lines={[ { dataKey: 'Visites', name: "Visites", stroke: 'hsl(var(--chart-1))' }, { dataKey: 'RDV', name: "RDV", stroke: 'hsl(var(--chart-2))' }, { dataKey: 'Refus', name: "Refus", stroke: 'hsl(var(--chart-3))' } ]}/>
                 </div>
                 <div className="lg:col-span-3">
                   <GenericPieChart title="Répartition des Visites par Manager" data={currentData.repartitionManagersData} dataKey="value" nameKey="name" colors={['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-4))']}/>

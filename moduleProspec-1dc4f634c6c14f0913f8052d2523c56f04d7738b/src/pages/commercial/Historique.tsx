@@ -4,7 +4,7 @@ import { zoneService } from '@/services/zone.service';
 import type { ZoneFromApi } from '@/services/zone.service';
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-admin/card';
-import { Building, Calendar, CheckCircle, XCircle, DoorOpen, Percent, Handshake, Phone, MessageSquare, Search, ChevronLeft, ChevronRight, History as HistoryIcon } from 'lucide-react';
+import { Building, Calendar, CheckCircle, XCircle, DoorOpen, Percent, Handshake, Phone, MessageSquare, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Combobox } from '@/components/ui-admin/Combobox';
 import type { DateRange } from 'react-day-picker';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from 'date-fns';
@@ -200,7 +200,7 @@ const HistoriquePage = () => {
             ) : (
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {paginatedHistory.map((item, index) => (
+                        {paginatedHistory.map((item) => (
                             <motion.div
                                 key={item.id}
                                 variants={itemVariants}

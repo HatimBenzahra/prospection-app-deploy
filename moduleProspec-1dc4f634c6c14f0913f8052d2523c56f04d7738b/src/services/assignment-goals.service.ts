@@ -16,8 +16,8 @@ const assignZone = async (zoneId: string, assigneeId: string, assigneeType: Assi
   return response.data;
 };
 
-const setMonthlyGoal = async (commercialId: string, goal: number) => {
-  const payload = { commercialId, goal };
+const setMonthlyGoal = async (commercialId: string, goal: number, month: number, year: number) => {
+  const payload = { commercialId, goal, month, year };
   const response = await axios.post(`${API_URL}/set-monthly-goal`, payload);
   return response.data;
 };

@@ -55,7 +55,7 @@ export const ZoneAssignmentCard = ({ zones, commercials, managers, onAssign, onZ
             <Select onValueChange={handleZoneChange} value={selectedZone}>
                 <SelectTrigger><SelectValue placeholder="Sélectionner une zone" /></SelectTrigger>
                 <SelectContent>
-                    {zones.map(z => <SelectItem key={z.id} value={z.id}>{z.nom}</SelectItem>)}
+                    {zones.map(z => <SelectItem key={z.id} value={z.id}>{z.name}</SelectItem>)}
                 </SelectContent>
             </Select>
         </div>

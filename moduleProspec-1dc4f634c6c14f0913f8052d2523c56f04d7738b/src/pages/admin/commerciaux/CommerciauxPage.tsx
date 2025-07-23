@@ -45,7 +45,7 @@ const CommerciauxPage = () => {
         commercialService.getCommerciaux(), equipeService.getEquipes(), managerService.getManagers(),
       ]);
 
-      setManagers(managersFromApi);
+      setManagers(managersFromApi || []);
 
       const equipesMap = new Map(equipesFromApi.map((e) => [e.id, e.nom] as const));
       const managersMap = new Map(managersFromApi.map((m) => [m.id, `${m.prenom} ${m.nom}`] as const));
@@ -99,10 +99,7 @@ const CommerciauxPage = () => {
     setEditingCommercial({ ...editingCommercial, [e.target.name]: e.target.value });
   };
   
-  const handleEditSelectChange = (managerId: string) => {
-    if (!editingCommercial) return;
-    setEditingCommercial({ ...editingCommercial, managerId });
-  };
+  
 
   const handleUpdateCommercial = async () => {
     if (!editingCommercial) return;
@@ -204,7 +201,7 @@ const CommerciauxPage = () => {
             <Select onValueChange={(value) => {
               setNewCommercialData((prev) => ({ ...prev, managerId: value, equipeId: "" }));
               const selectedManager = managers.find(m => m.id === value);
-              setTeamsOfSelectedManager(selectedManager ? selectedManager.equipes : []);
+              setTeamsOfSelectedManager(selectedManager?.equipes ?? []);
             }} value={newCommercialData.managerId}>
               <SelectTrigger id="managerId"><SelectValue placeholder="Sélectionner un manager" /></SelectTrigger>
               <SelectContent>
@@ -246,7 +243,7 @@ const CommerciauxPage = () => {
                   if (!editingCommercial) return;
                   setEditingCommercial({ ...editingCommercial, managerId: value, equipeId: '' });
                   const selectedManager = managers.find(m => m.id === value);
-                  setTeamsOfSelectedManagerInEdit(selectedManager ? selectedManager.equipes : []);
+                  setTeamsOfSelectedManagerInEdit(selectedManager?.equipes ?? []);
                 }} value={editingCommercial.managerId}>
                 <SelectTrigger id="managerId"><SelectValue placeholder="Sélectionner un manager" /></SelectTrigger>
                 <SelectContent>

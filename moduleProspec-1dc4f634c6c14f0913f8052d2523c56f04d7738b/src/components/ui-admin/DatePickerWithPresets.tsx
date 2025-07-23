@@ -1,13 +1,7 @@
 // src/components/ui/DatePickerWithPresets.tsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   format,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  startOfYear,
-  endOfYear,
 } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
