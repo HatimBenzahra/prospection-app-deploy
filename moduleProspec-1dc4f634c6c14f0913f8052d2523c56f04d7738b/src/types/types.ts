@@ -8,6 +8,9 @@ export interface Commercial {
   managerId: string;
   currentMonthlyGoal?: number; // Ajouté pour correspondre au schéma Prisma
   historiques: { nbContratsSignes: number }[]; // Ajouté pour correspondre à l'API
+  manager?: string;
+  equipe?: string;
+  classement?: number;
 }
 
 export interface Manager {

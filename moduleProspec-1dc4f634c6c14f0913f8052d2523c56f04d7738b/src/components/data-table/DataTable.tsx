@@ -24,11 +24,11 @@ interface DataTableProps<TData extends { id: string }, TValue> {
   onRowClick?: (row: TData) => void
   addEntityButtonText?: string
   onAddEntity?: () => void
-  isDeleteMode: boolean
-  onToggleDeleteMode: () => void
-  onConfirmDelete: (selectedRows: TData[]) => void
-  rowSelection: RowSelectionState
-  setRowSelection: React.Dispatch<React.SetStateAction<RowSelectionState>>
+  isDeleteMode?: boolean
+  onToggleDeleteMode?: () => void
+  onConfirmDelete?: (selectedRows: TData[]) => void
+  rowSelection?: RowSelectionState
+  setRowSelection?: React.Dispatch<React.SetStateAction<RowSelectionState>>
   customHeaderContent?: React.ReactNode
   noCardWrapper?: boolean;
 }
@@ -38,7 +38,7 @@ export function DataTable<TData extends { id: string }, TValue>({
   filterColumnId, filterPlaceholder, title, rowLinkBasePath, onRowClick,
   addEntityButtonText, onAddEntity,
   isDeleteMode, onToggleDeleteMode, onConfirmDelete,
-  rowSelection, setRowSelection,
+  rowSelection = {}, setRowSelection = () => {},
   customHeaderContent,
   noCardWrapper = false,
 }: DataTableProps<TData, TValue>) {
@@ -129,9 +129,11 @@ export function DataTable<TData extends { id: string }, TValue>({
                     <PlusCircle className="mr-2 h-4 w-4" />{addEntityButtonText}
                   </Button>
                 )}
-                <Button variant="outline" onClick={onToggleDeleteMode} className="focus:ring-2 focus:ring-destructive/30 focus:outline-none">
-                  <Trash2 className="mr-2 h-4 w-4" />Supprimer
-                </Button>
+                {onToggleDeleteMode && (
+                  <Button variant="outline" onClick={onToggleDeleteMode} className="focus:ring-2 focus:ring-destructive/30 focus:outline-none">
+                    <Trash2 className="mr-2 h-4 w-4" />Supprimer
+                  </Button>
+                )}
               </>
             ) : (
               <>

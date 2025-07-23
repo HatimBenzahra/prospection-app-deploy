@@ -10,27 +10,41 @@ import { Skeleton } from "@/components/ui-admin/skeleton";
 import StatCard from "@/components/ui-admin/StatCard";
 import { GenericLineChart } from "@/components/charts/GenericLineChart";
 import { equipeService, type EquipeDetailsFromApi } from "@/services/equipe.service";
+import { commercialService } from "@/services/commercial.service";
+import type { Commercial } from "@/types/types";
+import { Modal } from "@/components/ui-admin/Modal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui-admin/select";
+import { Label } from "@/components/ui-admin/label";
 
 const EquipeDetailsPage = () => {
   const { equipeId } = useParams<{ equipeId: string }>();
   const navigate = useNavigate();
   const [equipeDetails, setEquipeDetails] = useState<EquipeDetailsFromApi | null>(null);
+  const [allCommerciaux, setAllCommerciaux] = useState<Commercial[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAddCommercialModalOpen, setIsAddCommercialModalOpen] = useState(false);
+  const [selectedCommercialId, setSelectedCommercialId] = useState<string | null>(null);
 
   useEffect(() => {
     if (equipeId) {
       setLoading(true);
-      equipeService.getEquipeDetails(equipeId)
-        .then(data => {
-          setEquipeDetails(data);
-        })
-        .catch(error => {
-          console.error("Erreur lors de la récupération des détails de l'équipe:", error);
-          setEquipeDetails(null); // Reset in case of error
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+      Promise.all([
+        equipeService.getEquipeDetails(equipeId),
+        commercialService.getCommerciaux(),
+      ]).then(([equipeData, commerciauxData]) => {
+        setEquipeDetails(equipeData);
+        setAllCommerciaux(commerciauxData.map(comm => ({
+          ...comm,
+          equipe: comm.equipeId ? "" : "", // Placeholder, will be filled by DataTable
+          manager: comm.managerId ? "" : "", // Placeholder, will be filled by DataTable
+          classement: 0, // Placeholder
+        })));
+      }).catch(error => {
+        console.error("Erreur lors de la récupération des données:", error);
+        setEquipeDetails(null); // Reset in case of error
+      }).finally(() => {
+        setLoading(false);
+      });
     }
   }, [equipeId]);
 
@@ -81,7 +95,6 @@ const EquipeDetailsPage = () => {
       </div>
 
       <GenericLineChart
-        title="Évolution de la Performance de l'Équipe"
         data={equipeDetails.perfHistory}
         xAxisDataKey="name"
         lines={[{ dataKey: 'perf', stroke: 'hsl(var(--chart-2))', name: 'Performance (%)' }]}
@@ -93,12 +106,51 @@ const EquipeDetailsPage = () => {
         title={`Membres de l'équipe (${equipeDetails.commerciaux.length})`}
         filterColumnId="nom"
         filterPlaceholder="Filtrer par nom de commercial..."
-        isDeleteMode={false}
-        onToggleDeleteMode={() => {}}
-        rowSelection={{}}
-        setRowSelection={() => {}}
-        onConfirmDelete={() => {}}
+        addEntityButtonText="Ajouter un commercial"
+        onAddEntity={() => setIsAddCommercialModalOpen(true)}
       />
+
+      <Modal isOpen={isAddCommercialModalOpen} onClose={() => setIsAddCommercialModalOpen(false)} title="Ajouter un commercial à l'équipe">
+        <h2 className="text-lg font-semibold mb-4">Sélectionner un commercial</h2>
+        <div className="grid gap-4">
+          <div className="space-y-1">
+            <Label htmlFor="commercialId">Commercial</Label>
+            <Select onValueChange={(value) => setSelectedCommercialId(value)}>
+              <SelectTrigger id="commercialId"><SelectValue placeholder="Sélectionner un commercial" /></SelectTrigger>
+              <SelectContent>
+                {allCommerciaux.filter(c => c.equipeId !== equipeId).map((commercial) => (
+                  <SelectItem key={commercial.id} value={commercial.id}>{commercial.prenom} {commercial.nom}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={() => setIsAddCommercialModalOpen(false)}>Annuler</Button>
+          <Button onClick={async () => {
+            if (selectedCommercialId && equipeId) {
+              const commercialToUpdate = allCommerciaux.find(c => c.id === selectedCommercialId);
+              if (commercialToUpdate) {
+                await commercialService.updateCommercial(selectedCommercialId, { ...commercialToUpdate, equipeId });
+                setIsAddCommercialModalOpen(false);
+                // Refresh data
+                setLoading(true);
+                equipeService.getEquipeDetails(equipeId)
+                  .then(data => {
+                    setEquipeDetails(data);
+                  })
+                  .catch(error => {
+                    console.error("Erreur lors de la récupération des détails de l'équipe:", error);
+                    setEquipeDetails(null); // Reset in case of error
+                  })
+                  .finally(() => {
+                    setLoading(false);
+                  });
+              }
+            }
+          }} className="bg-green-600 text-white hover:bg-green-700">Ajouter</Button>
+        </div>
+      </Modal>
     </div>
   )
 }

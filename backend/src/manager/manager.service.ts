@@ -8,7 +8,16 @@ export class ManagerService {
   constructor(private prisma: PrismaService) {}
 
   create(createManagerDto: CreateManagerDto) {
-    return this.prisma.manager.create({ data: createManagerDto });
+    return this.prisma.$transaction(async (prisma) => {
+      const manager = await prisma.manager.create({ data: createManagerDto });
+      await prisma.equipe.create({
+        data: {
+          nom: `Équipe de ${manager.prenom}`,
+          managerId: manager.id,
+        },
+      });
+      return manager;
+    });
   }
 
   findAll() {

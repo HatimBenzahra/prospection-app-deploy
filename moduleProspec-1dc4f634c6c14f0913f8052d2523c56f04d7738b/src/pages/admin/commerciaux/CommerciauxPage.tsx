@@ -24,6 +24,7 @@ const CommerciauxPage = () => {
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [itemsToDelete, setItemsToDelete] = useState<Commercial[]>([]);
+  const [teamsOfSelectedManager, setTeamsOfSelectedManager] = useState<any[]>([]);
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -31,6 +32,7 @@ const CommerciauxPage = () => {
   const initialFormState = { nom: "", prenom: "", email: "", telephone: "", equipeId: "", managerId: "" };
   const [newCommercialData, setNewCommercialData] = useState(initialFormState);
   const [editingCommercial, setEditingCommercial] = useState<Commercial | null>(null);
+  const [teamsOfSelectedManagerInEdit, setTeamsOfSelectedManagerInEdit] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -105,11 +107,11 @@ const CommerciauxPage = () => {
   const handleUpdateCommercial = async () => {
     if (!editingCommercial) return;
     try {
-      const { id, nom, prenom, email, telephone, managerId } = editingCommercial;
+      const { id, nom, prenom, email, telephone, managerId, equipeId } = editingCommercial;
       
       const payload = {
-        nom, prenom, email, managerId,
-        telephone: telephone || undefined,
+        nom, prenom, email, managerId, equipeId,
+        telephone: telephone === null ? undefined : telephone,
       };
 
       await commercialService.updateCommercial(id, payload);
@@ -126,14 +128,14 @@ const CommerciauxPage = () => {
     setNewCommercialData((prev) => ({ ...prev, [e.target.id]: e.target.value }));
   };
   const handleAddCommercial = async () => {
-    const { nom, prenom, email, telephone, managerId } = newCommercialData;
-    if (!nom || !prenom || !email || !managerId) {
+    const { nom, prenom, email, telephone, managerId, equipeId } = newCommercialData;
+    if (!nom || !prenom || !email || !managerId || !equipeId) {
       alert("Veuillez remplir tous les champs obligatoires.");
       return;
     }
 
     try {
-      await commercialService.createCommercial({ nom, prenom, email, telephone, managerId });
+      await commercialService.createCommercial({ nom, prenom, email, telephone, managerId, equipeId });
       setIsAddModalOpen(false);
       setNewCommercialData(initialFormState);
       fetchData();
@@ -199,11 +201,26 @@ const CommerciauxPage = () => {
           <div className="space-y-1"><Label htmlFor="telephone">Téléphone (optionnel)</Label><Input id="telephone" type="tel" placeholder="0612345678" value={newCommercialData.telephone} onChange={handleAddInputChange} /></div>
           <div className="space-y-1">
             <Label htmlFor="managerId">Manager</Label>
-            <Select onValueChange={(value) => setNewCommercialData((prev) => ({ ...prev, managerId: value }))} value={newCommercialData.managerId}>
+            <Select onValueChange={(value) => {
+              setNewCommercialData((prev) => ({ ...prev, managerId: value, equipeId: "" }));
+              const selectedManager = managers.find(m => m.id === value);
+              setTeamsOfSelectedManager(selectedManager ? selectedManager.equipes : []);
+            }} value={newCommercialData.managerId}>
               <SelectTrigger id="managerId"><SelectValue placeholder="Sélectionner un manager" /></SelectTrigger>
               <SelectContent>
                 {managers.map((manager) => (
                   <SelectItem key={manager.id} value={manager.id}>{manager.prenom} {manager.nom}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="equipeId">Équipe</Label>
+            <Select onValueChange={(value) => setNewCommercialData((prev) => ({ ...prev, equipeId: value }))} value={newCommercialData.equipeId} disabled={!newCommercialData.managerId}>
+              <SelectTrigger id="equipeId"><SelectValue placeholder="Sélectionner une équipe" /></SelectTrigger>
+              <SelectContent>
+                {teamsOfSelectedManager.map((equipe) => (
+                  <SelectItem key={equipe.id} value={equipe.id}>{equipe.nom}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -225,12 +242,31 @@ const CommerciauxPage = () => {
             <div className="space-y-1"><Label htmlFor="telephone">Téléphone</Label><Input id="telephone" name="telephone" type="tel" value={editingCommercial.telephone || ''} onChange={handleEditInputChange} /></div>
             <div className="space-y-1">
                 <Label htmlFor="managerId">Manager</Label>
-                <Select onValueChange={handleEditSelectChange} value={editingCommercial.managerId}>
+                <Select onValueChange={(value) => {
+                  if (!editingCommercial) return;
+                  setEditingCommercial({ ...editingCommercial, managerId: value, equipeId: '' });
+                  const selectedManager = managers.find(m => m.id === value);
+                  setTeamsOfSelectedManagerInEdit(selectedManager ? selectedManager.equipes : []);
+                }} value={editingCommercial.managerId}>
                 <SelectTrigger id="managerId"><SelectValue placeholder="Sélectionner un manager" /></SelectTrigger>
                 <SelectContent>
                     {managers.map((manager) => ( <SelectItem key={manager.id} value={manager.id}>{manager.prenom} {manager.nom}</SelectItem> ))}
                 </SelectContent>
                 </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="equipeId">Équipe</Label>
+              <Select onValueChange={(value) => {
+                if (!editingCommercial) return;
+                setEditingCommercial({ ...editingCommercial, equipeId: value });
+              }} value={editingCommercial.equipeId} disabled={!editingCommercial.managerId}>
+                <SelectTrigger id="equipeId"><SelectValue placeholder="Sélectionner une équipe" /></SelectTrigger>
+                <SelectContent>
+                  {teamsOfSelectedManagerInEdit.map((equipe) => (
+                    <SelectItem key={equipe.id} value={equipe.id}>{equipe.nom}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             </div>
         )}

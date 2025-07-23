@@ -18,8 +18,8 @@ export class CreateCommercialDto {
   telephone?: string;
 
   @IsString()
-  @IsOptional()
-  equipeId?: string;
+  @IsNotEmpty()
+  equipeId: string;
 
   @IsString()
   @IsNotEmpty()

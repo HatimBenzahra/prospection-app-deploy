@@ -19,7 +19,7 @@ type CreateCommercialPayload = {
   nom: string;
   prenom: string;
   email: string;
-  telephone?: string;
+  telephone?: string | null;
   equipeId?: string;
   managerId: string;
 };
