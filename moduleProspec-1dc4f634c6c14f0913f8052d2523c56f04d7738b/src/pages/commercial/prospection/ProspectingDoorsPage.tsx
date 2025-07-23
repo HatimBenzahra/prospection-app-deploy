@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui-admin/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-admin/card';
 import { type Porte, statusConfig, statusList, type PorteStatus } from './doors-columns';
-import { ArrowLeft, Building, DoorOpen, MessageSquare, Repeat, Edit2, Trash2, Plus, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Building, DoorOpen, Repeat, Trash2, Plus, ChevronDown } from 'lucide-react';
 import { Modal } from '@/components/ui-admin/Modal';
 import { Input } from '@/components/ui-admin/input';
 import { Button } from '@/components/ui-admin/button';
@@ -437,39 +437,48 @@ const ProspectingDoorsPage = () => {
                                                                 className="h-full"
                                                             >
                                                                 <Card 
-                                                                    className="flex flex-col h-full bg-white hover:bg-slate-50 transition-colors border border-slate-200 rounded-xl shadow-sm cursor-pointer"
-                                                                    onClick={() => handleEdit(porte.id)}
+                                                                    className="flex flex-col h-full bg-white border border-slate-200 rounded-xl shadow-sm"
                                                                 >
-                                                                    <CardHeader className="flex flex-row items-center justify-between p-4">
-                                                                        <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-800">
-                                                                            <DoorOpen className="h-5 w-5 text-slate-500" />
-                                                                            {porte.numero}
-                                                                        </CardTitle>
-                                                                        <span className={cn("text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1.5", config?.badgeClassName)}>
-                                                                            <StatusIcon className="h-3.5 w-3.5" />
-                                                                            {config.label}
-                                                                        </span>
-                                                                    </CardHeader>
-                                                                    <CardContent className="flex-grow p-4 space-y-3 text-sm">
-                                                                        {porte.commentaire ? (
-                                                                            <p className="italic text-slate-600 line-clamp-2">“{porte.commentaire}”</p>
-                                                                        ) : (
-                                                                            <p className="italic text-slate-400">Aucun commentaire</p>
-                                                                        )}
-                                                                        {(porte.statut === 'ABSENT' || porte.statut === 'RDV' || porte.statut === 'CURIEUX') && porte.passage > 0 && (
-                                                                            <div className="flex items-center justify-between rounded-lg border p-2 bg-slate-50">
-                                                                                <span className="font-medium text-sm text-slate-600">Passage</span>
-                                                                                <span className={cn("font-bold text-base", porte.passage >= 3 ? "text-red-500" : "text-blue-600")}>
-                                                                                    {porte.passage >= 3 ? "Stop" : `${porte.passage}${porte.passage === 1 ? 'er' : 'ème'}`}
+                                                                    <div className="flex-grow cursor-pointer hover:bg-slate-50 transition-colors rounded-t-xl" onClick={() => handleEdit(porte.id)}>
+                                                                        <CardHeader className="flex flex-row items-start justify-between p-4">
+                                                                            <CardTitle className="flex items-center gap-2 text-base font-bold text-slate-800 pt-1">
+                                                                                <DoorOpen className="h-5 w-5 text-slate-500" />
+                                                                                {porte.numero}
+                                                                            </CardTitle>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <span className={cn("text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1.5", config?.badgeClassName)}>
+                                                                                    <StatusIcon className="h-3.5 w-3.5" />
+                                                                                    {config.label}
                                                                                 </span>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleDeleteClick(porte.id);
+                                                                                    }}
+                                                                                    className="text-red-500 hover:bg-red-100 rounded-full h-7 w-7 shrink-0"
+                                                                                >
+                                                                                    <Trash2 className="h-4 w-4" />
+                                                                                </Button>
                                                                             </div>
-                                                                        )}
-                                                                    </CardContent>
-                                                                    <CardFooter className="p-2 bg-slate-50 border-t border-slate-200">
-                                                                        <Button variant="ghost" size="sm" className="w-full" onClick={(e) => { e.stopPropagation(); handleEdit(porte.id); }}>
-                                                                            <Edit2 className="mr-2 h-4 w-4" /> Mettre à jour
-                                                                        </Button>
-                                                                    </CardFooter>
+                                                                        </CardHeader>
+                                                                        <CardContent className="flex-grow p-4 pt-2 space-y-3 text-sm">
+                                                                            {porte.commentaire ? (
+                                                                                <p className="italic text-slate-600 line-clamp-2">“{porte.commentaire}”</p>
+                                                                            ) : (
+                                                                                <p className="italic text-slate-400">Aucun commentaire</p>
+                                                                            )}
+                                                                            {(porte.statut === 'ABSENT' || porte.statut === 'RDV' || porte.statut === 'CURIEUX') && porte.passage > 0 && (
+                                                                                <div className="flex items-center justify-between rounded-lg border p-2 bg-slate-50">
+                                                                                    <span className="font-medium text-sm text-slate-600">Passage</span>
+                                                                                    <span className={cn("font-bold text-base", porte.passage >= 3 ? "text-red-500" : "text-blue-600")}>
+                                                                                        {porte.passage >= 3 ? "Stop" : `${porte.passage}${porte.passage === 1 ? 'er' : 'ème'}`}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                        </CardContent>
+                                                                    </div>
                                                                 </Card>
                                                             </motion.div>
                                                         );
