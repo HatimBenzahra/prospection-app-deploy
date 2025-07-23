@@ -8,7 +8,6 @@ import { Edit, MessageSquare, Repeat, Hash, Check, BellOff, User, Smile, Frown, 
 import { cn } from "@/lib/utils"
 
 export type PorteStatus = "NON_VISITE" | "VISITE" | "ABSENT" | "REFUS" | "CURIEUX" | "RDV" | "CONTRAT_SIGNE";
-
 export type Porte = {
   id: string; 
   numero: string;
@@ -160,7 +159,7 @@ export const createDoorsColumns = (
         id: "actions",
         cell: ({ row }) => (
             <div className="text-right">
-                <Button variant="ghost" size="icon" onClick={() => onEdit(row.original.id)} disabled={isBuildingFullyProspected}>
+                <Button variant="outline" size="icon" onClick={() => onEdit(row.original.id)} disabled={isBuildingFullyProspected}>
                     <Edit className="h-4 w-4" />
                 </Button>
             </div>

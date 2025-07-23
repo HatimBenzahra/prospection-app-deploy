@@ -70,8 +70,8 @@ const ZoneDetailsPage = () => {
 
   return (
     <div className="h-full flex flex-col space-y-8">
-      <Button variant="outline" onClick={() => navigate(-1)}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
+      <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="w-fit">
+        <ArrowLeft className="mr-2 h-4 w-2" />
         Retour à la liste des zones
       </Button>
 
