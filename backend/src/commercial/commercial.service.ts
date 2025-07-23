@@ -8,7 +8,15 @@ export class CommercialService {
   constructor(private prisma: PrismaService) {}
 
   create(createCommercialDto: CreateCommercialDto) {
-    return this.prisma.commercial.create({ data: createCommercialDto });
+    const { equipeId, ...otherData } = createCommercialDto;
+    return this.prisma.commercial.create({
+      data: {
+        ...otherData,
+        equipe: {
+          connect: { id: equipeId },
+        },
+      },
+    });
   }
 
   findAll() {
@@ -32,9 +40,15 @@ export class CommercialService {
   }
 
   update(id: string, updateCommercialDto: UpdateCommercialDto) {
+    const { equipeId, ...otherData } = updateCommercialDto;
     return this.prisma.commercial.update({
       where: { id },
-      data: updateCommercialDto,
+      data: {
+        ...otherData,
+        ...(equipeId && {
+          equipe: { connect: { id: equipeId } },
+        }),
+      },
     });
   }
 
