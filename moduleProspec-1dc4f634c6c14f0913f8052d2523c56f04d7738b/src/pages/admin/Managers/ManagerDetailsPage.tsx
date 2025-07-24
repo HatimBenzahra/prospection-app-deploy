@@ -205,13 +205,18 @@ const ManagerDetailsPage = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                <div className="lg:col-span-2">
-                    <GenericLineChart 
-                        data={perfHistory} 
-                        xAxisDataKey="name" 
-                        lines={[{ dataKey: 'performance', stroke: '#3b82f6', name: 'Performance (%)' }]} 
-                    />
-                </div>
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Performance Globale</CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-96">
+                        <GenericLineChart 
+                            data={perfHistory} 
+                            xAxisDataKey="name" 
+                            lines={[{ dataKey: 'performance', stroke: '#3b82f6', name: 'Performance (%)' }]} 
+                        />
+                    </CardContent>
+                </Card>
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-md">{explanations[activeExplanationIndex].title}</CardTitle>
