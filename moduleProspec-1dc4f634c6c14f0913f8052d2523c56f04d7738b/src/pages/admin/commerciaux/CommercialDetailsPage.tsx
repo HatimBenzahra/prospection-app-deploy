@@ -8,8 +8,54 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Building, DoorOpen, Handshake, Target, ArrowLeft, User, Phone, Mail, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui-admin/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui-admin/tooltip';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui-admin/table';
 import { commercialService } from '@/services/commercial.service';
+import { DataTable } from '@/components/data-table/DataTable';
+import { ColumnDef } from "@tanstack/react-table";
+
+// Define columns for the DataTable
+const historyColumns: ColumnDef<HistoryEntry>[] = [
+  {
+    accessorKey: "adresse",
+    header: "Adresse",
+  },
+  {
+    accessorKey: "ville",
+    header: "Ville",
+  },
+  {
+    accessorKey: "dateProspection",
+    header: "Date",
+  },
+  {
+    accessorKey: "nbPortesVisitees",
+    header: "Portes Visitées",
+  },
+  {
+    accessorKey: "nbContratsSignes",
+    header: "Contrats Signés",
+  },
+  {
+    accessorKey: "nbRdvPris",
+    header: "RDV Pris",
+  },
+  {
+    accessorKey: "nbRefus",
+    header: "Refus",
+  },
+  {
+    accessorKey: "nbAbsents",
+    header: "Absents",
+  },
+  {
+    accessorKey: "tauxCouverture",
+    header: "Taux Couverture (%)",
+    cell: info => info.getValue() + "%",
+  },
+  {
+    accessorKey: "commentaire",
+    header: "Commentaire",
+  },
+];
 
 interface CommercialStats {
   commercialInfo: {
@@ -30,7 +76,8 @@ interface CommercialStats {
 }
 
 interface HistoryEntry {
-  id: string;
+  id: string; // ID de l'entrée d'historique
+  immeubleId: string; // L'ID de l'immeuble associé à cette entrée d'historique
   adresse: string;
   ville: string;
   dateProspection: string;
@@ -80,8 +127,15 @@ const CommercialDetailsPage = () => {
             statisticsService.getCommercialHistory(id),
             commercialService.getCommercialDetails(id),
           ]);
+
+          // Assurez-vous que chaque entrée d'historique a un immeubleId
+          const formattedHistory = historyData.map((entry: any) => ({
+            ...entry,
+            immeubleId: entry.immeubleId || entry.id, // Utilisez immeubleId si présent, sinon l'ID de l'entrée
+          }));
+
           setStats(statsData);
-          setHistory(historyData);
+          setHistory(formattedHistory);
           setCommercial(commercialData);
           setError(null);
         } catch (err) {
@@ -212,28 +266,15 @@ const CommercialDetailsPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Immeuble</TableHead>
-                  <TableHead>Date Visite</TableHead>
-                  <TableHead className="text-center">Taux Couverture</TableHead>
-                  <TableHead className="text-center">RDV Pris</TableHead>
-                  <TableHead className="text-center">Contrats Signés</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {history.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.adresse}, {item.ville}</TableCell>
-                    <TableCell>{item.dateProspection ? new Date(item.dateProspection).toLocaleDateString() : 'N/A'}</TableCell>
-                    <TableCell className="text-center">{item.tauxCouverture}%</TableCell>
-                    <TableCell className="text-center">{item.nbRdvPris}</TableCell>
-                    <TableCell className="text-center">{item.nbContratsSignes}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable
+              columns={historyColumns}
+              data={history}
+              filterColumnId="adresse"
+              filterPlaceholder="Filtrer par adresse..."
+              title=""
+              noCardWrapper={true}
+              onRowClick={(row) => navigate(`/admin/immeubles/${row.immeubleId}`)}
+            />
           </CardContent>
         </Card>
       </div>

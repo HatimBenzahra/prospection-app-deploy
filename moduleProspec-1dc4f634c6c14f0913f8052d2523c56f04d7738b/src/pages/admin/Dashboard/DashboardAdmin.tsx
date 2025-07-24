@@ -1,9 +1,6 @@
 
 
-import React, { useState, useEffect } from 'react';
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
-import { cn } from '@/lib/utils';
+import { useEffect } from 'react';
 
 // --- Imports des Composants ---
 import StatCard from '@/components/ui-admin/StatCard';
@@ -12,16 +9,13 @@ import { GenericLineChart } from '@/components/charts/GenericLineChart';
 import { GenericPieChart } from '@/components/charts/GenericPieChart';
 import { GenericBarChart } from '@/components/charts/GenericBarChart';
 import { GenericRadialBarChart } from '@/components/ui-admin/GenericRadialBarChart';
-import { Button } from '@/components/ui-admin/button';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui-admin/popover";
-import { Calendar } from "@/components/ui-admin/calendar";
 import { Badge } from "@/components/ui-admin/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-admin/card';
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui-admin/table";
 
 // --- Imports des Icônes ---
 import { 
-    BarChart3, Briefcase, FileSignature, Sparkles, Target, Calendar as CalendarIcon,
+    BarChart3, Briefcase, FileSignature, Sparkles, Target,
     Award, ClipboardCheck, Percent, UserCheck
 } from 'lucide-react';
 
@@ -121,59 +115,11 @@ const ActivityBadge = ({ type }: { type: string }) => {
     }
 };
 
-const CustomDatePicker = ({ onCancel, onValidate }: { onCancel: () => void; onValidate: (range: {from: Date, to: Date}) => void; }) => {
-    const [startDate, setStartDate] = React.useState<Date | undefined>();
-    const [endDate, setEndDate] = React.useState<Date | undefined>();
-    return (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border p-2 bg-background shadow-sm">
-            <Popover>
-                <PopoverTrigger asChild><Button variant="outline" className="w-[200px] font-normal justify-start text-left"><CalendarIcon className="mr-2 h-4 w-4" />{startDate ? format(startDate, 'd LLL y', { locale: fr }) : <span>Date de début</span>}</Button></PopoverTrigger>
-                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus /></PopoverContent>
-            </Popover>
-            <Popover>
-                <PopoverTrigger asChild><Button variant="outline" className="w-[200px] font-normal justify-start text-left"><CalendarIcon className="mr-2 h-4 w-4" />{endDate ? format(endDate, 'd LLL y', { locale: fr }) : <span>Date de fin</span>}</Button></PopoverTrigger>
-                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus /></PopoverContent>
-            </Popover>
-            <Button className="bg-green-600 hover:bg-green-700" onClick={() => onValidate({ from: startDate!, to: endDate! })} disabled={!startDate || !endDate}>Valider</Button>
-            <Button variant="ghost" onClick={onCancel}>Annuler</Button>
-        </div>
-    );
-};
 
-const TextStatCard = ({ title, value, Icon, color }: { title: string; value: string; Icon: React.ElementType; color?: string; }) => {
-    return (
-      <Card className="transition-transform duration-300 hover:scale-[1.03] hover:shadow-lg">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-          <Icon className={cn("h-4 w-4 text-muted-foreground", color)} />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{value}</div>
-        </CardContent>
-      </Card>
-    );
-};
 
 
 const DashboardAdmin = () => {
-    const [timeFilter, setTimeFilter] = useState<keyof DashboardDataType>('week');
-    const [activePreset, setActivePreset] = useState<keyof DashboardDataType | 'custom'>('week');
-    const [isCustomMode, setIsCustomMode] = useState(false);
-    const [displayRangeLabel, setDisplayRangeLabel] = useState<string | null>(null);
-
-    const handleTimeFilterChange = (filterKey: keyof DashboardDataType) => {
-        setActivePreset(filterKey);
-        setDisplayRangeLabel(null);
-        setTimeFilter(dashboardData[filterKey] ? filterKey : 'week');
-    };
-
-    const handleCustomValidate = (range: {from: Date, to: Date}) => {
-        const newLabel = `${format(range.from, "d LLL y", { locale: fr })} - ${format(range.to, "d LLL y", { locale: fr })}`;
-        setDisplayRangeLabel(newLabel);
-        handleTimeFilterChange("year_to_date");
-        setIsCustomMode(false);
-        setActivePreset("custom");
-    };
+    const timeFilter: keyof DashboardDataType = 'month';
 
     useEffect(() => {
         const timer = setTimeout(() => {}, 1000);
@@ -187,18 +133,8 @@ const DashboardAdmin = () => {
             <div className="flex flex-wrap gap-4 justify-between items-center animate-in fade-in duration-500 border-b pb-4">
                 <h2 className="text-2xl font-semibold flex items-baseline gap-3 text-zinc-900">
                     <BarChart3 className="h-6 w-6 text-primary self-center"/>
-                    <span>Statistiques d'ensemble</span>
-                    {displayRangeLabel && <span className="text-lg font-normal text-muted-foreground tracking-tight">({displayRangeLabel})</span>}
+                    <span>Statistiques du mois</span>
                 </h2>
-                {!isCustomMode ? (
-                     <div className="flex items-center gap-1 rounded-lg border p-1 bg-muted/50">
-                        <Button variant='ghost' className={cn("transition-all", activePreset === 'week' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair)))]' : 'text-black hover:bg-zinc-100')} onClick={() => handleTimeFilterChange('week')}>Cette semaine</Button>
-                        <Button variant='ghost' className={cn("transition-all", activePreset === 'month' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair)))]' : 'text-black hover:bg-zinc-100')} onClick={() => handleTimeFilterChange('month')}>Ce mois</Button>
-                        <Button variant='ghost' className={cn("transition-all", activePreset === 'last_month' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair)))]' : 'text-black hover:bg-zinc-100')} onClick={() => handleTimeFilterChange('last_month')}>Mois dernier</Button>
-                        <Button variant='ghost' className={cn("transition-all", activePreset === 'year_to_date' ? 'bg-[hsl(var(--winvest-blue-clair))] text-[hsl(var(--winvest-blue-nuit))] hover:bg-[hsl(var(--winvest-blue-clair)))]' : 'text-black hover:bg-zinc-100')} onClick={() => handleTimeFilterChange('year_to_date')}>Cette année</Button>
-                        <Button variant="ghost" className="border-l rounded-l-none" onClick={() => setIsCustomMode(true)}>Personnalisé</Button>
-                     </div>
-                ) : ( <CustomDatePicker onCancel={() => { setIsCustomMode(false); setActivePreset(timeFilter); }} onValidate={handleCustomValidate} /> )}
             </div>
 
             <section>
@@ -214,7 +150,15 @@ const DashboardAdmin = () => {
             <section>
                 <h3 className="text-lg font-semibold mb-4 text-zinc-900">Indicateurs Managers</h3>
                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 animate-in fade-in-0 [animation-delay:200ms] duration-500">
-                    <TextStatCard title="Meilleur Manager" value={currentData.managerStats.meilleurManager} Icon={Award} color="text-yellow-500" />
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Meilleur Manager</CardTitle>
+                      </CardHeader>
+                      <CardContent className="flex flex-col items-center">
+                        <Award className="h-6 w-6 text-yellow-500 mb-2" />
+                        <span className="text-lg font-semibold">{currentData.managerStats.meilleurManager}</span>
+                      </CardContent>
+                    </Card>
                     <StatCard title="Taux Conclusion Moyen" value={currentData.managerStats.tauxConclusionMoyen} Icon={Percent} suffix="%" color="text-green-500" />
                     <StatCard title="RDV Moyen / Manager" value={currentData.managerStats.rdvMoyen} Icon={ClipboardCheck} color="text-blue-500" />
                     <StatCard title="Effectif total des managers" value={currentData.managerStats.effectifTotal} Icon={UserCheck} color="text-indigo-500" />
@@ -225,15 +169,21 @@ const DashboardAdmin = () => {
                 <GenericRadialBarChart title={currentData.objectifMensuel.title} value={currentData.objectifMensuel.value} total={currentData.objectifMensuel.total} color="fill-emerald-500" />
                 <div className="lg:col-span-2">
                     <Card className="h-full"><CardHeader><CardTitle>Flux d'activité récent</CardTitle><CardDescription>Les dernières actions importantes enregistrées.</CardDescription></CardHeader>
-                        <CardContent><Table><TableBody>
-                            {currentData.activiteRecente.map((item: ActiviteRecenteItem) => (
-                                <TableRow key={item.id} className="animate-in fade-in slide-in-from-bottom-2 duration-700">
-                                    <TableCell><div className="font-medium">{item.commercial}</div></TableCell>
-                                    <TableCell><ActivityBadge type={item.type} /></TableCell>
-                                    <TableCell className="text-right text-muted-foreground">{item.temps}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody></Table></CardContent>
+                        <CardContent>
+                            <div className="overflow-x-auto">
+                                <Table className="min-w-full table-fixed">
+                                    <TableBody>
+                                        {currentData.activiteRecente.map((item: ActiviteRecenteItem) => (
+                                            <TableRow key={item.id} className="animate-in fade-in slide-in-from-bottom-2 duration-700">
+                                                <TableCell className="whitespace-nowrap"><div className="font-medium">{item.commercial}</div></TableCell>
+                                                <TableCell className="whitespace-nowrap"><ActivityBadge type={item.type} /></TableCell>
+                                                <TableCell className="text-right text-muted-foreground whitespace-nowrap">{item.temps}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
                     </Card>
                 </div>
             </section>
