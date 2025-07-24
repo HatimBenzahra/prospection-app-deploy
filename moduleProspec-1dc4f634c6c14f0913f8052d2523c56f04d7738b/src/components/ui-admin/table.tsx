@@ -1,5 +1,3 @@
-// frontend-shadcn/src/components/ui/table.tsx
-
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
@@ -9,13 +7,13 @@ const Table = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <table
     ref={ref}
-    className={cn("w-full caption-bottom text-sm table-fixed", className)}
+    // w-max + min-w-full => largeur = contenu, mais au moins 100% du conteneur
+    className={cn("w-max min-w-full caption-bottom text-sm", className)}
     {...props}
   />
 ))
 Table.displayName = "Table"
 
-// ... le reste du fichier ne change pas ...
 const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>

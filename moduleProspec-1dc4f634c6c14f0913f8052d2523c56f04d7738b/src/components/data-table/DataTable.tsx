@@ -51,11 +51,11 @@ export function DataTable<TData extends { id: string }, TValue>({
 
   const tableData = React.useMemo(() => {
     if (fullData && filterValue) {
-        return fullData.filter(row => 
-            String(row[filterColumnId as keyof TData])
-                .toLowerCase()
-                .includes(filterValue.toLowerCase())
-        );
+      return fullData.filter(row =>
+        String(row[filterColumnId as keyof TData])
+          .toLowerCase()
+          .includes(filterValue.toLowerCase())
+      );
     }
     return data;
   }, [data, fullData, filterValue, filterColumnId]);
@@ -71,11 +71,11 @@ export function DataTable<TData extends { id: string }, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     state: {
-        sorting,
-        columnFilters,
-        rowSelection,
+      sorting,
+      columnFilters,
+      rowSelection,
     },
-    manualFiltering: !!fullData, // Tell the table we're handling filtering manually if fullData is provided
+    manualFiltering: !!fullData,
   });
 
   const selectedRowsData = table.getFilteredSelectedRowModel().rows.map(row => row.original)
@@ -91,6 +91,66 @@ export function DataTable<TData extends { id: string }, TValue>({
     }
   }
 
+  const tableElement = (
+    <div className="w-full overflow-x-auto">
+      <Table className="whitespace-nowrap">
+        <TableHeader>
+          {table.getHeaderGroups().map(headerGroup => (
+            <TableRow key={headerGroup.id} className="border-b-[#EFEDED] hover:bg-transparent">
+              {headerGroup.headers.map(header => (
+                <TableHead
+                  key={header.id}
+                  className={cn(
+                    "h-12 px-4 text-base font-semibold text-gray-600 bg-muted/50",
+                    (header.column.columnDef.meta as { className?: string })?.className
+                  )}
+                >
+                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.length ? table.getRowModel().rows.map((row, index) => (
+            <TableRow
+              key={row.id}
+              data-state={row.getIsSelected() && "selected"}
+              onClick={() => handleRowClick(row)}
+              className={cn(
+                "group border-b-[#EFEDED] animate-in fade-in-0 slide-in-from-bottom-2 transition",
+                areRowsClickable ? "cursor-pointer" : "select-none",
+                row.getIsSelected() && isDeleteMode ? "bg-red-50" : row.getIsSelected() ? "bg-blue-50" : ""
+              )}
+              style={{ animationDelay: `${index * 30}ms` }}
+            >
+              {row.getVisibleCells().map(cell => (
+                <TableCell
+                  key={cell.id}
+                  className={cn(
+                    "group-hover:bg-zinc-100 transition-colors duration-150 py-4 px-4",
+                    (cell.column.columnDef.meta as { className?: string })?.className
+                  )}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              ))}
+            </TableRow>
+          )) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center text-gray-400">
+                <span className="flex flex-col items-center justify-center gap-2">
+                  <Search className="mx-auto h-8 w-8 opacity-30" />
+                  <span>Aucun résultat trouvé.</span>
+                </span>
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   const tableContent = (
     <>
       {title && (
@@ -98,7 +158,7 @@ export function DataTable<TData extends { id: string }, TValue>({
           <CardTitle>{title}</CardTitle>
         </CardHeader>
       )}
-      
+
       <CardContent className={!title ? "pt-6" : ""}>
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div className={cn(
@@ -117,8 +177,8 @@ export function DataTable<TData extends { id: string }, TValue>({
                 return [...newFilters, { id: filterColumnId, value: e.target.value }];
               })}
               className="pl-10 w-full min-w-[280px] md:min-w-[320px]"
-              onFocus={()=>setSearchFocused(true)}
-              onBlur={()=>setSearchFocused(false)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               aria-label="Rechercher"
             />
           </div>
@@ -140,7 +200,12 @@ export function DataTable<TData extends { id: string }, TValue>({
               </>
             ) : (
               <>
-                <Button variant="destructive" disabled={selectedRowsData.length===0} onClick={() => onConfirmDelete && onConfirmDelete(selectedRowsData)} className="bg-red-600 text-white hover:bg-red-700 border border-red-600 focus:ring-2 focus:ring-red-400 focus:outline-none">
+                <Button
+                  variant="destructive"
+                  disabled={selectedRowsData.length === 0}
+                  onClick={() => onConfirmDelete && onConfirmDelete(selectedRowsData)}
+                  className="bg-red-600 text-white hover:bg-red-700 border border-red-600 focus:ring-2 focus:ring-red-400 focus:outline-none"
+                >
                   <Trash2 className="mr-2 h-4 w-4" />Supprimer ({selectedRowsData.length})
                 </Button>
                 <Button variant="outline" onClick={onToggleDeleteMode} className="focus:ring-2 focus:ring-muted/30 focus:outline-none">
@@ -150,59 +215,28 @@ export function DataTable<TData extends { id: string }, TValue>({
             )}
           </div>
         </div>
-        
-        <Table className="whitespace-normal">
-          <TableHeader>
-            {table.getHeaderGroups().map(headerGroup=>(
-              <TableRow key={headerGroup.id} className="border-b-[#EFEDED] hover:bg-transparent">
-                {headerGroup.headers.map(header=>(
-                  <TableHead key={header.id} className={cn("h-12 px-4 text-base font-semibold text-gray-600 bg-muted/50", (header.column.columnDef.meta as { className?: string })?.className)}>
-                    {header.isPlaceholder?null:flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length?table.getRowModel().rows.map((row,index)=>(
-              <TableRow key={row.id} data-state={row.getIsSelected()&&"selected"} onClick={()=>handleRowClick(row)} className={cn(
-                "group border-b-[#EFEDED] animate-in fade-in-0 slide-in-from-bottom-2 transition",
-                areRowsClickable?"cursor-pointer":"select-none",
-                row.getIsSelected()&&isDeleteMode?"bg-red-50":row.getIsSelected()?"bg-blue-50":""
-              )} style={{animationDelay:`${index*30}ms`}}>
-                {row.getVisibleCells().map(cell=>(
-                  <TableCell key={cell.id} className={cn("group-hover:bg-zinc-100 transition-colors duration-150 py-4 px-4", (cell.column.columnDef.meta as { className?: string })?.className)}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            )):(
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-gray-400">
-                  <span className="flex flex-col items-center justify-center gap-2">
-                    <Search className="mx-auto h-8 w-8 opacity-30" />
-                    <span>Aucun résultat trouvé.</span>
-                  </span>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-        
+
+        {tableElement}
+
         <div className="flex flex-col-reverse sm:flex-row items-center justify-between gap-4 pt-4">
           <div className="text-sm text-muted-foreground">
-            {isDeleteMode?`${table.getFilteredSelectedRowModel().rows.length} sélectionné(s) sur ${table.getFilteredRowModel().rows.length} visible(s)`:
-            `${table.getFilteredRowModel().rows.length} ligne(s) affichée(s)`}
+            {isDeleteMode
+              ? `${table.getFilteredSelectedRowModel().rows.length} sélectionné(s) sur ${table.getFilteredRowModel().rows.length} visible(s)`
+              : `${table.getFilteredRowModel().rows.length} ligne(s) affichée(s)`}
           </div>
           <div className="flex items-center justify-center sm:justify-end flex-wrap gap-4">
-            <Select value={`${table.getState().pagination.pageSize}`} onValueChange={v=>table.setPageSize(Number(v))}>
-              <SelectTrigger className="w-[140px] md:w-[160px] min-w-[140px]"><SelectValue placeholder={`${table.getState().pagination.pageSize} par page`}/></SelectTrigger>
-              <SelectContent>{[10,20,30,40,50].map(ps=><SelectItem key={ps} value={`${ps}`}>{ps} par page</SelectItem>)}</SelectContent>
+            <Select value={`${table.getState().pagination.pageSize}`} onValueChange={v => table.setPageSize(Number(v))}>
+              <SelectTrigger className="w-[140px] md:w-[160px] min-w-[140px]">
+                <SelectValue placeholder={`${table.getState().pagination.pageSize} par page`} />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 30, 40, 50].map(ps => <SelectItem key={ps} value={`${ps}`}>{ps} par page</SelectItem>)}
+              </SelectContent>
             </Select>
             <div className="flex items-center space-x-2 rounded-lg px-3 py-1 bg-gray-50 min-w-[180px]">
-              <div className="text-sm font-medium">Page {table.getState().pagination.pageIndex+1} sur {table.getPageCount()}</div>
-              <Button variant="outline" size="sm" onClick={()=>table.previousPage()} disabled={!table.getCanPreviousPage()}>Précédent</Button>
-              <Button variant="outline" size="sm" onClick={()=>table.nextPage()} disabled={!table.getCanNextPage()}>Suivant</Button>
+              <div className="text-sm font-medium">Page {table.getState().pagination.pageIndex + 1} sur {table.getPageCount()}</div>
+              <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Précédent</Button>
+              <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Suivant</Button>
             </div>
           </div>
         </div>
@@ -213,7 +247,7 @@ export function DataTable<TData extends { id: string }, TValue>({
   if (noCardWrapper) {
     return tableContent;
   }
-  
+
   return (
     <Card>
       {tableContent}
