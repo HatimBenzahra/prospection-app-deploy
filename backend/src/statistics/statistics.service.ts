@@ -19,7 +19,11 @@ export class StatisticsService {
         commercialId: commercialId,
       },
       include: {
-        immeuble: true, // Include related Immeuble data
+        immeuble: {
+          include: {
+            zone: true, // Include related Immeuble and Zone data
+          },
+        },
       },
       orderBy: {
         dateProspection: 'desc',
@@ -32,8 +36,10 @@ export class StatisticsService {
 
     return historyEntries.map((entry) => ({
       id: entry.id,
+      immeubleId: entry.immeuble.id, // Added immeubleId
       adresse: entry.immeuble.adresse,
       ville: entry.immeuble.ville,
+      codePostal: entry.immeuble.codePostal, // Added codePostal
       dateProspection: entry.dateProspection,
       nbPortesVisitees: entry.nbPortesVisitees,
       nbContratsSignes: entry.nbContratsSignes,
@@ -42,6 +48,8 @@ export class StatisticsService {
       nbAbsents: entry.nbAbsents,
       nbCurieux: entry.nbCurieux, // Include nbCurieux here
       commentaire: entry.commentaire,
+      totalNbPortesImmeuble: entry.immeuble.nbPortesTotal, // Added totalNbPortesImmeuble
+      zoneName: entry.immeuble.zone?.nom, // Added zoneName
       // Calculate tauxCouverture based on nbPortesVisitees and immeuble.nbPortesTotal
       tauxCouverture:
         entry.immeuble.nbPortesTotal !== null && entry.immeuble.nbPortesTotal > 0

@@ -23,12 +23,24 @@ const historyColumns: ColumnDef<HistoryEntry>[] = [
     header: "Ville",
   },
   {
+    accessorKey: "codePostal",
+    header: "Code Postal",
+  },
+  {
+    accessorKey: "zoneName",
+    header: "Nom de la Zone",
+  },
+  {
     accessorKey: "dateProspection",
     header: "Date",
   },
   {
     accessorKey: "nbPortesVisitees",
     header: "Portes Visitées",
+  },
+  {
+    accessorKey: "totalNbPortesImmeuble",
+    header: "Total Portes Immeuble",
   },
   {
     accessorKey: "nbContratsSignes",
@@ -80,14 +92,17 @@ interface HistoryEntry {
   immeubleId: string; // L'ID de l'immeuble associé à cette entrée d'historique
   adresse: string;
   ville: string;
+  codePostal?: string; // Added for postal code
   dateProspection: string;
   nbPortesVisitees: number;
+  totalNbPortesImmeuble?: number; // Added for total doors in the building
   nbContratsSignes: number;
   nbRdvPris: number;
   nbRefus: number;
   nbAbsents: number;
   commentaire: string;
   tauxCouverture: number;
+  zoneName?: string; // Added for zone name
 }
 
 interface CommercialDetails {
@@ -131,7 +146,7 @@ const CommercialDetailsPage = () => {
           // Assurez-vous que chaque entrée d'historique a un immeubleId
           const formattedHistory = historyData.map((entry: any) => ({
             ...entry,
-            immeubleId: entry.immeubleId || entry.id, // Utilisez immeubleId si présent, sinon l'ID de l'entrée
+            immeubleId: entry.immeubleId || entry.id, // Revert to original logic: Use immeubleId if present, otherwise fallback to entry.id
           }));
 
           setStats(statsData);
