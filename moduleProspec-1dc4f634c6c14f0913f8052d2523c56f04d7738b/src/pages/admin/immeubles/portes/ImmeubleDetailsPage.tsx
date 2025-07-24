@@ -200,7 +200,7 @@ const ImmeubleDetailsPage = () => {
     
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center mb-4"> 
+            <div className="flex flex-wrap justify-between items-center gap-2 mt-4 mb-"> 
                 <Button variant="outline" onClick={() => navigate(-1)}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Retour à la sélection de l'immeuble
@@ -263,10 +263,10 @@ const ImmeubleDetailsPage = () => {
                                         filterColumnId="numeroPorte"
                                         filterPlaceholder="Filtrer par n° de porte..."
                                         isDeleteMode={false}
-                                        onToggleDeleteMode={() => {}}
                                         rowSelection={{}}
                                         setRowSelection={() => {}}
                                         onConfirmDelete={() => {}}
+                                        noCardWrapper={true} // Assuming it's already within a Card
                                     />
                                 </div>
                             )}

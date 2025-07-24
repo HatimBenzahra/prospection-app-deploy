@@ -139,7 +139,7 @@ const StatistiquesPage = () => {
             transition={{ duration: 0.5 }}
             className="space-y-8 p-8 bg-white min-h-screen font-sans"
         >
-            <div className="flex flex-wrap gap-6 justify-between items-center pb-6 border-b border-gray-200">
+            <div className="flex flex-wrap gap-6 justify-between items-center pb-6 border-b border-gray-200 mb-5 mt-0.25">
                 <h1 className="text-4xl font-extrabold tracking-tight text-gray-900">Tableau de Bord des Statistiques</h1>
                 <div className="flex items-center gap-3">
                     {entityType === 'ALL' ? (
@@ -179,7 +179,7 @@ const StatistiquesPage = () => {
                         </div>
                     )}
                 </div>
-                <div className="flex items-center gap-2 p-1 bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className="flex flex-wrap items-center gap-2 p-1 bg-white rounded-xl shadow-sm border border-gray-200">
                     <Button 
                         variant='ghost' 
                         onClick={() => setTimeFilter('WEEK')} 
