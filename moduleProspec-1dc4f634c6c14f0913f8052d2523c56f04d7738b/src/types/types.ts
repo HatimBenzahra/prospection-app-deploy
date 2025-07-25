@@ -102,3 +102,11 @@ export interface CommercialStats {
     [key: string]: number;
   };
 }
+
+
+export type EnrichedCommercial = Commercial & {
+  manager: string;
+  equipe: string;
+  classement: number;
+  totalContratsSignes: number;
+};
