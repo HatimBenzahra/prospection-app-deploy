@@ -8,19 +8,8 @@ import { Button } from "@/components/ui-admin/button"
 import { Badge } from "@/components/ui-admin/badge"
 import { Checkbox } from "@/components/ui-admin/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui-admin/tooltip"
+import { Commercial } from "@/types/types"
 
-export type Commercial = {
-  id: string;
-  nom: string;
-  prenom: string;
-  email: string;
-  telephone: string | null;
-  manager: string;
-  managerId: string;
-  equipe: string;
-  equipeId?: string;
-  classement: number;
-}
 
 const Header = ({ title }: { title: string }) => (
   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span>
@@ -105,7 +94,6 @@ export const createColumns = (isDeleteMode: boolean, onEdit: (commercial: Commer
       meta: { className: "text-center" },
       cell: ({ row }) => {
         const classement = row.getValue("classement") as number;
-        // CORRECTION: Rétablissement des couleurs des badges
         let badgeClass = "";
         if (classement === 1) badgeClass = "bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-200/80";
         else if (classement === 2) badgeClass = "bg-slate-200 text-slate-800 border-slate-300 hover:bg-slate-300/80";
@@ -120,7 +108,6 @@ export const createColumns = (isDeleteMode: boolean, onEdit: (commercial: Commer
       },
     },
 
-    // --- Colonne d'Actions (améliorée) ---
     {
         id: "actions",
         header: () => <div className="text-right"><Header title="Actions" /></div>,
