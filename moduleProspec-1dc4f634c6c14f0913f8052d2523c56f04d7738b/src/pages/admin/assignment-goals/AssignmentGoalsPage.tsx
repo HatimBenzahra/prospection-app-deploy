@@ -8,99 +8,118 @@ import { zoneService } from '@/services/zone.service';
 import { managerService } from '@/services/manager.service';
 import { assignmentGoalsService } from '@/services/assignment-goals.service';
 
-// Types (supposons qu'ils sont dans un fichier types.ts)
+// Types
 import { AssignmentType } from '@/types/enums';
 import type { Commercial, Manager, Zone } from '@/types/types';
 
-// Composants enfants (à créer dans les fichiers suivants)
+// Composants enfants
 import { ZoneAssignmentCard } from '@/components/page-components/ZoneAssignmentCard';
 import { GoalSettingCard } from '@/components/page-components/GoalSettingCard';
 import { ZoneMapViewer } from '@/components/page-components/ZoneMapViewer';
 
+/* -------------------- Helpers -------------------- */
+type AssignmentData = {
+  commercials: Commercial[];
+  managers: Manager[];
+  zones: Zone[];
+};
+
+function mapApiZonesToUiZones(zones: any[]): Zone[] {
+  return zones.map((zone) => ({
+    id: zone.id,
+    name: zone.nom,
+    assignedTo: '',
+    color: zone.couleur,
+    latlng: [zone.longitude, zone.latitude] as [number, number],
+    radius: zone.rayonMetres,
+    dateCreation: zone.createdAt,
+    nbImmeubles: 0,
+    totalContratsSignes: 0,
+    totalRdvPris: 0,
+  }));
+}
 
 const AssignmentGoalsPage = () => {
-  // --- STATE MANAGEMENT ---
-  const [data, setData] = useState<{
-    commercials: Commercial[];
-    managers: Manager[];
-    zones: Zone[];
-  }>({ commercials: [], managers: [], zones: [] });
-  
+  const [data, setData] = useState<AssignmentData>({
+    commercials: [],
+    managers: [],
+    zones: [],
+  });
+  const { commercials, managers, zones } = data;
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
 
-  // --- DATA FETCHING ---
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
         const [commercialsData, zonesData, managersData] = await Promise.all([
           commercialService.getCommerciaux(),
           zoneService.getZones(),
           managerService.getManagers(),
         ]);
 
-        const formattedZones = zonesData.map(zone => ({
-          id: zone.id,
-          name: zone.nom,
-          assignedTo: '', // This will be populated later if needed
-          color: zone.couleur,
-          latlng: [zone.longitude, zone.latitude] as [number, number],
-          radius: zone.rayonMetres,
-          dateCreation: zone.createdAt,
-          nbImmeubles: 0, // This will be populated later if needed
-          totalContratsSignes: 0, // This will be populated later if needed
-          totalRdvPris: 0, // This will be populated later if needed
-        }));
-
-        setData({ commercials: commercialsData, zones: formattedZones, managers: managersData });
+        setData({
+          commercials: commercialsData,
+          managers: managersData,
+          zones: mapApiZonesToUiZones(zonesData),
+        });
       } catch (err) {
-        console.error("Failed to fetch initial data:", err);
-        setError("Impossible de charger les données. Veuillez rafraîchir la page.");
-        toast.error("Erreur de chargement des données.");
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Impossible de charger les données. Veuillez rafraîchir la page.";
+        console.error('Failed to fetch initial data:', err);
+        setError(message);
+        toast.error(message);
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
-  // --- HANDLERS ---
-  const handleAssignZone = async (zoneId: string, assigneeId: string, assigneeType: AssignmentType) => {
+  const handleAssignZone = async (
+    zoneId: string,
+    assigneeId: string,
+    assigneeType: AssignmentType
+  ) => {
     try {
       await assignmentGoalsService.assignZone(zoneId, assigneeId, assigneeType);
       toast.success('Zone assignée avec succès!', {
         description: `La zone a été assignée à l'${assigneeType}.`,
       });
-    } catch (error) {
-      console.error("Erreur lors de l'assignation de la zone:", error);
+    } catch (err) {
+      console.error('Erreur lors de l’assignation de la zone:', err);
       toast.error("Erreur lors de l'assignation de la zone.");
     }
   };
 
   const handleSetGoal = async (commercialId: string, goal: number) => {
-    // Calculate month and year internally
     const currentMonth = new Date().getMonth() + 1;
     const currentYear = new Date().getFullYear();
     try {
-      await assignmentGoalsService.setMonthlyGoal(commercialId, goal, currentMonth, currentYear);
+      await assignmentGoalsService.setMonthlyGoal(
+        commercialId,
+        goal,
+        currentMonth,
+        currentYear
+      );
       toast.success('Objectif mensuel défini avec succès!', {
         description: `L'objectif de ${goal} contrats a été fixé.`,
       });
-    } catch (error) {
-      console.error("Erreur lors de la définition de l'objectif:", error);
+    } catch (err) {
+      console.error("Erreur lors de la définition de l'objectif:", err);
       toast.error("Erreur lors de la définition de l'objectif.");
     }
   };
-  
-  const handleSelectZone = (zoneId: string) => {
-    const zone = data.zones.find(z => z.id === zoneId) || null;
-    setSelectedZone(zone);
-  }
 
-  // --- RENDER LOGIC ---
+  const handleSelectZone = (zoneId: string) =>
+    setSelectedZone(zones.find((z) => z.id === zoneId) ?? null);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -129,26 +148,25 @@ const AssignmentGoalsPage = () => {
           Gérez les zones de prospection et fixez les objectifs de vos équipes.
         </p>
       </header>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Colonne de gauche avec les formulaires */}
+        {/* Colonne de gauche */}
         <div className="lg:col-span-1 flex flex-col gap-8">
           <ZoneAssignmentCard
-            zones={data.zones}
-            commercials={data.commercials}
-            managers={data.managers}
+            zones={zones}
+            commercials={commercials}
+            managers={managers}
             onAssign={handleAssignZone}
             onZoneSelect={handleSelectZone}
           />
           <GoalSettingCard
-            commercials={data.commercials}
+            commercials={commercials}
             onSetGoal={handleSetGoal}
           />
         </div>
-        
-        {/* Colonne de droite avec la carte */}
+
         <div className="lg:col-span-2">
-           <ZoneMapViewer zones={data.zones} focusedZone={selectedZone} />
+          <ZoneMapViewer zones={zones} focusedZone={selectedZone} />
         </div>
       </div>
     </div>
