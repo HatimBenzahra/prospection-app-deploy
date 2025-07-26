@@ -110,3 +110,83 @@ export type EnrichedCommercial = Commercial & {
   classement: number;
   totalContratsSignes: number;
 };
+
+// Types for Immeuble management
+export type ImmeubleFormState = {
+  adresse: string;
+  ville: string;
+  codePostal: string;
+  nbEtages?: number;
+  nbPortesParEtage?: number;
+  hasElevator: boolean;
+  digicode?: string;
+  latitude?: number;
+  longitude?: number;
+};
+
+export type PorteWithEtage = {
+  id: string;
+  numeroPorte: string;
+  statut: PorteStatus;
+  etage: number;
+};
+
+export type PorteStatus = "NON_VISITE" | "VISITE" | "ABSENT" | "REFUS" | "CURIEUX" | "RDV" | "CONTRAT_SIGNE";
+
+export type BuildingStatus = "NON_CONFIGURE" | "NON_COMMENCE" | "EN_COURS" | "COMPLET";
+
+export type BuildingStatusConfig = {
+  [key in BuildingStatus]: {
+    label: string;
+    className: string;
+    icon: React.ElementType;
+  };
+};
+
+// Additional types for building management components
+export type FilterButtonProps = {
+  filterKey: string;
+  label: string;
+  icon?: React.ReactNode;
+  activeFilter: string;
+  onFilterChange: (filter: string) => void;
+};
+
+export type ImmeubleCardProps = {
+  immeuble: any; // Will use the ImmeubleFromApi type from service
+  onOpenDetailsModal: (immeuble: any) => void;
+  onOpenEditModal: (immeuble: any) => void;
+  onDelete: (id: string) => void;
+  getProspectingStatus: (immeuble: any) => any;
+  getBuildingDetails: (immeuble: any) => any;
+};
+
+export type ImmeubleDetailsModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  selectedImmeuble: any | null;
+  getProspectingStatus: (immeuble: any) => any;
+  onGoToProspecting: () => void;
+};
+
+export type ImmeubleFormModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  editingImmeuble: any | null;
+  formState: ImmeubleFormState;
+  onFormChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  isSubmitting: boolean;
+  formStep: number;
+  onNextStep: () => void;
+  onPrevStep: () => void;
+  setFormState: React.Dispatch<React.SetStateAction<ImmeubleFormState>>;
+};
+
+export type FilterBarProps = {
+  searchTerm: string;
+  onSearchChange: (term: string) => void;
+  activeFilter: string;
+  onFilterChange: (filter: string) => void;
+  onAddImmeuble: () => void;
+};
