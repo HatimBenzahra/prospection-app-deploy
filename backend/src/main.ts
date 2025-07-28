@@ -2,19 +2,54 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const sslPath = process.env.NODE_ENV === 'production' 
+    ? path.join(__dirname, '..', 'ssl')
+    : path.join(process.cwd(), 'ssl');
+    
+  try {
+    // Essayer HTTPS d'abord
+    const httpsOptions = {
+      key: fs.readFileSync(path.join(sslPath, 'server.key')),
+      cert: fs.readFileSync(path.join(sslPath, 'server.cert')),
+    };
 
-  app.useGlobalPipes(new ValidationPipe());
+    const app = await NestFactory.create(AppModule, {
+      httpsOptions,
+    });
 
-  app.enableCors({
-    origin: ['http://localhost:5173', 'http://192.168.1.120:5173'],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
-  });
+    app.useGlobalPipes(new ValidationPipe());
 
-  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
+    app.enableCors({
+      origin: ['https://localhost:5173', 'https://192.168.1.120:5173'],
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      credentials: true,
+    });
+
+    const port = process.env.PORT ?? 3000;
+    await app.listen(port, '0.0.0.0');
+    console.log(`🚀 HTTPS Server running on https://localhost:${port}`);
+  } catch (error) {
+    console.error('HTTPS failed, starting HTTP fallback:', error);
+    
+    // Fallback HTTP
+    const app = await NestFactory.create(AppModule);
+
+    app.useGlobalPipes(new ValidationPipe());
+
+    app.enableCors({
+      origin: ['http://localhost:5173', 'http://192.168.1.120:5173'],
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      credentials: true,
+    });
+
+    const port = process.env.PORT ?? 3000;
+    await app.listen(port, '0.0.0.0');
+    console.log(`🚀 HTTP Server running on http://localhost:${port}`);
+  }
 }
 bootstrap().catch((err: unknown) => {
   console.error(err);

@@ -3,6 +3,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite' // <-- 1. Importer
 import path from "path" // <-- Shadcn en aura besoin plus tard, autant l'ajouter
+import fs from 'fs'
 
 export default defineConfig({
   plugins: [
@@ -13,5 +14,13 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"), // <-- Shadcn va l'ajouter, on peut anticiper
     },
+  },
+  server: {
+    https: {
+      key: fs.readFileSync(path.resolve(__dirname, '../backend/ssl/server.key')),
+      cert: fs.readFileSync(path.resolve(__dirname, '../backend/ssl/server.cert')),
+    },
+    host: '0.0.0.0',
+    port: 5173,
   },
 })
