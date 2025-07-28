@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { prospectionService } from '@/services/prospection.service';
+import { locationService } from '@/services/location.service';
 import { Modal } from '@/components/ui-admin/Modal';
 import { Button } from '@/components/ui-admin/button';
 import { toast } from 'sonner';
@@ -53,6 +54,29 @@ const CommercialLayout = () => {
     const interval = setInterval(fetchPendingRequests, 5000);
     return () => clearInterval(interval);
   }, [fetchPendingRequests]);
+
+  // Initialiser le suivi GPS quand le commercial se connecte
+  useEffect(() => {
+    const initializeGPS = async () => {
+      if (user?.id) {
+        console.log('🚀 Initialisation du GPS pour le commercial:', user.nom);
+        
+        const success = await locationService.startTracking(user.id);
+        if (success) {
+          toast.success('📍 Géolocalisation activée');
+        } else {
+          toast.error('❌ Impossible d\'activer la géolocalisation');
+        }
+      }
+    };
+
+    initializeGPS();
+
+    // Arrêter le GPS quand le composant est démonté
+    return () => {
+      locationService.stopTracking();
+    };
+  }, [user]);
 
   const handleRequestResponse = async (accept: boolean) => {
     if (!pendingRequest) return;

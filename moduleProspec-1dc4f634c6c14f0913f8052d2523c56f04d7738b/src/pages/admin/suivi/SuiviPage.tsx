@@ -1,125 +1,138 @@
-// frontend-shadcn/src/pages/admin/suivi/SuiviPage.tsx
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { SuiviSidebar } from './SuiviSidebar';
 import { SuiviMap } from './SuiviMap';
-import { FloatingTranscriptPopup } from './FloatingTranscriptPopup';
-import type { Commercial, Transcription, Zone } from './types';
-
-// --- MOCK DATA (inchangé) ---
-const MOCK_COMMERCIALS: Commercial[] = [
-  { id: 'com-001', name: 'Alice Leroy', avatarFallback: 'AL', position: [48.873, 2.34], equipe: 'Alpha' },
-  { id: 'com-002', name: 'Paul Girard', avatarFallback: 'PG', position: [48.858, 2.359], equipe: 'Alpha' },
-  { id: 'com-003', name: 'Emma Bonnet', avatarFallback: 'EB', position: [48.887, 2.344], equipe: 'Bêta' },
-  { id: 'com-004', name: 'Hugo Moreau', avatarFallback: 'HM', position: [48.865, 2.335], equipe: 'Bêta' },
-];
-const MOCK_TRANSCRIPTIONS: Transcription[] = [
-  { id: 't-1', commercialId: 'com-001', commercialName: 'Alice Leroy', date: new Date(Date.now() - 5 * 60000), snippet: 'Bonjour, je suis Alice de Finanssor. Je vous contacte...', fullText: 'Bonjour, je suis Alice de Finanssor. Je vous contacte au sujet de votre éligibilité à notre nouvelle offre. XXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXX XXXXXXX XXXXXXX SCSFSFS ' },
-];
-const MOCK_ZONES: Zone[] = [
-  { id: 'zone-1', name: 'Opéra', color: 'green', latlng: [48.872, 2.34], radius: 1500 },
-];
+import type { Commercial, Zone } from './types';
+import { commercialService } from '@/services/commercial.service';
+import { io, Socket } from 'socket.io-client';
 
 const SuiviPage = () => {
-  const [selectedCommercial, setSelectedCommercial] = useState<Commercial | null>(MOCK_COMMERCIALS[0] || null);
-  const [selectedTranscription, setSelectedTranscription] = useState<Transcription | null>(null);
-  
-  const [liveText, setLiveText] = useState('');
-  const [isProspecting, setIsProspecting] = useState(false);
-  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
-  const prospectingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [commercials, setCommercials] = useState<Commercial[]>([]);
+  const [selectedCommercial, setSelectedCommercial] = useState<Commercial | null>(null);
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Initialiser Socket.IO pour recevoir les mises à jour GPS
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080');
-    ws.onopen = () => console.log('WebSocket connecté (Admin)');
-    ws.onclose = () => console.log('WebSocket déconnecté (Admin)');
+    const socketUrl = `https://${window.location.hostname}:3000`;
+    console.log('🔌 Connexion socket admin GPS:', socketUrl);
+    
+    const socketConnection = io(socketUrl, {
+      secure: true,
+      transports: ['polling', 'websocket'], // Polling en premier pour mobile
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+      forceNew: true,
+      rejectUnauthorized: false, // Accepter les certificats auto-signés
+    });
 
-    ws.onmessage = (event) => {
-      // Gérer les données audio binaires
-      if (event.data instanceof Blob) {
-        setAudioChunks(prev => [...prev, event.data]);
-        return;
-      }
-      
-      // Gérer les données texte (transcription)
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'LIVE_TRANSCRIPT' && data.payload.commercialId === selectedCommercial?.id) {
-          setIsProspecting(true);
-          setLiveText(data.payload.text);
+    socketConnection.on('connect', () => {
+      console.log('✅ Socket connecté pour suivi GPS');
+      socketConnection.emit('joinRoom', 'gps-tracking');
+    });
 
-          if (prospectingTimeoutRef.current) clearTimeout(prospectingTimeoutRef.current);
-          prospectingTimeoutRef.current = setTimeout(() => {
-            setIsProspecting(false);
-          }, 3000);
-        }
-      } catch (error) {
-          // Si ce n'est pas du JSON, on l'ignore (ça pourrait être un message de ping/pong, etc.)
-      }
-    };
+    socketConnection.on('locationUpdate', (data: {
+      commercialId: string;
+      position: [number, number];
+      timestamp: string;
+      speed?: number;
+      heading?: number;
+    }) => {
+      console.log('📍 Position reçue côté admin:', data);
+      setCommercials(prev => {
+        const updated = prev.map(commercial => 
+          commercial.id === data.commercialId 
+            ? {
+                ...commercial,
+                position: data.position,
+                lastUpdate: new Date(data.timestamp),
+                speed: data.speed,
+                heading: data.heading,
+                isOnline: true
+              }
+            : commercial
+        );
+        console.log('📊 Commerciaux mis à jour:', updated);
+        return updated;
+      });
+    });
+
+    socketConnection.on('commercialOffline', (commercialId: string) => {
+      setCommercials(prev => prev.map(commercial => 
+        commercial.id === commercialId 
+          ? { ...commercial, isOnline: false }
+          : commercial
+      ));
+    });
+
+    setSocket(socketConnection);
 
     return () => {
-      ws.close();
-      if(prospectingTimeoutRef.current) clearTimeout(prospectingTimeoutRef.current);
+      socketConnection.disconnect();
     };
-  }, [selectedCommercial]);
-  
-  // Vider les chunks audio à chaque fois qu'on en reçoit de nouveaux pour éviter une accumulation infinie
+  }, []);
+
+  // Charger les commerciaux au démarrage
   useEffect(() => {
-    if(audioChunks.length > 0) {
-        const timer = setTimeout(() => setAudioChunks([]), 0);
-        return () => clearTimeout(timer);
-    }
-  }, [audioChunks]);
+    const loadCommercials = async () => {
+      try {
+        const response = await commercialService.getCommerciaux();
+        const commercialsData = response.map((c: any) => ({
+          id: c.id,
+          name: c.nom,
+          avatarFallback: c.nom.split(' ').map((n: string) => n[0]).join('').toUpperCase(),
+          position: [48.8566, 2.3522] as [number, number], // Position par défaut (Paris)
+          equipe: c.equipe?.nom || 'Aucune équipe',
+          isOnline: false,
+          lastUpdate: new Date(),
+        }));
+        console.log('👥 Commerciaux chargés:', commercialsData);
+        setCommercials(commercialsData);
+        setLoading(false);
+      } catch (error) {
+        console.error('Erreur lors du chargement des commerciaux:', error);
+        setLoading(false);
+      }
+    };
 
-  useEffect(() => {
-    setLiveText('');
-    setIsProspecting(false);
-    setAudioChunks([]);
-  }, [selectedCommercial]);
+    loadCommercials();
+  }, []);
 
-  const handleSelectCommercial = (commercial: Commercial) => setSelectedCommercial(commercial);
-  const handleHistoryItemClick = (transcription: Transcription) => setSelectedTranscription(transcription);
-  const handleClosePopup = () => setSelectedTranscription(null);
+  const handleSelectCommercial = (commercial: Commercial) => {
+    setSelectedCommercial(commercial);
+  };
 
-  const filteredTranscriptions = useMemo(() => {
-    if (!selectedCommercial) return [];
-    return MOCK_TRANSCRIPTIONS.filter(t => t.commercialId === selectedCommercial.id);
-  }, [selectedCommercial]);
-  
-  const commercialsMap = useMemo(() => MOCK_COMMERCIALS.reduce((acc, comm) => {
-    acc[comm.id] = { name: comm.name, avatarFallback: comm.avatarFallback };
-    return acc;
-  }, {} as { [id: string]: { name: string; avatarFallback: string } }), []);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement du suivi GPS...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)]">
-      <div className="lg:col-span-1 h-full flex flex-col gap-6">
+      <div className="lg:col-span-1 h-full">
         <SuiviSidebar 
-          activeCommercial={selectedCommercial} 
-          transcriptions={filteredTranscriptions}
-          commercialsMap={commercialsMap}
-          onHistoryItemClick={handleHistoryItemClick}
-          liveText={liveText}
-          isProspecting={isProspecting}
-          audioChunks={audioChunks}
+          commercials={commercials}
+          selectedCommercial={selectedCommercial}
+          onSelectCommercial={handleSelectCommercial}
         />
       </div>
       
-      <div className="lg:col-span-2 h-full relative">
+      <div className="lg:col-span-2 h-full">
         <SuiviMap 
-          zones={MOCK_ZONES} 
-          commercials={MOCK_COMMERCIALS}
+          zones={zones}
+          commercials={commercials}
           onMarkerClick={handleSelectCommercial}
           selectedCommercialId={selectedCommercial?.id}
         />
-        {selectedTranscription && (
-          <div className="absolute inset-0 z-[1000] flex items-center justify-center p-4 pointer-events-none">
-            <FloatingTranscriptPopup
-              transcription={selectedTranscription}
-              onClose={handleClosePopup}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

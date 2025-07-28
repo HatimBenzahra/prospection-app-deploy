@@ -1,29 +1,33 @@
 // src/pages/admin/suivi/types.ts
 
-// Type pour un commercial, peut être enrichi
+// Type pour un commercial avec sa localisation GPS
 export interface Commercial {
-    id: string;
-    name: string;
-    avatarFallback: string;
-    position: [number, number]; // [latitude, longitude]
-    equipe: string;
-  }
-  
-  // Type pour une entrée de l'historique des transcriptions
-  export interface Transcription {
-    id: string;
-    commercialId: string;
-    commercialName: string;
-    date: Date;
-    snippet: string; // Un extrait de la transcription
-    fullText: string; // La transcription complète
-  }
-  
-  // Type pour une zone géographique
-  export interface Zone {
-    id: string;
-    name: string;
-    color: string;
-    latlng: [number, number];
-    radius: number;
-  }
+  id: string;
+  name: string;
+  avatarFallback: string;
+  position: [number, number]; // [latitude, longitude]
+  equipe: string;
+  isOnline: boolean;
+  lastUpdate: Date;
+  speed?: number; // km/h
+  heading?: number; // degrés (0-360)
+}
+
+// Type pour une zone géographique
+export interface Zone {
+  id: string;
+  name: string;
+  color: string;
+  latlng: [number, number];
+  radius: number;
+}
+
+// Type pour l'historique de position
+export interface LocationHistory {
+  id: string;
+  commercialId: string;
+  position: [number, number];
+  timestamp: Date;
+  speed?: number;
+  heading?: number;
+}
