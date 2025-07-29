@@ -1,4 +1,4 @@
-// src/pages/commercial/doors-columns.tsx
+// src/pages/commercial/prospection/doors-config.tsx
 "use client"
 
 import type { ColumnDef } from "@tanstack/react-table"

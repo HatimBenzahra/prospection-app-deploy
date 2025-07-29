@@ -1,13 +1,14 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+import { type LayoutControls } from '@/types/layout';
+import PageSkeleton from '@/components/PageSkeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-admin/card';
-import { type Porte, statusConfig, statusList, type PorteStatus } from './doors-columns';
+import { type Porte, statusConfig, statusList, type PorteStatus } from './doors-config';
 import { ArrowLeft, Building, DoorOpen, Repeat, Trash2, Plus, ChevronDown } from 'lucide-react';
 import { Modal } from '@/components/ui-admin/Modal';
 import { Input } from '@/components/ui-admin/input';
 import { Button } from '@/components/ui-admin/button';
-import { Skeleton } from '@/components/ui-admin/skeleton';
 import { Label } from '@/components/ui-admin/label';
 import { immeubleService, type ImmeubleDetailsFromApi } from '@/services/immeuble.service';
 import { porteService } from '@/services/porte.service';
@@ -25,48 +26,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui-admin/alert-dialog";
-import { io } from 'socket.io-client';
+import { useSocket } from '@/hooks/useSocket';
 
-const socket = io(`https://${window.location.hostname}:3000`, {
-  secure: true,
-  transports: ['websocket', 'polling'],
-  forceNew: true,
-  upgrade: true,
-}); // Replace with your backend URL
 
-interface LayoutControls {
-    hideHeader: () => void;
-    showHeader: () => void;
-    hideBottomBar: () => void;
-    showBottomBar: () => void;
-  }
-
-const LoadingSkeleton = () => (
-    <div className="bg-slate-50 min-h-screen p-4 sm:p-6 lg:p-8">
-        <div className="max-w-screen-2xl mx-auto space-y-8">
-            <Skeleton className="h-10 w-48 mb-4 bg-slate-200 rounded-lg" />
-            <Card className="rounded-2xl border border-slate-200 shadow-sm">
-                <CardHeader>
-                    <Skeleton className="h-8 w-3/4 bg-slate-200 rounded-lg" />
-                    <Skeleton className="h-4 w-1/2 mt-2 bg-slate-200 rounded-lg" />
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-4">
-                        <Skeleton className="h-48 w-full bg-slate-200 rounded-xl" />
-                        <Skeleton className="h-48 w-full bg-slate-200 rounded-xl" />
-                        <Skeleton className="h-48 w-full bg-slate-200 rounded-xl" />
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    </div>
-);
 
 const ProspectingDoorsPage = () => {
     const { buildingId } = useParams<{ buildingId: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
     const layoutControls = useOutletContext<LayoutControls>();
+    const socket = useSocket(buildingId);
 
     useEffect(() => {
         layoutControls.hideHeader();
@@ -91,9 +60,7 @@ const ProspectingDoorsPage = () => {
     const [openFloor, setOpenFloor] = useState<number | null>(1);
 
     useEffect(() => {
-        if (!buildingId) return;
-
-        socket.emit('joinRoom', buildingId);
+        if (!socket || !buildingId) return;
 
         socket.on('porteUpdated', (updatedPorte: Porte) => {
             setPortes(prevPortes =>
@@ -102,10 +69,9 @@ const ProspectingDoorsPage = () => {
         });
 
         return () => {
-            socket.emit('leaveRoom', buildingId);
             socket.off('porteUpdated');
         };
-    }, [buildingId]);
+    }, [socket, buildingId]);
 
     const portesGroupedByFloor = useMemo(() => {
         if (!building) return {};
@@ -312,7 +278,7 @@ const ProspectingDoorsPage = () => {
         }
     };
 
-    if (isLoading) return <LoadingSkeleton />;
+    if (isLoading) return <PageSkeleton />;
 
     if (!building) {
         return (
