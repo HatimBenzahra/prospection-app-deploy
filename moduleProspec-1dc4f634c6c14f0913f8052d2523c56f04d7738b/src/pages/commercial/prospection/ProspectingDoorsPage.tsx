@@ -4,6 +4,7 @@ import { type LayoutControls } from '@/layout/layout.types';
 import PageSkeleton from '@/components/PageSkeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-admin/card';
+import { Badge } from '@/components/ui-admin/badge';
 import { type Porte, statusConfig, statusList, type PorteStatus } from './doors-config';
 import { ArrowLeft, Building, DoorOpen, Repeat, Trash2, Plus, ChevronDown } from 'lucide-react';
 import { Modal } from '@/components/ui-admin/Modal';
@@ -27,6 +28,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui-admin/alert-dialog";
 import { useSocket } from '@/hooks/useSocket';
+import { useAudioStreaming } from '@/hooks/useAudioStreaming';
+import { Mic, MicOff } from 'lucide-react';
 
 
 
@@ -58,6 +61,39 @@ const ProspectingDoorsPage = () => {
     const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
     const [doorToDeleteId, setDoorToDeleteId] = useState<string | null>(null);
     const [openFloor, setOpenFloor] = useState<number | null>(1);
+
+    // Configuration du streaming audio pour les commerciaux - détection automatique du protocole
+    const getAudioServerUrl = () => {
+        const isHttps = window.location.protocol === 'https:';
+        const hostname = window.location.hostname;
+        
+        // Si on est en HTTPS, on utilise HTTPS pour le serveur audio aussi
+        if (isHttps) {
+            return `https://${hostname}:8443`; // Port HTTPS pour le serveur Python
+        } else {
+            return `http://${hostname}:8080`; // Port HTTP pour le serveur Python
+        }
+    };
+
+    const audioServerUrl = getAudioServerUrl();
+    console.log('🎤 COMMERCIAL PAGE - Configuration audio streaming:');
+    console.log('🎤 COMMERCIAL PAGE - Server URL:', audioServerUrl);
+    console.log('🎤 COMMERCIAL PAGE - User ID:', user?.id);
+    console.log('🎤 COMMERCIAL PAGE - User role: commercial');
+    console.log('🎤 COMMERCIAL PAGE - User info:', {
+        name: user?.nom || '',
+        equipe: 'Équipe Commercial'
+    });
+
+    const audioStreaming = useAudioStreaming({
+        serverUrl: audioServerUrl,
+        userId: user?.id || '',
+        userRole: 'commercial',
+        userInfo: {
+            name: user?.nom || '',
+            equipe: 'Équipe Commercial'
+        }
+    });
 
     useEffect(() => {
         if (!socket || !buildingId) return;
@@ -162,6 +198,20 @@ const ProspectingDoorsPage = () => {
             fetchData(buildingId);
         }
     }, [buildingId, fetchData]);
+
+    // Connecter au serveur de streaming audio
+    useEffect(() => {
+        console.log('🎤 COMMERCIAL PAGE - useEffect connexion audio, user:', user?.id);
+        if (user?.id) {
+            console.log('🎤 COMMERCIAL PAGE - Tentative de connexion au serveur audio...');
+            audioStreaming.connect();
+        }
+        
+        return () => {
+            console.log('🎤 COMMERCIAL PAGE - Déconnexion du serveur audio');
+            audioStreaming.disconnect();
+        };
+    }, [user?.id]);
 
     const handleEdit = useCallback((doorId: string) => {
         const doorToEdit = portes.find(p => p.id === doorId);
@@ -278,6 +328,90 @@ const ProspectingDoorsPage = () => {
         }
     };
 
+    const handleToggleStreaming = async () => {
+        console.log('🎤 COMMERCIAL PAGE - handleToggleStreaming appelé!');
+        console.log('🎤 COMMERCIAL PAGE - État actuel isStreaming:', audioStreaming.isStreaming);
+        console.log('🎤 COMMERCIAL PAGE - État connexion:', audioStreaming.isConnected);
+        
+        try {
+            if (audioStreaming.isStreaming) {
+                console.log('🎤 COMMERCIAL PAGE - Arrêt du streaming...');
+                await audioStreaming.stopStreaming();
+                toast.success("Streaming audio arrêté");
+            } else {
+                console.log('🎤 COMMERCIAL PAGE - Démarrage du streaming...');
+                await audioStreaming.startStreaming();
+                toast.success("Streaming audio démarré - Vos supérieurs peuvent maintenant vous écouter");
+            }
+        } catch (error) {
+            console.error('❌ COMMERCIAL PAGE - Erreur streaming:', error);
+            toast.error("Erreur lors du basculement du streaming");
+        }
+    };
+
+    const renderAudioStreamingPanel = () => {
+        return (
+            <Card className="fixed top-4 right-4 w-72 bg-white shadow-lg border-2 border-blue-500 z-50">
+                <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                            <Mic className="h-4 w-4 text-blue-600" />
+                            <span>Streaming Audio</span>
+                            {audioStreaming.isStreaming && (
+                                <Badge variant="default" className="bg-red-500">
+                                    LIVE
+                                </Badge>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <Button
+                                variant={audioStreaming.isStreaming ? "default" : "outline"}
+                                size="sm"
+                                onClick={handleToggleStreaming}
+                                disabled={!audioStreaming.isConnected}
+                                className={audioStreaming.isStreaming ? "bg-red-600 hover:bg-red-700" : ""}
+                            >
+                                {audioStreaming.isStreaming ? (
+                                    <MicOff className="h-4 w-4" />
+                                ) : (
+                                    <Mic className="h-4 w-4" />
+                                )}
+                            </Button>
+                        </div>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="text-sm text-gray-600">
+                        <div className="flex items-center justify-between">
+                            <span>État de connexion:</span>
+                            <Badge variant={audioStreaming.isConnected ? "default" : "secondary"}>
+                                {audioStreaming.isConnected ? "Connecté" : "Déconnecté"}
+                            </Badge>
+                        </div>
+                    </div>
+                    
+                    {audioStreaming.isStreaming && (
+                        <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
+                            📡 Vos conversations avec les clients sont maintenant partagées avec vos supérieurs
+                        </div>
+                    )}
+                    
+                    {!audioStreaming.isStreaming && audioStreaming.isConnected && (
+                        <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                            🎤 Cliquez sur le microphone pour démarrer le streaming audio
+                        </div>
+                    )}
+                    
+                    {audioStreaming.error && (
+                        <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
+                            ❌ {audioStreaming.error}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        );
+    };
+
     if (isLoading) return <PageSkeleton />;
 
     if (!building) {
@@ -295,7 +429,8 @@ const ProspectingDoorsPage = () => {
     }
 
     return (
-        <div className="bg-slate-50 text-slate-800 min-h-screen">
+        <div className="bg-slate-50 text-slate-800 min-h-screen relative">
+            {renderAudioStreamingPanel()}
             <div className="max-w-screen-2xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
                 <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
                     <Button variant="outline" onClick={() => navigate('/commercial/prospecting')} className="mb-6 bg-white">

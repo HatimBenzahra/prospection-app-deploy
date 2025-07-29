@@ -4,13 +4,45 @@ import { SuiviMap } from './SuiviMap';
 import type { CommercialGPS, Zone } from '@/types/types';
 import { commercialService } from '@/services/commercial.service';
 import { io, Socket } from 'socket.io-client';
+import { useAudioStreaming } from '@/hooks/useAudioStreaming';
+import { useAuth } from '@/contexts/AuthContext';
+import { Headphones, Volume2, VolumeX, MicOff } from 'lucide-react';
+import { Button } from '@/components/ui-admin/button';
+import { Slider } from '@/components/ui-admin/slider';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import { Badge } from '@/components/ui-admin/badge';
 
 const SuiviPage = () => {
+  const { user } = useAuth();
   const [commercials, setCommercials] = useState<CommercialGPS[]>([]);
   const [selectedCommercial, setSelectedCommercial] = useState<CommercialGPS | null>(null);
   const [zones] = useState<Zone[]>([]);
   const [, setSocket] = useState<Socket | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAudioPanel, setShowAudioPanel] = useState(false);
+
+  // Configuration du streaming audio - détection automatique du protocole
+  const getAudioServerUrl = () => {
+    const isHttps = window.location.protocol === 'https:';
+    const hostname = window.location.hostname;
+    
+    // Si on est en HTTPS, on utilise HTTPS pour le serveur audio aussi
+    if (isHttps) {
+      return `https://${hostname}:8443`; // Port HTTPS pour le serveur Python
+    } else {
+      return `http://${hostname}:8080`; // Port HTTP pour le serveur Python
+    }
+  };
+
+  const audioStreaming = useAudioStreaming({
+    serverUrl: getAudioServerUrl(),
+    userId: user?.id || '',
+    userRole: 'admin',
+    userInfo: {
+      name: user?.nom || '',
+      role: user?.role || 'admin'
+    }
+  });
 
   // Initialiser Socket.IO pour recevoir les mises à jour GPS
   useEffect(() => {
@@ -101,8 +133,99 @@ const SuiviPage = () => {
     loadCommercials();
   }, []);
 
+  // Connecter au serveur de streaming audio
+  useEffect(() => {
+    if (user?.id) {
+      audioStreaming.connect();
+    }
+    
+    return () => {
+      audioStreaming.disconnect();
+    };
+  }, [user?.id]);
+
   const handleSelectCommercial = (commercial: CommercialGPS) => {
     setSelectedCommercial(commercial);
+  };
+
+  const handleStartListening = async (commercialId: string) => {
+    console.log('🎧 ADMIN - Démarrage écoute pour commercial ID:', commercialId);
+    try {
+      await audioStreaming.startListening(commercialId);
+      setShowAudioPanel(true);
+      console.log('✅ ADMIN - Écoute démarrée avec succès');
+    } catch (error) {
+      console.error('❌ ADMIN - Erreur démarrage écoute:', error);
+    }
+  };
+
+  const handleStopListening = async () => {
+    try {
+      await audioStreaming.stopListening();
+      setShowAudioPanel(false);
+    } catch (error) {
+      console.error('Erreur arrêt écoute:', error);
+    }
+  };
+
+  const renderAudioControlPanel = () => {
+    if (!showAudioPanel || !audioStreaming.isListening) {
+      return null;
+    }
+
+    const listeningCommercial = commercials.find(c => c.id === audioStreaming.currentListeningTo);
+
+    return (
+      <Card className="fixed bottom-4 right-4 w-80 bg-white shadow-lg border-2 border-blue-500 z-50">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <Headphones className="h-4 w-4 text-blue-600" />
+              <span>Écoute en cours</span>
+              <Badge variant="default" className="bg-green-500">
+                LIVE
+              </Badge>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleStopListening}
+              className="text-red-600 hover:text-red-700"
+            >
+              <MicOff className="h-4 w-4" />
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="text-sm text-gray-600">
+            <strong>{listeningCommercial?.name || 'Commercial'}</strong>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <VolumeX className="h-4 w-4" />
+            <Slider
+              value={[audioStreaming.audioVolume * 100]}
+              onValueChange={(value) => audioStreaming.setVolume(value[0] / 100)}
+              max={100}
+              min={0}
+              step={1}
+              className="flex-1 [&>span:first-child]:bg-blue-100 [&>span:first-child>span]:bg-blue-600 [&>span:last-child]:bg-blue-600"
+            />
+            <Volume2 className="h-4 w-4" />
+          </div>
+          
+          <div className="text-xs text-gray-500 text-center">
+            Volume: {Math.round(audioStreaming.audioVolume * 100)}%
+          </div>
+          
+          {audioStreaming.error && (
+            <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
+              {audioStreaming.error}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
   };
 
   if (loading) {
@@ -117,23 +240,29 @@ const SuiviPage = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)]">
-      <div className="lg:col-span-1 h-full">
-        <SuiviSidebar 
-          commercials={commercials}
-          selectedCommercial={selectedCommercial}
-          onSelectCommercial={handleSelectCommercial}
-        />
+    <div className="relative">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)]">
+        <div className="lg:col-span-1 h-full">
+          <SuiviSidebar 
+            commercials={commercials}
+            selectedCommercial={selectedCommercial}
+            onSelectCommercial={handleSelectCommercial}
+            onStartListening={handleStartListening}
+            audioStreaming={audioStreaming}
+          />
+        </div>
+        
+        <div className="lg:col-span-2 h-full">
+          <SuiviMap 
+            zones={zones}
+            commercials={commercials}
+            onMarkerClick={handleSelectCommercial}
+            selectedCommercialId={selectedCommercial?.id}
+          />
+        </div>
       </div>
       
-      <div className="lg:col-span-2 h-full">
-        <SuiviMap 
-          zones={zones}
-          commercials={commercials}
-          onMarkerClick={handleSelectCommercial}
-          selectedCommercialId={selectedCommercial?.id}
-        />
-      </div>
+      {renderAudioControlPanel()}
     </div>
   );
 };

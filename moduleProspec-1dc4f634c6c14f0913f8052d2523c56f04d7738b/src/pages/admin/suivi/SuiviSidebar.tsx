@@ -2,13 +2,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/
 import { Avatar } from '@/components/ui-admin/avatar';
 import { Badge } from '@/components/ui-admin/badge';
 import { ScrollArea } from '@/components/ui-admin/scroll-area';
-import { MapPin, Clock, Zap, Users } from 'lucide-react';
+import { Button } from '@/components/ui-admin/button';
+import { MapPin, Clock, Zap, Users, Headphones } from 'lucide-react';
 import type { CommercialGPS } from '@/types/types';
 
 interface SuiviSidebarProps {
   commercials: CommercialGPS[];
   selectedCommercial: CommercialGPS | null;
   onSelectCommercial: (commercial: CommercialGPS) => void;
+  onStartListening: (commercialId: string) => Promise<void>;
+  audioStreaming: {
+    isConnected: boolean;
+    isListening: boolean;
+    currentListeningTo: string | null;
+    error: string | null;
+  };
 }
 
 const formatLastUpdate = (date: Date) => {
@@ -25,7 +33,7 @@ const formatLastUpdate = (date: Date) => {
   return date.toLocaleDateString('fr-FR');
 };
 
-export const SuiviSidebar = ({ commercials, selectedCommercial, onSelectCommercial }: SuiviSidebarProps) => {
+export const SuiviSidebar = ({ commercials, selectedCommercial, onSelectCommercial, onStartListening, audioStreaming }: SuiviSidebarProps) => {
   const onlineCommercials = commercials.filter(c => c.isOnline);
   const offlineCommercials = commercials.filter(c => !c.isOnline);
 
@@ -136,11 +144,25 @@ export const SuiviSidebar = ({ commercials, selectedCommercial, onSelectCommerci
                           <p className="text-xs text-gray-600">{commercial.equipe}</p>
                           <p className="text-xs text-gray-500">{formatLastUpdate(commercial.lastUpdate)}</p>
                         </div>
-                        {commercial.speed !== undefined && (
-                          <div className="text-xs text-gray-600">
-                            {commercial.speed.toFixed(0)} km/h
-                          </div>
-                        )}
+                        <div className="flex flex-col items-end gap-1">
+                          {commercial.speed !== undefined && (
+                            <div className="text-xs text-gray-600">
+                              {commercial.speed.toFixed(0)} km/h
+                            </div>
+                          )}
+                          <Button
+                            variant={audioStreaming.currentListeningTo === commercial.id ? "default" : "outline"}
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onStartListening(commercial.id);
+                            }}
+                            disabled={!audioStreaming.isConnected}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Headphones className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}

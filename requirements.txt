@@ -1,0 +1,15 @@
+# Dépendances pour le serveur de streaming audio
+aiohttp
+python-socketio
+aiortc
+aiofiles
+
+# Dépendances audio supplémentaires (optionnelles)
+# sounddevice
+# numpy
+
+# Dépendances pour la gestion SSL/TLS
+cryptography
+
+# Outils de développement
+python-dotenv
