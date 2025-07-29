@@ -4,7 +4,7 @@ import Map, { Marker, Popup, Source, Layer, NavigationControl } from 'react-map-
 import type { MapRef } from 'react-map-gl';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { type Zone, type Commercial } from './types';
+import { type Zone, type CommercialGPS } from '@/types/types';
 
 
 
@@ -28,8 +28,8 @@ function createGeoJSONCircle(center: [number, number], radiusInMeters: number, p
 
 interface SuiviMapProps {
   zones: Zone[];
-  commercials: Commercial[];
-  onMarkerClick: (commercial: Commercial) => void;
+  commercials: CommercialGPS[];
+  onMarkerClick: (commercial: CommercialGPS) => void;
   selectedCommercialId?: string;
 }
 
@@ -50,12 +50,12 @@ export const SuiviMap = ({ zones, commercials, onMarkerClick, selectedCommercial
     if (!map) return;
 
     if (validZones.length > 0 || validCommercials.length > 0) {
-        const allPoints = [
-            ...validZones.map(z => [z.latlng[1], z.latlng[0]]),
-            ...validCommercials.map(c => [c.position[1], c.position[0]])
+        const allPoints: [number, number][] = [
+            ...validZones.map(z => [z.latlng[1], z.latlng[0]] as [number, number]),
+            ...validCommercials.map(c => [c.position[1], c.position[0]] as [number, number])
         ];
         const bounds = allPoints.reduce((bounds, coord) => {
-            return bounds.extend(coord);
+            return bounds.extend(coord as [number, number]);
         }, new mapboxgl.LngLatBounds(allPoints[0], allPoints[0]));
         map.fitBounds(bounds, { padding: 80, animate: true, maxZoom: 16 });
     }

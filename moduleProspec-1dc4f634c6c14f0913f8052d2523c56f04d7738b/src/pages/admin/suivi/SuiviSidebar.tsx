@@ -3,12 +3,12 @@ import { Avatar } from '@/components/ui-admin/avatar';
 import { Badge } from '@/components/ui-admin/badge';
 import { ScrollArea } from '@/components/ui-admin/scroll-area';
 import { MapPin, Clock, Zap, Users } from 'lucide-react';
-import type { Commercial } from './types';
+import type { CommercialGPS } from '@/types/types';
 
 interface SuiviSidebarProps {
-  commercials: Commercial[];
-  selectedCommercial: Commercial | null;
-  onSelectCommercial: (commercial: Commercial) => void;
+  commercials: CommercialGPS[];
+  selectedCommercial: CommercialGPS | null;
+  onSelectCommercial: (commercial: CommercialGPS) => void;
 }
 
 const formatLastUpdate = (date: Date) => {

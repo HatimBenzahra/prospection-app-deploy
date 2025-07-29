@@ -9,6 +9,7 @@ type Role = 'admin' | 'manager' | 'directeur' | 'backoffice' | 'commercial';
 interface User {
   id: string;
   name: string;
+  nom?: string;
   role: Role;
   email?: string;
 }

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from '@/components/ui-admin/button';
 import { ArrowRight, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { statusConfig } from '../../pages/commercial/prospection/doors-columns';
+import { statusConfig } from '../../pages/commercial/prospection/doors-config';
 import { type ImmeubleDetailsModalProps, type PorteWithEtage } from '../../types/types';
 
 const ImmeubleDetailsModal: React.FC<ImmeubleDetailsModalProps> = ({

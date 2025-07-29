@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { SuiviSidebar } from './SuiviSidebar';
 import { SuiviMap } from './SuiviMap';
-import type { Commercial, Zone } from './types';
+import type { CommercialGPS, Zone } from '@/types/types';
 import { commercialService } from '@/services/commercial.service';
 import { io, Socket } from 'socket.io-client';
 
 const SuiviPage = () => {
-  const [commercials, setCommercials] = useState<Commercial[]>([]);
-  const [selectedCommercial, setSelectedCommercial] = useState<Commercial | null>(null);
-  const [zones, setZones] = useState<Zone[]>([]);
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [commercials, setCommercials] = useState<CommercialGPS[]>([]);
+  const [selectedCommercial, setSelectedCommercial] = useState<CommercialGPS | null>(null);
+  const [zones] = useState<Zone[]>([]);
+  const [, setSocket] = useState<Socket | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Initialiser Socket.IO pour recevoir les mises à jour GPS
@@ -101,7 +101,7 @@ const SuiviPage = () => {
     loadCommercials();
   }, []);
 
-  const handleSelectCommercial = (commercial: Commercial) => {
+  const handleSelectCommercial = (commercial: CommercialGPS) => {
     setSelectedCommercial(commercial);
   };
 

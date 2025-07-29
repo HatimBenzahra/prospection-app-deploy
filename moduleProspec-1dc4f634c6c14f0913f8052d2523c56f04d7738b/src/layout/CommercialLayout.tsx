@@ -59,7 +59,7 @@ const CommercialLayout = () => {
   useEffect(() => {
     const initializeGPS = async () => {
       if (user?.id) {
-        console.log('🚀 Initialisation du GPS pour le commercial:', user.nom);
+        console.log('🚀 Initialisation du GPS pour le commercial:', user.nom || user.name);
         
         const success = await locationService.startTracking(user.id);
         if (success) {

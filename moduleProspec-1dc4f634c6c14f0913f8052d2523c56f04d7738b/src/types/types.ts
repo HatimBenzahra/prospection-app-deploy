@@ -39,14 +39,14 @@ export interface Manager {
 export interface Zone {
   id: string;
   name: string;
-  assignedTo: string;
+  assignedTo?: string;
   color: string;
   latlng: [number, number];
   radius: number;
-  dateCreation: string;
-  nbImmeubles: number;
-  totalContratsSignes: number;
-  totalRdvPris: number;
+  dateCreation?: string;
+  nbImmeubles?: number;
+  totalContratsSignes?: number;
+  totalRdvPris?: number;
 }
 
 
@@ -190,3 +190,26 @@ export type FilterBarProps = {
   onFilterChange: (filter: string) => void;
   onAddImmeuble: () => void;
 };
+
+// Types pour le suivi GPS des commerciaux
+export interface CommercialGPS {
+  id: string;
+  name: string;
+  avatarFallback: string;
+  position: [number, number]; // [latitude, longitude]
+  equipe: string;
+  isOnline: boolean;
+  lastUpdate: Date;
+  speed?: number; // km/h
+  heading?: number; // degrés (0-360)
+}
+
+// Type pour l'historique de position
+export interface LocationHistory {
+  id: string;
+  commercialId: string;
+  position: [number, number];
+  timestamp: Date;
+  speed?: number;
+  heading?: number;
+}

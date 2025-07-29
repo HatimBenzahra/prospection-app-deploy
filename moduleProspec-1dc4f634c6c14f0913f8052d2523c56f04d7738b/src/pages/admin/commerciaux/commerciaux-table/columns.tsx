@@ -8,7 +8,9 @@ import { Button } from "@/components/ui-admin/button"
 import { Badge } from "@/components/ui-admin/badge"
 import { Checkbox } from "@/components/ui-admin/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui-admin/tooltip"
-import { Commercial } from "@/types/types"
+import type { Commercial } from "@/types/types"
+
+export type { Commercial };
 
 
 const Header = ({ title }: { title: string }) => (
