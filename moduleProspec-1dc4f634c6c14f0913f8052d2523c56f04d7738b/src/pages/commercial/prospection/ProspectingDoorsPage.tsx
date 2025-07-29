@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { type LayoutControls } from '@/types/layout';
+import { type LayoutControls } from '@/layout/layout.types';
 import PageSkeleton from '@/components/PageSkeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-admin/card';
