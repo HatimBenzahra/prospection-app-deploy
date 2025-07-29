@@ -354,9 +354,9 @@ const ProspectingDoorsPage = () => {
                 {/* Bulle d'informations flottante */}
                 {(audioStreaming.isStreaming || audioStreaming.error || !audioStreaming.isConnected) && (
                     <div className="mb-3 mr-2">
-                        <div className="relative bg-white rounded-lg shadow-lg border p-3 max-w-xs">
+                        <div className="relative bg-white rounded-lg shadow-lg border border-gray-200 p-3 max-w-xs">
                             {/* Triangle pointer vers le bouton */}
-                            <div className="absolute bottom-[-6px] right-4 w-3 h-3 bg-white border-r border-b transform rotate-45"></div>
+                            <div className="absolute bottom-[-6px] right-4 w-3 h-3 bg-white border-r border-b border-gray-200 transform rotate-45"></div>
                             
                             {audioStreaming.isStreaming && (
                                 <div className="text-xs text-green-700 flex items-center gap-2">
@@ -412,7 +412,7 @@ const ProspectingDoorsPage = () => {
                     
                     {/* Indicateur de connexion */}
                     <div className={`
-                        absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white
+                        absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-800
                         ${audioStreaming.isConnected ? 'bg-green-500' : 'bg-gray-400'}
                     `}></div>
                 </button>
