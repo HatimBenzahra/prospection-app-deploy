@@ -4,7 +4,6 @@ import { type LayoutControls } from '@/layout/layout.types';
 import PageSkeleton from '@/components/PageSkeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui-admin/card';
-import { Badge } from '@/components/ui-admin/badge';
 import { type Porte, statusConfig, statusList, type PorteStatus } from './doors-config';
 import { ArrowLeft, Building, DoorOpen, Repeat, Trash2, Plus, ChevronDown } from 'lucide-react';
 import { Modal } from '@/components/ui-admin/Modal';
@@ -351,64 +350,73 @@ const ProspectingDoorsPage = () => {
 
     const renderAudioStreamingPanel = () => {
         return (
-            <Card className="fixed top-4 right-4 w-72 bg-white shadow-lg border-2 border-blue-500 z-50">
-                <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                            <Mic className="h-4 w-4 text-blue-600" />
-                            <span>Streaming Audio</span>
+            <div className="fixed bottom-6 right-6 z-50">
+                {/* Bulle d'informations flottante */}
+                {(audioStreaming.isStreaming || audioStreaming.error || !audioStreaming.isConnected) && (
+                    <div className="mb-3 mr-2">
+                        <div className="relative bg-white rounded-lg shadow-lg border p-3 max-w-xs">
+                            {/* Triangle pointer vers le bouton */}
+                            <div className="absolute bottom-[-6px] right-4 w-3 h-3 bg-white border-r border-b transform rotate-45"></div>
+                            
                             {audioStreaming.isStreaming && (
-                                <Badge variant="default" className="bg-red-500">
-                                    LIVE
-                                </Badge>
+                                <div className="text-xs text-green-700 flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                                    <span className="font-medium">LIVE - Conversations partagées</span>
+                                </div>
+                            )}
+                            
+                            {!audioStreaming.isConnected && (
+                                <div className="text-xs text-gray-600 flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                    <span>Connexion en cours...</span>
+                                </div>
+                            )}
+                            
+                            {audioStreaming.error && (
+                                <div className="text-xs text-red-600 flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                    <span>Erreur de connexion</span>
+                                </div>
                             )}
                         </div>
-                        <div className="flex items-center gap-1">
-                            <Button
-                                variant={audioStreaming.isStreaming ? "default" : "outline"}
-                                size="sm"
-                                onClick={handleToggleStreaming}
-                                disabled={!audioStreaming.isConnected}
-                                className={audioStreaming.isStreaming ? "bg-red-600 hover:bg-red-700" : ""}
-                            >
-                                {audioStreaming.isStreaming ? (
-                                    <MicOff className="h-4 w-4" />
-                                ) : (
-                                    <Mic className="h-4 w-4" />
-                                )}
-                            </Button>
-                        </div>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="text-sm text-gray-600">
-                        <div className="flex items-center justify-between">
-                            <span>État de connexion:</span>
-                            <Badge variant={audioStreaming.isConnected ? "default" : "secondary"}>
-                                {audioStreaming.isConnected ? "Connecté" : "Déconnecté"}
-                            </Badge>
-                        </div>
                     </div>
+                )}
+                
+                {/* Bouton microphone flottant */}
+                <button
+                    onClick={handleToggleStreaming}
+                    disabled={!audioStreaming.isConnected}
+                    className={`
+                        relative w-16 h-16 rounded-full shadow-lg transition-all duration-300 
+                        flex items-center justify-center group
+                        ${audioStreaming.isStreaming 
+                            ? 'bg-red-500 hover:bg-red-600 shadow-red-200' 
+                            : 'bg-blue-500 hover:bg-blue-600 shadow-blue-200'
+                        }
+                        ${!audioStreaming.isConnected ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'}
+                        ${audioStreaming.isStreaming ? 'animate-pulse' : ''}
+                    `}
+                >
+                    {audioStreaming.isStreaming ? (
+                        <MicOff className="h-7 w-7 text-white" />
+                    ) : (
+                        <Mic className="h-7 w-7 text-white" />
+                    )}
                     
+                    {/* Badge LIVE */}
                     {audioStreaming.isStreaming && (
-                        <div className="text-xs text-green-600 bg-green-50 p-2 rounded">
-                            📡 Vos conversations avec les clients sont maintenant partagées avec vos supérieurs
+                        <div className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                            LIVE
                         </div>
                     )}
                     
-                    {!audioStreaming.isStreaming && audioStreaming.isConnected && (
-                        <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                            🎤 Cliquez sur le microphone pour démarrer le streaming audio
-                        </div>
-                    )}
-                    
-                    {audioStreaming.error && (
-                        <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
-                            ❌ {audioStreaming.error}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                    {/* Indicateur de connexion */}
+                    <div className={`
+                        absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white
+                        ${audioStreaming.isConnected ? 'bg-green-500' : 'bg-gray-400'}
+                    `}></div>
+                </button>
+            </div>
         );
     };
 
