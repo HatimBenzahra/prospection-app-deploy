@@ -74,6 +74,18 @@
 
 @import "tailwindcss";
 
+/* FORCER LE THÈME CLAIR - EMPÊCHER LE PASSAGE AU NOIR */
+html, body, #root {
+  background-color: white !important;
+  color: #0A0A0A !important;
+}
+
+/* Désactiver complètement le mode sombre automatique */
+html.dark, body.dark, #root.dark {
+  background-color: white !important;
+  color: #0A0A0A !important;
+}
+
 /* ... autres styles ... */
 
 /* 
