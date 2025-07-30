@@ -4,7 +4,9 @@ import { Button } from "@/components/ui-admin/button"
 import { Badge } from "@/components/ui-admin/badge"
 import type { CommercialGPS } from "@/types/types"
 
-const formatLastUpdate = (date: Date) => {
+const formatLastUpdate = (date: Date | null) => {
+  if (!date) return 'Jamais connecté';
+  
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMinutes = Math.floor(diffMs / (1000 * 60));
@@ -103,7 +105,7 @@ export const createColumns = (
       </Button>
     ),
     cell: ({ row }) => {
-      const lastUpdate = row.getValue("lastUpdate") as Date;
+      const lastUpdate = row.getValue("lastUpdate") as Date | null;
       return (
         <div className="flex items-center gap-2 text-sm">
           <span>{formatLastUpdate(lastUpdate)}</span>
@@ -126,9 +128,9 @@ export const createColumns = (
               e.stopPropagation();
               onStartListening(commercial.id);
             }}
-            disabled={!audioStreaming.isConnected || !commercial.isOnline}
-            className="h-8 w-8 p-0"
-            title={commercial.isOnline ? "Écouter" : "Écoute indisponible (hors ligne)"}
+            disabled={!commercial.isStreaming}
+            className={`h-8 w-8 p-0 ${commercial.isStreaming ? 'opacity-100' : 'opacity-50'}`}
+            title={commercial.isStreaming ? "Écouter (micro actif)" : "Commercial non disponible (micro inactif)"}
           >
             <Headphones className="h-4 w-4" />
           </Button>
@@ -139,8 +141,9 @@ export const createColumns = (
               e.stopPropagation();
               onShowOnMap(commercial);
             }}
-            className="h-8 w-8 p-0"
-            title="Voir sur la carte"
+            disabled={!commercial.isOnline}
+            className={`h-8 w-8 p-0 ${commercial.isOnline ? 'opacity-100' : 'opacity-50'}`}
+            title={commercial.isOnline ? "Voir sur la carte" : "Commercial hors ligne (position non disponible)"}
           >
             <Map className="h-4 w-4" />
           </Button>

@@ -13,8 +13,8 @@ async function bootstrap() {
   try {
     // Essayer HTTPS d'abord
     const httpsOptions = {
-      key: fs.readFileSync(path.join(sslPath, 'server.key')),
-      cert: fs.readFileSync(path.join(sslPath, 'server.cert')),
+      key: fs.readFileSync(path.join(sslPath, '127.0.0.1+1-key.pem')),
+      cert: fs.readFileSync(path.join(sslPath, '127.0.0.1+1.pem')),
     };
 
     const app = await NestFactory.create(AppModule, {
@@ -24,7 +24,14 @@ async function bootstrap() {
     app.useGlobalPipes(new ValidationPipe());
 
     app.enableCors({
-      origin: [`https://localhost:5173`, `https://${process.env.CLIENT_HOST || '192.168.1.116'}:5173`],
+      origin: [
+        `https://localhost:5173`, 
+        `https://127.0.0.1:5173`,
+        `https://${process.env.CLIENT_HOST || '192.168.1.50'}:5173`,
+        `http://localhost:5173`, 
+        `http://127.0.0.1:5173`,
+        `http://${process.env.CLIENT_HOST || '192.168.1.50'}:5173`
+      ],
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       credentials: true,
     });
@@ -41,7 +48,14 @@ async function bootstrap() {
     app.useGlobalPipes(new ValidationPipe());
 
     app.enableCors({
-      origin: [`http://localhost:5173`, `http://${process.env.CLIENT_HOST || '192.168.1.116'}:5173`],
+      origin: [
+        `http://localhost:5173`, 
+        `http://127.0.0.1:5173`,
+        `http://${process.env.CLIENT_HOST || '192.168.1.50'}:5173`,
+        `https://localhost:5173`, 
+        `https://127.0.0.1:5173`,
+        `https://${process.env.CLIENT_HOST || '192.168.1.50'}:5173`
+      ],
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       credentials: true,
     });

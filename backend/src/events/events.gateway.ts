@@ -103,6 +103,23 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to('gps-tracking').emit('commercialOffline', commercialId);
   }
 
+  // Gestion des événements audio streaming
+  @SubscribeMessage('start_streaming')
+  handleStartStreaming(client: Socket, data: { commercial_id: string; commercial_info?: any }) {
+    console.log(`🎤 Commercial ${data.commercial_id} démarre le streaming`);
+    
+    // Diffuser aux admins dans la room audio-streaming
+    this.server.to('audio-streaming').emit('start_streaming', data);
+  }
+
+  @SubscribeMessage('stop_streaming')
+  handleStopStreaming(client: Socket, data: { commercial_id: string }) {
+    console.log(`🎤 Commercial ${data.commercial_id} arrête le streaming`);
+    
+    // Diffuser aux admins dans la room audio-streaming
+    this.server.to('audio-streaming').emit('stop_streaming', data);
+  }
+
   sendToRoom(room: string, event: string, data: any) {
     this.server.to(room).emit(event, data);
   }

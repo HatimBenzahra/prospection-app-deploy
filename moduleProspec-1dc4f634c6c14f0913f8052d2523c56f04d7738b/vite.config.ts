@@ -17,8 +17,8 @@ export default defineConfig({
   },
   server: {
     https: {
-      key: fs.readFileSync(path.resolve(__dirname, '../backend/ssl/server.key')),
-      cert: fs.readFileSync(path.resolve(__dirname, '../backend/ssl/server.cert')),
+      key: fs.readFileSync(path.resolve(__dirname, '../backend/ssl/127.0.0.1+1-key.pem')),
+      cert: fs.readFileSync(path.resolve(__dirname, '../backend/ssl/127.0.0.1+1.pem')),
     },
     host: '0.0.0.0',
     port: 5173,

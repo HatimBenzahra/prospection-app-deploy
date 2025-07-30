@@ -196,10 +196,11 @@ export interface CommercialGPS {
   id: string;
   name: string;
   avatarFallback: string;
-  position: [number, number]; // [latitude, longitude]
+  position: [number, number] | null; // [latitude, longitude] ou null si jamais connecté
   equipe: string;
   isOnline: boolean;
-  lastUpdate: Date;
+  isStreaming: boolean; // Si le commercial diffuse son audio
+  lastUpdate: Date | null; // null si jamais connecté
   speed?: number; // km/h
   heading?: number; // degrés (0-360)
 }

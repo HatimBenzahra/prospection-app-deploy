@@ -34,8 +34,13 @@ interface SuiviMapProps {
 }
 
 export const SuiviMap = ({ zones, commercials, onMarkerClick, selectedCommercialId }: SuiviMapProps) => {
-  const validZones = zones.filter(z => z.latlng && typeof z.latlng[0] === 'number' && !isNaN(z.latlng[0]) && typeof z.latlng[1] === 'number' && !isNaN(z.latlng[1]));
-  const validCommercials = commercials.filter(c => c.position && typeof c.position[0] === 'number' && !isNaN(c.position[0]) && typeof c.position[1] === 'number' && !isNaN(c.position[1]));
+  // Si un commercial est sélectionné, n'afficher que lui
+  const selectedCommercial = selectedCommercialId ? commercials.find(c => c.id === selectedCommercialId) : null;
+  const commercialsToDisplay = selectedCommercial && selectedCommercial.position ? [selectedCommercial] : [];
+  
+  // Pas de zones en mode commercial sélectionné
+  const validZones = selectedCommercialId ? [] : zones.filter(z => z.latlng && typeof z.latlng[0] === 'number' && !isNaN(z.latlng[0]) && typeof z.latlng[1] === 'number' && !isNaN(z.latlng[1]));
+  const validCommercials = commercialsToDisplay;
   const mapRef = useRef<MapRef>(null);
 
   console.log('🗺️ SuiviMap render:', {
@@ -52,7 +57,7 @@ export const SuiviMap = ({ zones, commercials, onMarkerClick, selectedCommercial
     if (validZones.length > 0 || validCommercials.length > 0) {
         const allPoints: [number, number][] = [
             ...validZones.map(z => [z.latlng[1], z.latlng[0]] as [number, number]),
-            ...validCommercials.map(c => [c.position[1], c.position[0]] as [number, number])
+            ...validCommercials.map(c => [c.position![1], c.position![0]] as [number, number])
         ];
         const bounds = allPoints.reduce((bounds, coord) => {
             return bounds.extend(coord as [number, number]);
@@ -76,8 +81,9 @@ export const SuiviMap = ({ zones, commercials, onMarkerClick, selectedCommercial
       >
         <NavigationControl position="top-right" />
         
-        {/* Légende */}
-        <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 p-4 z-10">
+        {/* Légende - seulement en mode vue générale */}
+        {!selectedCommercialId && (
+          <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 p-4 z-10">
           <h3 className="font-semibold text-sm text-gray-800 mb-3 flex items-center">
             <svg className="w-4 h-4 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
@@ -151,6 +157,7 @@ export const SuiviMap = ({ zones, commercials, onMarkerClick, selectedCommercial
             </div>
           </div>
         </div>
+        )}
 
         {zones.map(zone => {
             const [lat, lng] = zone.latlng;
@@ -171,8 +178,8 @@ export const SuiviMap = ({ zones, commercials, onMarkerClick, selectedCommercial
             );
         })}
 
-        {commercials.map(commercial => {
-            const [lat, lng] = commercial.position;
+        {validCommercials.map(commercial => {
+            const [lat, lng] = commercial.position!
             const isSelected = selectedCommercialId === commercial.id;
             const isOnline = commercial.isOnline;
             

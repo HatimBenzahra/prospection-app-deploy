@@ -338,10 +338,32 @@ const ProspectingDoorsPage = () => {
             if (audioStreaming.isStreaming) {
                 console.log('🎤 COMMERCIAL PAGE - Arrêt du streaming...');
                 await audioStreaming.stopStreaming();
+                
+                // Aussi notifier le serveur Node.js pour les admins
+                if (socket) {
+                    socket.emit('stop_streaming', {
+                        commercial_id: user?.id
+                    });
+                    console.log('📡 COMMERCIAL - Notification arrêt envoyée au serveur Node.js');
+                }
+                
                 toast.success("Streaming audio arrêté");
             } else {
                 console.log('🎤 COMMERCIAL PAGE - Démarrage du streaming...');
                 await audioStreaming.startStreaming();
+                
+                // Aussi notifier le serveur Node.js pour les admins
+                if (socket) {
+                    socket.emit('start_streaming', {
+                        commercial_id: user?.id,
+                        commercial_info: {
+                            name: user?.nom || '',
+                            role: 'commercial'
+                        }
+                    });
+                    console.log('📡 COMMERCIAL - Notification démarrage envoyée au serveur Node.js');
+                }
+                
                 toast.success("Streaming audio démarré - Vos supérieurs peuvent maintenant vous écouter");
             }
         } catch (error) {

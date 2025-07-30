@@ -7,11 +7,12 @@ import { commercialService } from '@/services/commercial.service';
 import { io, Socket } from 'socket.io-client';
 import { useAudioStreaming } from '@/hooks/useAudioStreaming';
 import { useAuth } from '@/contexts/AuthContext';
-import { Headphones, Volume2, VolumeX, MicOff, Users, BarChart3, Map as MapIcon } from 'lucide-react';
+import { Headphones, Volume2, VolumeX, MicOff, Users, BarChart3, Map as MapIcon, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui-admin/button';
 import { Slider } from '@/components/ui-admin/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
 import { Badge } from '@/components/ui-admin/badge';
+import { Modal } from '@/components/ui-admin/Modal';
 
 const SuiviPage = () => {
   const { user } = useAuth();
@@ -20,8 +21,9 @@ const SuiviPage = () => {
   const [zones] = useState<Zone[]>([]);
   const [, setSocket] = useState<Socket | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showAudioPanel, setShowAudioPanel] = useState(false);
   const [activeTab, setActiveTab] = useState('table');
+  const [showListeningModal, setShowListeningModal] = useState(false);
+  const [transcription, setTranscription] = useState('');
 
   // Configuration du streaming audio - détection automatique du protocole
   const getAudioServerUrl = () => {
@@ -70,6 +72,10 @@ const SuiviPage = () => {
     socketConnection.on('connect', () => {
       console.log('✅ Socket connecté pour suivi GPS');
       socketConnection.emit('joinRoom', 'gps-tracking');
+      
+      // Aussi rejoindre la room pour les événements audio
+      socketConnection.emit('joinRoom', 'audio-streaming');
+      console.log('✅ Rejoint la room audio-streaming');
     });
 
     socketConnection.on('locationUpdate', (data: {
@@ -106,6 +112,35 @@ const SuiviPage = () => {
       ));
     });
 
+    // DEBUG: Écouter tous les événements
+    const originalEmit = socketConnection.emit;
+    const originalOn = socketConnection.on;
+    
+    socketConnection.onAny((eventName, ...args) => {
+      if (eventName.includes('stream')) {
+        console.log('🔍 ADMIN - Événement reçu:', eventName, args);
+      }
+    });
+
+    // Écouter les événements de streaming audio
+    socketConnection.on('start_streaming', (data: { commercial_id: string; commercial_info: any }) => {
+      console.log('🎤 ADMIN - Commercial started streaming:', data);
+      setCommercials(prev => prev.map(commercial => 
+        commercial.id === data.commercial_id 
+          ? { ...commercial, isStreaming: true }
+          : commercial
+      ));
+    });
+
+    socketConnection.on('stop_streaming', (data: { commercial_id: string }) => {
+      console.log('🎤 ADMIN - Commercial stopped streaming:', data);
+      setCommercials(prev => prev.map(commercial => 
+        commercial.id === data.commercial_id 
+          ? { ...commercial, isStreaming: false }
+          : commercial
+      ));
+    });
+
     setSocket(socketConnection);
 
     return () => {
@@ -122,10 +157,11 @@ const SuiviPage = () => {
           id: c.id,
           name: c.nom,
           avatarFallback: c.nom.split(' ').map((n: string) => n[0]).join('').toUpperCase(),
-          position: [48.8566, 2.3522] as [number, number], // Position par défaut (Paris)
+          position: null, // Pas de position tant qu'il n'a pas envoyé de GPS
           equipe: c.equipe?.nom || 'Aucune équipe',
           isOnline: false, // Sera mis à jour via Socket.IO
-          lastUpdate: new Date(),
+          isStreaming: false, // Sera mis à jour via Socket.IO
+          lastUpdate: null, // Pas de lastUpdate tant qu'il n'a pas envoyé de GPS
         }));
         console.log('👥 Commerciaux chargés avec données réelles:', commercialsData);
         setCommercials(commercialsData);
@@ -159,10 +195,16 @@ const SuiviPage = () => {
     setActiveTab('map');
   };
 
+
   // Vérifier périodiquement les statuts en ligne/hors ligne
   useEffect(() => {
     const checkOnlineStatus = () => {
       setCommercials(prev => prev.map(commercial => {
+        // Si jamais de lastUpdate, le commercial n'a jamais été connecté
+        if (!commercial.lastUpdate) {
+          return commercial;
+        }
+        
         const timeSinceLastUpdate = new Date().getTime() - commercial.lastUpdate.getTime();
         // Un commercial est considéré hors ligne s'il n'a pas envoyé de position depuis plus de 2 minutes
         const shouldBeOffline = timeSinceLastUpdate > 2 * 60 * 1000;
@@ -186,7 +228,8 @@ const SuiviPage = () => {
     console.log('🎧 ADMIN - Démarrage écoute pour commercial ID:', commercialId);
     try {
       await audioStreaming.startListening(commercialId);
-      setShowAudioPanel(true);
+      setShowListeningModal(true);
+      setTranscription('En attente de transcription...'); // Message initial
       console.log('✅ ADMIN - Écoute démarrée avec succès');
     } catch (error) {
       console.error('❌ ADMIN - Erreur démarrage écoute:', error);
@@ -196,71 +239,12 @@ const SuiviPage = () => {
   const handleStopListening = async () => {
     try {
       await audioStreaming.stopListening();
-      setShowAudioPanel(false);
+      setShowListeningModal(false);
     } catch (error) {
       console.error('Erreur arrêt écoute:', error);
     }
   };
 
-  const renderAudioControlPanel = () => {
-    if (!showAudioPanel || !audioStreaming.isListening) {
-      return null;
-    }
-
-    const listeningCommercial = commercials.find(c => c.id === audioStreaming.currentListeningTo);
-
-    return (
-      <Card className="fixed bottom-4 right-4 w-80 bg-white shadow-lg border-2 border-blue-500 z-50">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <Headphones className="h-4 w-4 text-blue-600" />
-              <span>Écoute en cours</span>
-              <Badge variant="default" className="bg-green-500">
-                LIVE
-              </Badge>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleStopListening}
-              className="text-red-600 hover:text-red-700"
-            >
-              <MicOff className="h-4 w-4" />
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="text-sm text-gray-600">
-            <strong>{listeningCommercial?.name || 'Commercial'}</strong>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <VolumeX className="h-4 w-4" />
-            <Slider
-              value={[audioStreaming.audioVolume * 100]}
-              onValueChange={(value) => audioStreaming.setVolume(value[0] / 100)}
-              max={100}
-              min={0}
-              step={1}
-              className="flex-1 [&>span:first-child]:bg-blue-100 [&>span:first-child>span]:bg-blue-600 [&>span:last-child]:bg-blue-600"
-            />
-            <Volume2 className="h-4 w-4" />
-          </div>
-          
-          <div className="text-xs text-gray-500 text-center">
-            Volume: {Math.round(audioStreaming.audioVolume * 100)}%
-          </div>
-          
-          {audioStreaming.error && (
-            <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
-              {audioStreaming.error}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
-  };
 
   if (loading) {
     return (
@@ -272,6 +256,127 @@ const SuiviPage = () => {
       </div>
     );
   }
+
+  const renderListeningModal = () => {
+    if (!showListeningModal || !audioStreaming.isListening) {
+      return null;
+    }
+
+    const listeningCommercial = commercials.find(c => c.id === audioStreaming.currentListeningTo);
+
+    return (
+      <Modal
+        isOpen={showListeningModal}
+        onClose={() => setShowListeningModal(false)}
+        title="Écoute en temps réel"
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-6">
+          {/* En-tête avec info du commercial */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg font-medium">
+                  {listeningCommercial?.avatarFallback}
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">{listeningCommercial?.name}</h3>
+                <p className="text-sm text-gray-600">{listeningCommercial?.equipe}</p>
+              </div>
+            </div>
+            <Badge variant="default" className="bg-red-500 animate-pulse">
+              <div className="w-2 h-2 bg-white rounded-full mr-2"></div>
+              LIVE
+            </Badge>
+          </div>
+
+          {/* Bouton Écouter */}
+          <div className="flex justify-center">
+            <Button
+              onClick={handleStopListening}
+              variant="destructive"
+              size="lg"
+              className="bg-red-600 hover:bg-red-700 text-white px-8 py-3"
+            >
+              <MicOff className="w-5 h-5 mr-2" />
+              Arrêter l'écoute
+            </Button>
+          </div>
+
+          {/* Contrôles audio */}
+          <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Contrôles audio</span>
+              <Badge variant="outline" className="text-xs">
+                Volume: {Math.round(audioStreaming.audioVolume * 100)}%
+              </Badge>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <VolumeX className="h-4 w-4 text-gray-500" />
+              <Slider
+                value={[audioStreaming.audioVolume * 100]}
+                onValueChange={(value) => audioStreaming.setVolume(value[0] / 100)}
+                max={100}
+                min={0}
+                step={1}
+                className="flex-1 [&>span:first-child]:bg-blue-100 [&>span:first-child>span]:bg-blue-600 [&>span:last-child]:bg-blue-600"
+              />
+              <Volume2 className="h-4 w-4 text-gray-500" />
+            </div>
+
+            {audioStreaming.error && (
+              <div className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                <strong>Erreur:</strong> {audioStreaming.error}
+              </div>
+            )}
+          </div>
+
+          {/* Zone de transcription */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-gray-600" />
+              <label className="text-sm font-medium text-gray-700">Transcription automatique</label>
+            </div>
+            <div className="w-full h-40 p-3 border border-gray-300 rounded-lg bg-gray-50 overflow-y-auto">
+              <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                {transcription || "En attente de transcription..."}
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-xs text-gray-500">
+              <span>Transcription en temps réel</span>
+              <Badge variant="outline" className="text-xs">
+                {transcription ? 'Actif' : 'En attente'}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => setShowListeningModal(false)}
+            >
+              Réduire
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => {
+                // Ici on pourrait exporter la transcription
+                console.log('Transcription exportée:', transcription);
+              }}
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={!transcription || transcription === 'En attente de transcription...'}
+            >
+              Exporter transcription
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  };
 
   const onlineCommercials = commercials.filter(c => c.isOnline);
 
@@ -375,7 +480,7 @@ const SuiviPage = () => {
         )}
       </div>
       
-      {renderAudioControlPanel()}
+      {renderListeningModal()}
     </div>
   );
 };
