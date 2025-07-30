@@ -120,6 +120,19 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to('audio-streaming').emit('stop_streaming', data);
   }
 
+  @SubscribeMessage('transcription_update')
+  handleTranscriptionUpdate(client: Socket, data: { 
+    commercial_id: string; 
+    transcript: string; 
+    is_final: boolean; 
+    timestamp: string 
+  }) {
+    console.log(`📝 Transcription de ${data.commercial_id}: "${data.transcript}" (final: ${data.is_final})`);
+    
+    // Diffuser la transcription aux admins dans la room audio-streaming
+    this.server.to('audio-streaming').emit('transcription_update', data);
+  }
+
   sendToRoom(room: string, event: string, data: any) {
     this.server.to(room).emit(event, data);
   }

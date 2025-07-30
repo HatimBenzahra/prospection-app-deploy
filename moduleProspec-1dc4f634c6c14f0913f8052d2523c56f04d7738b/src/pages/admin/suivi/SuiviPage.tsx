@@ -23,7 +23,10 @@ const SuiviPage = () => {
   const [loading, setLoading] = useState(true);
   const [showListeningModal, setShowListeningModal] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
-  const [transcription, setTranscription] = useState('');
+  const [attemptedListeningTo, setAttemptedListeningTo] = useState<string | null>(null);
+  
+  // Stocker les transcriptions par commercial
+  const [transcriptions, setTranscriptions] = useState<Record<string, string>>({});
 
   // Configuration du streaming audio - détection automatique du protocole
   const getAudioServerUrl = () => {
@@ -40,8 +43,14 @@ const SuiviPage = () => {
     }
   };
 
+  const audioServerUrl = getAudioServerUrl();
+  console.log('🎧 ADMIN PAGE - Configuration audio streaming:');
+  console.log('🎧 ADMIN PAGE - Server URL:', audioServerUrl);
+  console.log('🎧 ADMIN PAGE - User ID:', user?.id);
+  console.log('🎧 ADMIN PAGE - User role: admin');
+
   const audioStreaming = useAudioStreaming({
-    serverUrl: getAudioServerUrl(),
+    serverUrl: audioServerUrl,
     userId: user?.id || '',
     userRole: 'admin',
     userInfo: {
@@ -127,6 +136,9 @@ const SuiviPage = () => {
           ? { ...commercial, isStreaming: true }
           : commercial
       ));
+      
+      // Réinitialiser la transcription pour ce commercial
+      setTranscriptions(prev => ({ ...prev, [data.commercial_id]: '' }));
     });
 
     socketConnection.on('stop_streaming', (data: { commercial_id: string }) => {
@@ -136,6 +148,36 @@ const SuiviPage = () => {
           ? { ...commercial, isStreaming: false }
           : commercial
       ));
+    });
+
+    // Écouter les mises à jour de transcription
+    socketConnection.on('transcription_update', (data: { 
+      commercial_id: string; 
+      transcript: string; 
+      is_final: boolean; 
+      timestamp: string 
+    }) => {
+      console.log('📝 ADMIN - Transcription reçue:', data);
+      console.log('📝 ADMIN - Commercial ID:', data.commercial_id);
+      console.log('📝 ADMIN - Transcript:', data.transcript);
+      console.log('📝 ADMIN - Is final:', data.is_final);
+      
+      setTranscriptions(prev => {
+        if (data.is_final) {
+          // Transcription finale : l'ajouter
+          const newTranscriptions = { ...prev, [data.commercial_id]: (prev[data.commercial_id] || '') + data.transcript };
+          console.log('📝 ADMIN - Nouvelles transcriptions (finale):', newTranscriptions);
+          return newTranscriptions;
+        } else {
+          // Transcription temporaire : remplacer la partie temporaire
+          const current = prev[data.commercial_id] || '';
+          const parts = current.split('[');
+          const finalPart = parts[0];
+          const newTranscriptions = { ...prev, [data.commercial_id]: finalPart + '[' + data.transcript + ']' };
+          console.log('📝 ADMIN - Nouvelles transcriptions (temporaire):', newTranscriptions);
+          return newTranscriptions;
+        }
+      });
     });
 
     setSocket(socketConnection);
@@ -174,11 +216,14 @@ const SuiviPage = () => {
 
   // Connecter au serveur de streaming audio
   useEffect(() => {
+    console.log('🎧 ADMIN - useEffect connexion audio, user:', user?.id);
     if (user?.id) {
+      console.log('🎧 ADMIN - Tentative de connexion au serveur audio...');
       audioStreaming.connect();
     }
     
     return () => {
+      console.log('🎧 ADMIN - Déconnexion du serveur audio');
       audioStreaming.disconnect();
     };
   }, [user?.id]);
@@ -223,13 +268,16 @@ const SuiviPage = () => {
 
   const handleStartListening = async (commercialId: string) => {
     console.log('🎧 ADMIN - Démarrage écoute pour commercial ID:', commercialId);
+    console.log('🎧 ADMIN - État connexion audio:', audioStreaming.isConnected);
+    console.log('🎧 ADMIN - Erreur audio:', audioStreaming.error);
     try {
+      setAttemptedListeningTo(commercialId);
       await audioStreaming.startListening(commercialId);
       setShowListeningModal(true);
-      setTranscription('En attente de transcription...'); // Message initial
       console.log('✅ ADMIN - Écoute démarrée avec succès');
     } catch (error) {
       console.error('❌ ADMIN - Erreur démarrage écoute:', error);
+      setAttemptedListeningTo(null);
     }
   };
 
@@ -237,6 +285,7 @@ const SuiviPage = () => {
     try {
       await audioStreaming.stopListening();
       setShowListeningModal(false);
+      setAttemptedListeningTo(null);
     } catch (error) {
       console.error('Erreur arrêt écoute:', error);
     }
@@ -279,16 +328,19 @@ const SuiviPage = () => {
   };
 
   const renderListeningModal = () => {
-    if (!showListeningModal || !audioStreaming.isListening) {
+    if (!showListeningModal) {
       return null;
     }
 
-    const listeningCommercial = commercials.find(c => c.id === audioStreaming.currentListeningTo);
+    const listeningCommercial = commercials.find(c => c.id === (audioStreaming.currentListeningTo || attemptedListeningTo));
 
     return (
       <Modal
         isOpen={showListeningModal}
-        onClose={() => setShowListeningModal(false)}
+        onClose={() => {
+          setShowListeningModal(false);
+          setAttemptedListeningTo(null);
+        }}
         title="Écoute en temps réel"
         maxWidth="max-w-2xl"
       >
@@ -307,9 +359,9 @@ const SuiviPage = () => {
                 <p className="text-sm text-gray-600">{listeningCommercial?.equipe}</p>
               </div>
             </div>
-            <Badge variant="default" className="bg-red-500 animate-pulse">
+            <Badge variant="default" className={audioStreaming.isListening ? "bg-red-500 animate-pulse" : "bg-yellow-500"}>
               <div className="w-2 h-2 bg-white rounded-full mr-2"></div>
-              LIVE
+              {audioStreaming.isListening ? "LIVE" : "CONNEXION..."}
             </Badge>
           </div>
 
@@ -363,13 +415,15 @@ const SuiviPage = () => {
             </div>
             <div className="w-full h-40 p-3 border border-gray-300 rounded-lg bg-gray-50 overflow-y-auto">
               <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                {transcription || "En attente de transcription..."}
+                {listeningCommercial && transcriptions[listeningCommercial.id] 
+                  ? transcriptions[listeningCommercial.id] 
+                  : "En attente de transcription..."}
               </div>
             </div>
             <div className="flex justify-between items-center text-xs text-gray-500">
-              <span>Transcription en temps réel</span>
-              <Badge variant="outline" className="text-xs">
-                {transcription ? 'Actif' : 'En attente'}
+              <span>Transcription en temps réel (Deepgram)</span>
+              <Badge variant="outline" className={`text-xs ${listeningCommercial?.isStreaming ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}>
+                {listeningCommercial?.isStreaming ? 'Commercial actif' : 'Commercial inactif'}
               </Badge>
             </div>
           </div>
@@ -378,18 +432,35 @@ const SuiviPage = () => {
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button
               variant="outline"
-              onClick={() => setShowListeningModal(false)}
+              onClick={() => {
+                setShowListeningModal(false);
+                setAttemptedListeningTo(null);
+              }}
             >
               Réduire
             </Button>
             <Button
               variant="default"
               onClick={() => {
-                // Ici on pourrait exporter la transcription
-                console.log('Transcription exportée:', transcription);
+                // Exporter la transcription du commercial
+                const transcript = listeningCommercial ? transcriptions[listeningCommercial.id] || '' : '';
+                console.log('Transcription exportée:', transcript);
+                
+                if (transcript && transcript !== 'En attente de transcription...') {
+                  // Créer un fichier de téléchargement
+                  const blob = new Blob([transcript], { type: 'text/plain' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `transcription-${listeningCommercial?.name || 'commercial'}-${new Date().toISOString().slice(0, 19)}.txt`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }
               }}
               className="bg-blue-600 hover:bg-blue-700"
-              disabled={!transcription || transcription === 'En attente de transcription...'}
+              disabled={!listeningCommercial || !transcriptions[listeningCommercial.id] || transcriptions[listeningCommercial.id] === 'En attente de transcription...'}
             >
               Exporter transcription
             </Button>

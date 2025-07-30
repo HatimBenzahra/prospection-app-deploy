@@ -28,6 +28,7 @@ import {
 } from "@/components/ui-admin/alert-dialog";
 import { useSocket } from '@/hooks/useSocket';
 import { useAudioStreaming } from '@/hooks/useAudioStreaming';
+import { useDeepgramTranscription } from '@/hooks/useDeepgramTranscription';
 import { Mic, MicOff } from 'lucide-react';
 
 
@@ -95,6 +96,9 @@ const ProspectingDoorsPage = () => {
             equipe: 'Équipe Commercial'
         }
     });
+
+    // Hook pour la transcription côté commercial
+    const deepgramTranscription = useDeepgramTranscription();
 
     useEffect(() => {
         if (!socket || !buildingId) return;
@@ -339,6 +343,9 @@ const ProspectingDoorsPage = () => {
                 console.log('🎤 COMMERCIAL PAGE - Arrêt du streaming...');
                 await audioStreaming.stopStreaming();
                 
+                // Arrêter aussi la transcription
+                deepgramTranscription.stopTranscription();
+                
                 // Aussi notifier le serveur Node.js pour les admins
                 if (socket) {
                     socket.emit('stop_streaming', {
@@ -351,6 +358,13 @@ const ProspectingDoorsPage = () => {
             } else {
                 console.log('🎤 COMMERCIAL PAGE - Démarrage du streaming...');
                 await audioStreaming.startStreaming();
+                
+                // Démarrer aussi la transcription avec l'ID utilisateur et le socket
+                console.log('🎙️ COMMERCIAL PAGE - Démarrage transcription...');
+                console.log('🎙️ COMMERCIAL PAGE - User ID:', user?.id);
+                console.log('🎙️ COMMERCIAL PAGE - Socket:', !!socket);
+                await deepgramTranscription.startTranscription(user?.id, socket);
+                console.log('🎙️ COMMERCIAL PAGE - Transcription démarrée!');
                 
                 // Aussi notifier le serveur Node.js pour les admins
                 if (socket) {
