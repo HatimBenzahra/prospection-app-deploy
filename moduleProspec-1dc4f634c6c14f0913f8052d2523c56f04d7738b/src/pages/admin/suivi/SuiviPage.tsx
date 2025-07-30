@@ -7,7 +7,7 @@ import { commercialService } from '@/services/commercial.service';
 import { io, Socket } from 'socket.io-client';
 import { useAudioStreaming } from '@/hooks/useAudioStreaming';
 import { useAuth } from '@/contexts/AuthContext';
-import { Headphones, Volume2, VolumeX, MicOff, Users, BarChart3, Map as MapIcon, X, FileText } from 'lucide-react';
+import { Headphones, Volume2, VolumeX, MicOff, Users, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui-admin/button';
 import { Slider } from '@/components/ui-admin/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
@@ -21,8 +21,8 @@ const SuiviPage = () => {
   const [zones] = useState<Zone[]>([]);
   const [, setSocket] = useState<Socket | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('table');
   const [showListeningModal, setShowListeningModal] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
   const [transcription, setTranscription] = useState('');
 
   // Configuration du streaming audio - détection automatique du protocole
@@ -192,7 +192,7 @@ const SuiviPage = () => {
 
   const handleShowOnMap = (commercial: CommercialGPS) => {
     setSelectedCommercial(commercial);
-    setActiveTab('map');
+    setShowMapModal(true);
   };
 
 
@@ -256,6 +256,30 @@ const SuiviPage = () => {
       </div>
     );
   }
+
+  const renderMapModal = () => {
+    if (!showMapModal || !selectedCommercial) {
+      return null;
+    }
+
+    return (
+      <Modal
+        isOpen={showMapModal}
+        onClose={() => setShowMapModal(false)}
+        title={`Position de ${selectedCommercial.name}`}
+        maxWidth="max-w-4xl"
+      >
+        <div className="h-[500px]">
+          <SuiviMap 
+            zones={zones}
+            commercials={commercials}
+            onMarkerClick={() => {}}
+            selectedCommercialId={selectedCommercial.id}
+          />
+        </div>
+      </Modal>
+    );
+  };
 
   const renderListeningModal = () => {
     if (!showListeningModal || !audioStreaming.isListening) {
@@ -436,50 +460,19 @@ const SuiviPage = () => {
         </Card>
       </div>
 
-      {/* Onglets Table/Carte */}
+      {/* Tableau des commerciaux */}
       <div className="w-full">
-        <div className="flex border-b border-gray-200 mb-6">
-          <Button
-            variant={activeTab === 'table' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('table')}
-            className="flex items-center gap-2 rounded-b-none border-b-2 border-transparent data-[state=active]:border-blue-500"
-          >
-            <BarChart3 className="w-4 h-4" />
-            Vue Tableau
-          </Button>
-          <Button
-            variant={activeTab === 'map' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('map')}
-            className="flex items-center gap-2 rounded-b-none border-b-2 border-transparent data-[state=active]:border-blue-500"
-          >
-            <MapIcon className="w-4 h-4" />
-            Vue Carte
-          </Button>
-        </div>
-        
-        {activeTab === 'table' && (
-          <DataTable
-            columns={columns}
-            data={commercials}
-            filterColumnId="name"
-            filterPlaceholder="Rechercher un commercial..."
-            title="Suivi GPS en temps réel"
-            onRowClick={handleSelectCommercial}
-          />
-        )}
-        
-        {activeTab === 'map' && (
-          <div className="h-[600px]">
-            <SuiviMap 
-              zones={zones}
-              commercials={commercials}
-              onMarkerClick={handleSelectCommercial}
-              selectedCommercialId={selectedCommercial?.id}
-            />
-          </div>
-        )}
+        <DataTable
+          columns={columns}
+          data={commercials}
+          filterColumnId="name"
+          filterPlaceholder="Rechercher un commercial..."
+          title="Suivi GPS en temps réel"
+          onRowClick={handleSelectCommercial}
+        />
       </div>
       
+      {renderMapModal()}
       {renderListeningModal()}
     </div>
   );
