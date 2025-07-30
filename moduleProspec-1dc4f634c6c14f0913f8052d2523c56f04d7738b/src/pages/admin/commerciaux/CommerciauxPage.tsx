@@ -217,7 +217,7 @@ const CommerciauxPage = () => {
     [editingCommercial]
   );
 
-  const handleSelectManagerEdit = useCallback(
+  const handleSelectManagerEdit = useCallback(  
     (managerId: string) => {
       if (!editingCommercial) return;
       const selectedManager = managers.find((m) => m.id === managerId);

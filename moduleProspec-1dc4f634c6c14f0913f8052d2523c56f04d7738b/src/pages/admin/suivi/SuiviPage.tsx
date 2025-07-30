@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { SuiviSidebar } from './SuiviSidebar';
 import { SuiviMap } from './SuiviMap';
+import { createColumns } from './suivi-table/columns';
+import { DataTable } from '@/components/data-table/DataTable';
 import type { CommercialGPS, Zone } from '@/types/types';
 import { commercialService } from '@/services/commercial.service';
 import { io, Socket } from 'socket.io-client';
 import { useAudioStreaming } from '@/hooks/useAudioStreaming';
 import { useAuth } from '@/contexts/AuthContext';
-import { Headphones, Volume2, VolumeX, MicOff } from 'lucide-react';
+import { Headphones, Volume2, VolumeX, MicOff, Users, BarChart3, Map as MapIcon } from 'lucide-react';
 import { Button } from '@/components/ui-admin/button';
 import { Slider } from '@/components/ui-admin/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
@@ -20,6 +21,7 @@ const SuiviPage = () => {
   const [, setSocket] = useState<Socket | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAudioPanel, setShowAudioPanel] = useState(false);
+  const [activeTab, setActiveTab] = useState('table');
 
   // Configuration du streaming audio - détection automatique du protocole
   const getAudioServerUrl = () => {
@@ -122,10 +124,10 @@ const SuiviPage = () => {
           avatarFallback: c.nom.split(' ').map((n: string) => n[0]).join('').toUpperCase(),
           position: [48.8566, 2.3522] as [number, number], // Position par défaut (Paris)
           equipe: c.equipe?.nom || 'Aucune équipe',
-          isOnline: false,
+          isOnline: false, // Sera mis à jour via Socket.IO
           lastUpdate: new Date(),
         }));
-        console.log('👥 Commerciaux chargés:', commercialsData);
+        console.log('👥 Commerciaux chargés avec données réelles:', commercialsData);
         setCommercials(commercialsData);
         setLoading(false);
       } catch (error) {
@@ -151,6 +153,34 @@ const SuiviPage = () => {
   const handleSelectCommercial = (commercial: CommercialGPS) => {
     setSelectedCommercial(commercial);
   };
+
+  const handleShowOnMap = (commercial: CommercialGPS) => {
+    setSelectedCommercial(commercial);
+    setActiveTab('map');
+  };
+
+  // Vérifier périodiquement les statuts en ligne/hors ligne
+  useEffect(() => {
+    const checkOnlineStatus = () => {
+      setCommercials(prev => prev.map(commercial => {
+        const timeSinceLastUpdate = new Date().getTime() - commercial.lastUpdate.getTime();
+        // Un commercial est considéré hors ligne s'il n'a pas envoyé de position depuis plus de 2 minutes
+        const shouldBeOffline = timeSinceLastUpdate > 2 * 60 * 1000;
+        
+        // Seulement marquer comme hors ligne, pas en ligne (ça vient via Socket.IO)
+        if (commercial.isOnline && shouldBeOffline) {
+          console.log(`📱 ${commercial.name}: HORS LIGNE (dernière MAJ: ${Math.floor(timeSinceLastUpdate / 1000)}s)`);
+          return { ...commercial, isOnline: false };
+        }
+        return commercial;
+      }));
+    };
+
+    // Vérifier toutes les 30 secondes
+    const interval = setInterval(checkOnlineStatus, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const handleStartListening = async (commercialId: string) => {
     console.log('🎧 ADMIN - Démarrage écoute pour commercial ID:', commercialId);
@@ -243,27 +273,106 @@ const SuiviPage = () => {
     );
   }
 
+  const onlineCommercials = commercials.filter(c => c.isOnline);
+
+  const columns = createColumns(
+    audioStreaming,
+    handleStartListening,
+    handleShowOnMap,
+    handleSelectCommercial
+  );
+
   return (
-    <div className="relative">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)]">
-        <div className="lg:col-span-1 h-full">
-          <SuiviSidebar 
-            commercials={commercials}
-            selectedCommercial={selectedCommercial}
-            onSelectCommercial={handleSelectCommercial}
-            onStartListening={handleStartListening}
-            audioStreaming={audioStreaming}
-          />
+    <div className="relative space-y-6">
+      {/* Statistiques en haut */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Users className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{commercials.length}</p>
+                <p className="text-sm text-gray-600">Total commerciaux</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <div className="w-5 h-5 bg-green-500 rounded-full" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-green-600">{onlineCommercials.length}</p>
+                <p className="text-sm text-gray-600">Connectés</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Headphones className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-purple-600">
+                  {audioStreaming.isListening ? '1' : '0'}
+                </p>
+                <p className="text-sm text-gray-600">Écoute active</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Onglets Table/Carte */}
+      <div className="w-full">
+        <div className="flex border-b border-gray-200 mb-6">
+          <Button
+            variant={activeTab === 'table' ? 'default' : 'ghost'}
+            onClick={() => setActiveTab('table')}
+            className="flex items-center gap-2 rounded-b-none border-b-2 border-transparent data-[state=active]:border-blue-500"
+          >
+            <BarChart3 className="w-4 h-4" />
+            Vue Tableau
+          </Button>
+          <Button
+            variant={activeTab === 'map' ? 'default' : 'ghost'}
+            onClick={() => setActiveTab('map')}
+            className="flex items-center gap-2 rounded-b-none border-b-2 border-transparent data-[state=active]:border-blue-500"
+          >
+            <MapIcon className="w-4 h-4" />
+            Vue Carte
+          </Button>
         </div>
         
-        <div className="lg:col-span-2 h-full">
-          <SuiviMap 
-            zones={zones}
-            commercials={commercials}
-            onMarkerClick={handleSelectCommercial}
-            selectedCommercialId={selectedCommercial?.id}
+        {activeTab === 'table' && (
+          <DataTable
+            columns={columns}
+            data={commercials}
+            filterColumnId="name"
+            filterPlaceholder="Rechercher un commercial..."
+            title="Suivi GPS en temps réel"
+            onRowClick={handleSelectCommercial}
           />
-        </div>
+        )}
+        
+        {activeTab === 'map' && (
+          <div className="h-[600px]">
+            <SuiviMap 
+              zones={zones}
+              commercials={commercials}
+              onMarkerClick={handleSelectCommercial}
+              selectedCommercialId={selectedCommercial?.id}
+            />
+          </div>
+        )}
       </div>
       
       {renderAudioControlPanel()}
