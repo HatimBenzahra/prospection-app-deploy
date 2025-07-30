@@ -7,7 +7,9 @@ export const useSocket = (buildingId?: string) => {
   useEffect(() => {
     if (!buildingId) return;
 
-    socketRef.current = io(`https://${window.location.hostname}:3000`, {
+    const SERVER_HOST = import.meta.env.VITE_SERVER_HOST || window.location.hostname;
+    const API_PORT = import.meta.env.VITE_API_PORT || '3000';
+    socketRef.current = io(`https://${SERVER_HOST}:${API_PORT}`, {
       secure: true,
       transports: ['websocket', 'polling'],
       forceNew: true,

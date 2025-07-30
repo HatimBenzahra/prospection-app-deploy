@@ -9,7 +9,9 @@ export class AudioConnectionTester {
     try {
       // Test 1: Socket.IO Connection
       console.log('📡 Testing Socket.IO connection...');
-      this.socket = io(`https://${window.location.hostname}:3000`, {
+      const SERVER_HOST = import.meta.env.VITE_SERVER_HOST || window.location.hostname;
+      const API_PORT = import.meta.env.VITE_API_PORT || '3000';
+      this.socket = io(`https://${SERVER_HOST}:${API_PORT}`, {
         secure: true,
         transports: ['websocket', 'polling'],
         forceNew: true,

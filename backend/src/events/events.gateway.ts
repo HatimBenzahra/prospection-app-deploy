@@ -18,7 +18,7 @@ interface LocationErrorData {
 
 @WebSocketGateway({
   cors: {
-    origin: ['https://localhost:5173', 'https://192.168.1.120:5173'],
+    origin: [`https://localhost:5173`, `https://${process.env.CLIENT_HOST || '192.168.1.116'}:5173`],
     credentials: true,
   },
   transports: ['websocket', 'polling'],

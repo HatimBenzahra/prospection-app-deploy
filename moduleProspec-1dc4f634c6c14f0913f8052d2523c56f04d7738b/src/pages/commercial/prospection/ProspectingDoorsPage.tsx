@@ -64,13 +64,15 @@ const ProspectingDoorsPage = () => {
     // Configuration du streaming audio pour les commerciaux - détection automatique du protocole
     const getAudioServerUrl = () => {
         const isHttps = window.location.protocol === 'https:';
-        const hostname = window.location.hostname;
+        const hostname = import.meta.env.VITE_SERVER_HOST || window.location.hostname;
+        const httpsPort = import.meta.env.VITE_PYTHON_HTTPS_PORT || '8443';
+        const httpPort = import.meta.env.VITE_PYTHON_HTTP_PORT || '8080';
         
         // Si on est en HTTPS, on utilise HTTPS pour le serveur audio aussi
         if (isHttps) {
-            return `https://${hostname}:8443`; // Port HTTPS pour le serveur Python
+            return `https://${hostname}:${httpsPort}`;
         } else {
-            return `http://${hostname}:8080`; // Port HTTP pour le serveur Python
+            return `http://${hostname}:${httpPort}`;
         }
     };
 

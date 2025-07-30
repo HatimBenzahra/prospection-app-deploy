@@ -24,12 +24,12 @@ async function bootstrap() {
     app.useGlobalPipes(new ValidationPipe());
 
     app.enableCors({
-      origin: ['https://localhost:5173', 'https://192.168.1.120:5173'],
+      origin: [`https://localhost:5173`, `https://${process.env.CLIENT_HOST || '192.168.1.116'}:5173`],
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       credentials: true,
     });
 
-    const port = process.env.PORT ?? 3000;
+    const port = process.env.API_PORT ?? 3000;
     await app.listen(port, '0.0.0.0');
     console.log(`🚀 HTTPS Server running on https://localhost:${port}`);
   } catch (error) {
@@ -41,12 +41,12 @@ async function bootstrap() {
     app.useGlobalPipes(new ValidationPipe());
 
     app.enableCors({
-      origin: ['http://localhost:5173', 'http://192.168.1.120:5173'],
+      origin: [`http://localhost:5173`, `http://${process.env.CLIENT_HOST || '192.168.1.116'}:5173`],
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
       credentials: true,
     });
 
-    const port = process.env.PORT ?? 3000;
+    const port = process.env.API_PORT ?? 3000;
     await app.listen(port, '0.0.0.0');
     console.log(`🚀 HTTP Server running on http://localhost:${port}`);
   }

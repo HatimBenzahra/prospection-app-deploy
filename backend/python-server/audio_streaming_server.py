@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import uuid
+import os
 from typing import Dict, Set
 import aiohttp
 from aiohttp import web, WSMsgType
@@ -15,6 +16,10 @@ import socketio
 from aiortc import RTCPeerConnection, RTCSessionDescription, MediaStreamTrack
 from aiortc.contrib.media import MediaRelay
 import ssl
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement
+load_dotenv()
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -22,14 +27,17 @@ logger = logging.getLogger(__name__)
 
 class AudioStreamingServer:
     def __init__(self):
+        # Récupérer l'adresse du client depuis les variables d'environnement
+        client_host = os.getenv('CLIENT_HOST', '192.168.1.116')
+        
         self.sio = socketio.AsyncServer(
             cors_allowed_origins=[
                 "http://localhost:5173",
                 "https://localhost:5173", 
                 "http://127.0.0.1:5173",
                 "https://127.0.0.1:5173",
-                "http://192.168.1.120:5173",
-                "https://192.168.1.120:5173"
+                f"http://{client_host}:5173",
+                f"https://{client_host}:5173"
             ],
             logger=True,
             engineio_logger=True
@@ -70,13 +78,14 @@ class AudioStreamingServer:
             
             # Obtenir l'origine de la requête
             origin = request.headers.get('Origin')
+            client_host = os.getenv('CLIENT_HOST', '192.168.1.116')
             allowed_origins = [
                 "http://localhost:5173",
                 "https://localhost:5173", 
                 "http://127.0.0.1:5173",
                 "https://127.0.0.1:5173",
-                "http://192.168.1.120:5173",
-                "https://192.168.1.120:5173"
+                f"http://{client_host}:5173",
+                f"https://{client_host}:5173"
             ]
             
             if origin in allowed_origins:
@@ -490,9 +499,11 @@ class AudioStreamingServer:
         ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         try:
             # Utiliser les mêmes certificats que le serveur Vite
+            import os.path
+            ssl_dir = os.path.join(os.path.dirname(__file__), '..', 'ssl')
             ssl_context.load_cert_chain(
-                'backend/ssl/server.cert',
-                'backend/ssl/server.key'
+                os.path.join(ssl_dir, 'server.cert'),
+                os.path.join(ssl_dir, 'server.key')
             )
             logger.info("✅ Certificats SSL chargés avec succès")
             return ssl_context
@@ -500,7 +511,12 @@ class AudioStreamingServer:
             logger.error(f"❌ Erreur lors du chargement des certificats SSL: {e}")
             return None
 
-    async def start_server(self, host='0.0.0.0', http_port=8080, https_port=8443):
+    async def start_server(self, host='0.0.0.0', http_port=None, https_port=None):
+        # Utiliser les variables d'environnement ou les valeurs par défaut
+        if http_port is None:
+            http_port = int(os.getenv('HTTP_PORT', '8080'))
+        if https_port is None:
+            https_port = int(os.getenv('HTTPS_PORT', '8443'))
         """Démarrer les serveurs HTTP et HTTPS"""
         self.setup_routes()
         
