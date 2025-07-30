@@ -85,6 +85,10 @@ const SuiviPage = () => {
       // Aussi rejoindre la room pour les événements audio
       socketConnection.emit('joinRoom', 'audio-streaming');
       console.log('✅ Rejoint la room audio-streaming');
+      
+      // Demander l'état actuel des streams pour synchroniser
+      socketConnection.emit('request_streaming_status');
+      console.log('🔄 Demande de synchronisation des streams actifs');
     });
 
     socketConnection.on('locationUpdate', (data: {
@@ -150,6 +154,17 @@ const SuiviPage = () => {
       ));
     });
 
+    // Synchronisation de l'état actuel des streams
+    socketConnection.on('streaming_status_response', (data: { active_streams: Array<{ commercial_id: string; commercial_info: any }> }) => {
+      console.log('🔄 ADMIN - État actuel des streams reçu:', data);
+      
+      setCommercials(prev => prev.map(commercial => {
+        const isCurrentlyStreaming = data.active_streams.some(stream => stream.commercial_id === commercial.id);
+        console.log(`🔄 ADMIN - Commercial ${commercial.name} (${commercial.id}) streaming: ${isCurrentlyStreaming}`);
+        return { ...commercial, isStreaming: isCurrentlyStreaming };
+      }));
+    });
+
     // Écouter les mises à jour de transcription
     socketConnection.on('transcription_update', (data: { 
       commercial_id: string; 
@@ -180,15 +195,25 @@ const SuiviPage = () => {
             const words = cleanedCurrent.split(' ');
             const newWords = cleanTranscript.split(' ');
             
-            // Vérifier si les derniers mots sont répétés
+            // Vérifier si les derniers mots sont répétés (plus intelligent)
             let startIndex = 0;
             if (words.length > 0 && newWords.length > 0) {
-              const lastWords = words.slice(-3).join(' ').toLowerCase();
-              const firstWords = newWords.slice(0, 3).join(' ').toLowerCase();
+              // Comparer les 2-4 derniers mots avec les 2-4 premiers mots
+              const lastWords = words.slice(-4).join(' ').toLowerCase().trim();
+              const firstWords = newWords.slice(0, 4).join(' ').toLowerCase().trim();
               
-              if (lastWords.includes(firstWords) || firstWords.includes(lastWords)) {
-                // Il y a une répétition, on supprime la partie répétée
-                startIndex = 3;
+              if (lastWords && firstWords) {
+                // Vérifier si il y a une répétition significative
+                if (lastWords.includes(firstWords) || firstWords.includes(lastWords)) {
+                  startIndex = Math.min(4, newWords.length);
+                } else {
+                  // Vérifier les répétitions partielles
+                  const lastWord = words[words.length - 1]?.toLowerCase();
+                  const firstWord = newWords[0]?.toLowerCase();
+                  if (lastWord === firstWord && lastWord.length > 2) {
+                    startIndex = 1;
+                  }
+                }
               }
             }
             
@@ -196,7 +221,13 @@ const SuiviPage = () => {
             const newPart = newWords.slice(startIndex).join(' ');
             
             if (newPart.trim()) {
-              const updatedText = cleanedCurrent + (cleanedCurrent.endsWith('.') ? ' ' : '. ') + newPart;
+              // Ajouter une ponctuation si nécessaire
+              let separator = ' ';
+              if (cleanedCurrent && !cleanedCurrent.endsWith('.') && !cleanedCurrent.endsWith('!') && !cleanedCurrent.endsWith('?')) {
+                separator = '. ';
+              }
+              
+              const updatedText = cleanedCurrent + separator + newPart;
               console.log('📝 ADMIN - Texte nettoyé et mis à jour:', updatedText);
               return { ...prev, [data.commercial_id]: updatedText };
             } else {
@@ -210,7 +241,7 @@ const SuiviPage = () => {
           // Transcription temporaire : afficher entre crochets mais nettoyer
           const cleanTranscript = data.transcript.trim();
           
-          if (cleanTranscript) {
+          if (cleanTranscript && cleanTranscript.length > 2) {
             // Supprimer les anciennes parties temporaires
             const withoutTemp = currentText.replace(/\[.*?\]/g, '');
             const tempText = withoutTemp + ' [' + cleanTranscript + ']';

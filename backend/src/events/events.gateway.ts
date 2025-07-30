@@ -30,6 +30,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Stocker les positions des commerciaux en mémoire
   private commercialLocations = new Map<string, LocationUpdateData>();
   private commercialSockets = new Map<string, string>(); // commercialId -> socketId
+  private activeStreams = new Map<string, { commercial_id: string; commercial_info: any }>(); // commercialId -> stream info
 
   handleConnection(client: Socket, ...args: any[]) {
     console.log(`📡 Client connected: ${client.id}`);
@@ -44,6 +45,15 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     
     if (commercialId) {
       this.commercialSockets.delete(commercialId);
+      this.commercialLocations.delete(commercialId);
+      
+      // Nettoyer aussi l'état de streaming si le commercial était en train de streamer
+      if (this.activeStreams.has(commercialId)) {
+        console.log(`🎤 Commercial ${commercialId} se déconnecte pendant le streaming`);
+        this.activeStreams.delete(commercialId);
+        this.server.to('audio-streaming').emit('stop_streaming', { commercial_id: commercialId });
+      }
+      
       this.server.to('gps-tracking').emit('commercialOffline', commercialId);
       console.log(`📍 Commercial ${commercialId} hors ligne`);
     }
@@ -108,6 +118,12 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleStartStreaming(client: Socket, data: { commercial_id: string; commercial_info?: any }) {
     console.log(`🎤 Commercial ${data.commercial_id} démarre le streaming`);
     
+    // Stocker l'état du stream actif
+    this.activeStreams.set(data.commercial_id, {
+      commercial_id: data.commercial_id,
+      commercial_info: data.commercial_info || {}
+    });
+    
     // Diffuser aux admins dans la room audio-streaming
     this.server.to('audio-streaming').emit('start_streaming', data);
   }
@@ -116,8 +132,25 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleStopStreaming(client: Socket, data: { commercial_id: string }) {
     console.log(`🎤 Commercial ${data.commercial_id} arrête le streaming`);
     
+    // Supprimer l'état du stream actif
+    this.activeStreams.delete(data.commercial_id);
+    
     // Diffuser aux admins dans la room audio-streaming
     this.server.to('audio-streaming').emit('stop_streaming', data);
+  }
+
+  // Gestion de la demande de synchronisation des streams
+  @SubscribeMessage('request_streaming_status')
+  handleRequestStreamingStatus(client: Socket) {
+    console.log(`🔄 Demande de synchronisation des streams actifs de ${client.id}`);
+    
+    const activeStreamsArray = Array.from(this.activeStreams.values());
+    console.log(`🔄 Streams actifs:`, activeStreamsArray);
+    
+    // Envoyer l'état actuel des streams au client qui demande
+    client.emit('streaming_status_response', {
+      active_streams: activeStreamsArray
+    });
   }
 
   @SubscribeMessage('transcription_update')

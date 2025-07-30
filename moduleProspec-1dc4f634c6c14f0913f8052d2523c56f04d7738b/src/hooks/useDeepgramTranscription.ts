@@ -71,7 +71,8 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 16000
+          sampleRate: 16000, // Taux d'échantillonnage optimal pour Deepgram
+          channelCount: 1
         } 
       });
       
@@ -83,7 +84,8 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
         throw new Error('Clé API Deepgram manquante');
       }
 
-      const wsUrl = `wss://api.deepgram.com/v1/listen?model=nova-2&language=fr&smart_format=true&interim_results=true&endpointing=300`;
+      // Paramètres optimisés pour une meilleure détection et moins de latence
+      const wsUrl = `wss://api.deepgram.com/v1/listen?model=nova-2&language=fr&smart_format=true&interim_results=true&endpointing=200&punctuate=true&diarize=false&utterances=true&vad_turnoff=500`;
       
       websocketRef.current = new WebSocket(wsUrl, ['token', deepgramApiKey]);
 
@@ -104,7 +106,7 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
           }
         };
         
-        mediaRecorder.start(100); // Envoyer des chunks toutes les 100ms
+        mediaRecorder.start(50); // Envoyer des chunks toutes les 50ms au lieu de 100ms pour plus de réactivité
       };
 
       websocketRef.current.onmessage = (event) => {
@@ -139,15 +141,21 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
               });
             }
           } else {
-            // Transcription temporaire - la remplacer
+            // Transcription temporaire - la remplacer seulement si elle est significativement différente
             setTranscription(prev => {
               const lines = prev.split('\n');
               const lastLineComplete = lines[lines.length - 1];
-              return lastLineComplete + '[' + newTranscript + ']';
+              
+              // Ne pas remplacer si la transcription temporaire est trop courte ou identique
+              if (newTranscript.length < 2 || lastLineComplete.includes(newTranscript)) {
+                return prev;
+              }
+              
+              return lastLineComplete + ' [' + newTranscript + ']';
             });
             
-            // Envoyer aussi les transcriptions temporaires (optionnel)
-            if (socketRef.current && userIdRef.current) {
+            // Envoyer aussi les transcriptions temporaires significatives
+            if (socketRef.current && userIdRef.current && newTranscript.length > 2) {
               console.log('📝 COMMERCIAL - Envoi transcription temporaire:', newTranscript);
               socketRef.current.emit('transcription_update', {
                 commercial_id: userIdRef.current,

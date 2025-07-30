@@ -76,9 +76,21 @@ export const useAudioStreaming = (config: AudioStreamingConfig): AudioStreamingH
         console.log('🔊 ADMIN - Audio terminé');
       };
       
+      remoteAudioRef.current.onvolumechange = () => {
+        console.log('🔊 ADMIN - Volume changé automatiquement:', remoteAudioRef.current?.volume);
+      };
+      
       console.log('✅ ADMIN - Élément audio initialisé avec volume:', audioVolume);
     }
-  }, [config.userRole, audioVolume]);
+  }, [config.userRole]); // Retirer audioVolume de la dépendance pour éviter les re-créations
+
+  // Effet séparé pour mettre à jour le volume
+  useEffect(() => {
+    if (config.userRole === 'admin' && remoteAudioRef.current) {
+      console.log('🔊 ADMIN - Mise à jour du volume:', audioVolume);
+      remoteAudioRef.current.volume = audioVolume;
+    }
+  }, [audioVolume, config.userRole]);
 
   const createPeerConnection = useCallback(() => {
     const pc = new RTCPeerConnection({
@@ -412,9 +424,17 @@ export const useAudioStreaming = (config: AudioStreamingConfig): AudioStreamingH
   }, [currentListeningTo]);
 
   const setVolume = useCallback((volume: number) => {
+    console.log('🔊 ADMIN - setVolume appelé avec:', volume);
+    console.log('🔊 ADMIN - remoteAudioRef existe:', !!remoteAudioRef.current);
+    
     setAudioVolume(volume);
+    
     if (remoteAudioRef.current) {
+      console.log('🔊 ADMIN - Volume avant changement:', remoteAudioRef.current.volume);
       remoteAudioRef.current.volume = volume;
+      console.log('🔊 ADMIN - Volume après changement:', remoteAudioRef.current.volume);
+    } else {
+      console.log('❌ ADMIN - remoteAudioRef.current n\'existe pas, impossible de changer le volume');
     }
   }, []);
 
