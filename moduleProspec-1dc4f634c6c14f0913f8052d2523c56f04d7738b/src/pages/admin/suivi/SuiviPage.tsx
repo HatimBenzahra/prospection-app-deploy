@@ -357,11 +357,13 @@ const SuiviPage = () => {
 
   const handleStopListening = async () => {
     try {
+      console.log('🔇 ADMIN - Arrêt de l\'écoute...');
       await audioStreaming.stopListening();
-      setShowListeningModal(false);
       setAttemptedListeningTo(null);
+      console.log('✅ ADMIN - Écoute arrêtée avec succès');
     } catch (error) {
-      console.error('Erreur arrêt écoute:', error);
+      console.error('❌ ADMIN - Erreur lors de l\'arrêt de l\'écoute:', error);
+      setAttemptedListeningTo(null);
     }
   };
 
@@ -431,23 +433,29 @@ const SuiviPage = () => {
     }
 
     const listeningCommercial = commercials.find(c => c.id === (audioStreaming.currentListeningTo || attemptedListeningTo));
+    
+    if (!listeningCommercial) {
+      return null;
+    }
 
     return (
       <Modal
         isOpen={showListeningModal}
         onClose={() => {
+          // Arrêter l'écoute quand on ferme le modal
+          handleStopListening();
           setShowListeningModal(false);
           setAttemptedListeningTo(null);
         }}
-        title="Écoute en temps réel"
+        title={`Écoute en direct - ${listeningCommercial.name}`}
         maxWidth="max-w-2xl"
       >
         <div className="space-y-6">
-          {/* En-tête avec info du commercial */}
+          {/* En-tête avec info commercial */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg font-medium">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold">
                   {listeningCommercial?.avatarFallback}
                 </div>
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
@@ -461,19 +469,6 @@ const SuiviPage = () => {
               <div className="w-2 h-2 bg-white rounded-full mr-2"></div>
               {audioStreaming.isListening ? "LIVE" : "CONNEXION..."}
             </Badge>
-          </div>
-
-          {/* Bouton Écouter */}
-          <div className="flex justify-center">
-            <Button
-              onClick={handleStopListening}
-              variant="destructive"
-              size="lg"
-              className="bg-red-600 hover:bg-red-700 text-white px-8 py-3"
-            >
-              <MicOff className="w-5 h-5 mr-2" />
-              Arrêter l'écoute
-            </Button>
           </div>
 
           {/* Contrôles audio */}
@@ -526,44 +521,18 @@ const SuiviPage = () => {
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
+          {/* Bouton unique pour fermer */}
+          <div className="flex justify-end pt-4 border-t">
             <Button
               variant="outline"
               onClick={() => {
+                // Arrêter l'écoute et fermer le modal
+                handleStopListening();
                 setShowListeningModal(false);
                 setAttemptedListeningTo(null);
               }}
             >
-              Réduire
-            </Button>
-            <Button
-              variant="default"
-              onClick={() => {
-                // Exporter la transcription du commercial
-                const transcript = listeningCommercial ? transcriptions[listeningCommercial.id] || '' : '';
-                console.log('Transcription exportée:', transcript);
-                
-                if (transcript && transcript !== 'En attente de transcription...') {
-                  // Formater le texte pour l'export
-                  const formattedText = formatTranscriptionText(transcript);
-                  
-                  // Créer un fichier de téléchargement
-                  const blob = new Blob([formattedText], { type: 'text/plain' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `transcription-${listeningCommercial?.name || 'commercial'}-${new Date().toISOString().slice(0, 19)}.txt`;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                }
-              }}
-              className="bg-blue-600 hover:bg-blue-700"
-              disabled={!listeningCommercial || !transcriptions[listeningCommercial.id] || transcriptions[listeningCommercial.id] === 'En attente de transcription...'}
-            >
-              Exporter transcription
+              Fermer
             </Button>
           </div>
         </div>
