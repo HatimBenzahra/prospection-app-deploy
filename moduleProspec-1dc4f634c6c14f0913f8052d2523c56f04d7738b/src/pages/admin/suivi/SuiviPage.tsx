@@ -7,10 +7,10 @@ import { commercialService } from '@/services/commercial.service';
 import { io, Socket } from 'socket.io-client';
 import { useAudioStreaming } from '@/hooks/useAudioStreaming';
 import { useAuth } from '@/contexts/AuthContext';
-import { Headphones, Volume2, VolumeX, MicOff, Users, X, FileText } from 'lucide-react';
+import { Headphones, Volume2, VolumeX, MicOff, Users, FileText } from 'lucide-react';
 import { Button } from '@/components/ui-admin/button';
 import { Slider } from '@/components/ui-admin/slider';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import { Card, CardContent } from '@/components/ui-admin/card';
 import { Badge } from '@/components/ui-admin/badge';
 import { Modal } from '@/components/ui-admin/Modal';
 
@@ -113,9 +113,6 @@ const SuiviPage = () => {
     });
 
     // DEBUG: Écouter tous les événements
-    const originalEmit = socketConnection.emit;
-    const originalOn = socketConnection.on;
-    
     socketConnection.onAny((eventName, ...args) => {
       if (eventName.includes('stream')) {
         console.log('🔍 ADMIN - Événement reçu:', eventName, args);

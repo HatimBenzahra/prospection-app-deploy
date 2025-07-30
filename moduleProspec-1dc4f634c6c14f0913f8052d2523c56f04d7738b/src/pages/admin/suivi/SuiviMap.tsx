@@ -66,16 +66,30 @@ export const SuiviMap = ({ zones, commercials, onMarkerClick, selectedCommercial
     }
   }, [validZones, validCommercials]);
 
+  // Définir la vue initiale selon le contexte
+  const getInitialViewState = () => {
+    if (selectedCommercial && selectedCommercial.position) {
+      // Si un commercial est sélectionné, centrer sur lui immédiatement
+      return {
+        longitude: selectedCommercial.position[1],
+        latitude: selectedCommercial.position[0],
+        zoom: 16
+      };
+    }
+    // Sinon, vue par défaut sur Paris
+    return {
+      longitude: 2.3522,
+      latitude: 48.8566,
+      zoom: 12
+    };
+  };
+
   return (
     <div className="h-full w-full rounded-lg overflow-hidden shadow-md relative">
       <Map
         ref={mapRef}
         // mapboxApiAccessToken={MAPBOX_TOKEN}
-        initialViewState={{
-            longitude: 2.3522,
-            latitude: 48.8566,
-            zoom: 12
-        }}
+        initialViewState={getInitialViewState()}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
       >
