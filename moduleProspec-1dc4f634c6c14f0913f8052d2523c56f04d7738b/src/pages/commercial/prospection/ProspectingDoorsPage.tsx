@@ -363,8 +363,8 @@ const ProspectingDoorsPage = () => {
                 console.log('🎙️ COMMERCIAL PAGE - Démarrage transcription...');
                 console.log('🎙️ COMMERCIAL PAGE - User ID:', user?.id);
                 console.log('🎙️ COMMERCIAL PAGE - Socket:', !!socket);
-                await deepgramTranscription.startTranscription(user?.id, socket);
-                console.log('🎙️ COMMERCIAL PAGE - Transcription démarrée!');
+                await deepgramTranscription.startTranscription(user?.id);
+                console.log('��️ COMMERCIAL PAGE - Transcription démarrée!');
                 
                 // Aussi notifier le serveur Node.js pour les admins
                 if (socket) {

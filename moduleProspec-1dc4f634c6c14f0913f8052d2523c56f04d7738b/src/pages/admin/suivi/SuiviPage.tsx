@@ -163,19 +163,62 @@ const SuiviPage = () => {
       console.log('📝 ADMIN - Is final:', data.is_final);
       
       setTranscriptions(prev => {
+        const currentText = prev[data.commercial_id] || '';
+        
         if (data.is_final) {
-          // Transcription finale : l'ajouter
-          const newTranscriptions = { ...prev, [data.commercial_id]: (prev[data.commercial_id] || '') + data.transcript };
-          console.log('📝 ADMIN - Nouvelles transcriptions (finale):', newTranscriptions);
-          return newTranscriptions;
+          // Transcription finale : traiter et ajouter proprement
+          const cleanTranscript = data.transcript.trim();
+          
+          if (cleanTranscript) {
+            // Nettoyer le texte en cours
+            let cleanedCurrent = currentText;
+            
+            // Supprimer les parties temporaires entre crochets
+            cleanedCurrent = cleanedCurrent.replace(/\[.*?\]/g, '');
+            
+            // Supprimer les répétitions de mots/phrases
+            const words = cleanedCurrent.split(' ');
+            const newWords = cleanTranscript.split(' ');
+            
+            // Vérifier si les derniers mots sont répétés
+            let startIndex = 0;
+            if (words.length > 0 && newWords.length > 0) {
+              const lastWords = words.slice(-3).join(' ').toLowerCase();
+              const firstWords = newWords.slice(0, 3).join(' ').toLowerCase();
+              
+              if (lastWords.includes(firstWords) || firstWords.includes(lastWords)) {
+                // Il y a une répétition, on supprime la partie répétée
+                startIndex = 3;
+              }
+            }
+            
+            // Ajouter seulement la nouvelle partie non répétée
+            const newPart = newWords.slice(startIndex).join(' ');
+            
+            if (newPart.trim()) {
+              const updatedText = cleanedCurrent + (cleanedCurrent.endsWith('.') ? ' ' : '. ') + newPart;
+              console.log('📝 ADMIN - Texte nettoyé et mis à jour:', updatedText);
+              return { ...prev, [data.commercial_id]: updatedText };
+            } else {
+              console.log('📝 ADMIN - Pas de nouveau contenu à ajouter');
+              return prev;
+            }
+          }
+          
+          return prev;
         } else {
-          // Transcription temporaire : remplacer la partie temporaire
-          const current = prev[data.commercial_id] || '';
-          const parts = current.split('[');
-          const finalPart = parts[0];
-          const newTranscriptions = { ...prev, [data.commercial_id]: finalPart + '[' + data.transcript + ']' };
-          console.log('📝 ADMIN - Nouvelles transcriptions (temporaire):', newTranscriptions);
-          return newTranscriptions;
+          // Transcription temporaire : afficher entre crochets mais nettoyer
+          const cleanTranscript = data.transcript.trim();
+          
+          if (cleanTranscript) {
+            // Supprimer les anciennes parties temporaires
+            const withoutTemp = currentText.replace(/\[.*?\]/g, '');
+            const tempText = withoutTemp + ' [' + cleanTranscript + ']';
+            console.log('📝 ADMIN - Texte temporaire:', tempText);
+            return { ...prev, [data.commercial_id]: tempText };
+          }
+          
+          return prev;
         }
       });
     });
@@ -291,6 +334,30 @@ const SuiviPage = () => {
     }
   };
 
+  // Fonction pour formater le texte de transcription
+  const formatTranscriptionText = (text: string) => {
+    if (!text || text === 'En attente de transcription...') {
+      return text;
+    }
+
+    // Supprimer les parties temporaires entre crochets
+    let cleanText = text.replace(/\[.*?\]/g, '');
+    
+    // Nettoyer les espaces multiples
+    cleanText = cleanText.replace(/\s+/g, ' ');
+    
+    // Ajouter des sauts de ligne pour créer des paragraphes
+    // Après chaque point d'interrogation ou d'exclamation
+    cleanText = cleanText.replace(/([.!?])\s+/g, '$1\n\n');
+    
+    // Supprimer les lignes vides multiples
+    cleanText = cleanText.replace(/\n\s*\n\s*\n/g, '\n\n');
+    
+    // Capitaliser la première lettre de chaque phrase
+    cleanText = cleanText.replace(/(^|\.\s+)([a-z])/g, (match, p1, p2) => p1 + p2.toUpperCase());
+    
+    return cleanText.trim();
+  };
 
   if (loading) {
     return (
@@ -416,7 +483,7 @@ const SuiviPage = () => {
             <div className="w-full h-40 p-3 border border-gray-300 rounded-lg bg-gray-50 overflow-y-auto">
               <div className="text-sm text-gray-700 whitespace-pre-wrap">
                 {listeningCommercial && transcriptions[listeningCommercial.id] 
-                  ? transcriptions[listeningCommercial.id] 
+                  ? formatTranscriptionText(transcriptions[listeningCommercial.id]) 
                   : "En attente de transcription..."}
               </div>
             </div>
@@ -447,8 +514,11 @@ const SuiviPage = () => {
                 console.log('Transcription exportée:', transcript);
                 
                 if (transcript && transcript !== 'En attente de transcription...') {
+                  // Formater le texte pour l'export
+                  const formattedText = formatTranscriptionText(transcript);
+                  
                   // Créer un fichier de téléchargement
-                  const blob = new Blob([transcript], { type: 'text/plain' });
+                  const blob = new Blob([formattedText], { type: 'text/plain' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
