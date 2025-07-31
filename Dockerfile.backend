@@ -3,8 +3,9 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copier les fichiers de configuration du backend
-COPY backend/package*.json ./
+# Copier les fichiers de configuration du backend (incluant package-lock.json)
+COPY backend/package.json ./
+COPY backend/package-lock.json ./
 COPY backend/prisma ./prisma/
 
 # Installer les dépendances

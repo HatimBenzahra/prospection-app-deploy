@@ -3,8 +3,9 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copier les fichiers de configuration du frontend
-COPY moduleProspec-1dc4f634c6c14f0913f8052d2523c56f04d7738b/package*.json ./
+# Copier les fichiers de configuration du frontend (incluant package-lock.json)
+COPY moduleProspec-1dc4f634c6c14f0913f8052d2523c56f04d7738b/package.json ./
+COPY moduleProspec-1dc4f634c6c14f0913f8052d2523c56f04d7738b/package-lock.json ./
 
 # Installer les dépendances
 RUN npm ci
