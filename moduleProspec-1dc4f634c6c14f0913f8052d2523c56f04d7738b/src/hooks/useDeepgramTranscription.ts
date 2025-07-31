@@ -38,6 +38,7 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const userIdRef = useRef<string | null>(null);
+  const isSocketOwner = useRef<boolean>(false); // Pour savoir si nous devons fermer le socket
   
   // Ajouter le processeur de transcription
   const transcriptionProcessor = useRef<TranscriptionProcessor>(new TranscriptionProcessor());
@@ -51,7 +52,12 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
       socketRef.current = socket || null;
 
       // Créer une connexion socket séparée pour les transcriptions (serveur Node.js)
-      if (!socketRef.current) {
+      // Utiliser le socket passé en paramètre ou créer un nouveau
+      if (socket) {
+        console.log('🎙️ TRANSCRIPTION - Utilisation socket existant passé en paramètre');
+        socketRef.current = socket;
+        isSocketOwner.current = false; // Nous ne possédons pas ce socket
+      } else if (!socketRef.current) {
         const SERVER_HOST = import.meta.env.VITE_SERVER_HOST || window.location.hostname;
         const API_PORT = import.meta.env.VITE_API_PORT || '3000';
         const socketUrl = `https://${SERVER_HOST}:${API_PORT}`;
@@ -84,10 +90,25 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
         socketRef.current.on('error', (error) => {
           console.error('🎙️ COMMERCIAL - Erreur socket transcriptions:', error);
         });
+        
+        isSocketOwner.current = true; // Nous avons créé ce socket
+      } else {
+        console.log('🎙️ TRANSCRIPTION - Réutilisation socket existant');
       }
 
-      // Enregistrer le temps de début de session
+      // Enregistrer le temps de début de session - NOUVELLE session
+      const sessionId = crypto.randomUUID();
+      console.log('🆕 TRANSCRIPTION - Démarrage NOUVELLE session:', sessionId);
+      console.log('🆕 TRANSCRIPTION - Transcription actuelle avant nettoyage:', transcription.length, 'caractères');
+      
       setSessionStartTime(new Date());
+      
+      // S'assurer que nous partons avec une transcription vierge
+      setTranscription('');
+      transcriptionProcessor.current.clear();
+      
+      console.log('🆕 TRANSCRIPTION - Session initialisée, transcription remise à zéro');
+      console.log('🆕 TRANSCRIPTION - Processeur segments:', transcriptionProcessor.current.getStats().segments);
 
       // Paramètres audio pour discours fluide
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -239,10 +260,21 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
             
             if (enableStructuring) {
               // Utiliser le processeur pour structurer intelligemment
+              console.log('📝 TRANSCRIPTION - Ajout segment:', {
+                text: newTranscript.substring(0, 30) + '...',
+                isFinal: response.is_final,
+                currentSegments: transcriptionProcessor.current.getStats().segments
+              });
+              
               finalTranscription = transcriptionProcessor.current.addSegment(
                 newTranscript, 
                 response.is_final
               );
+              
+              console.log('📝 TRANSCRIPTION - Après ajout:', {
+                totalSegments: transcriptionProcessor.current.getStats().segments,
+                transcriptionLength: finalTranscription.length
+              });
             } else {
               // Mode texte brut - simple concaténation
               if (response.is_final) {
@@ -337,15 +369,34 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
 
   const stopTranscription = useCallback(async (): Promise<TranscriptionSession | null> => {
     const endTime = new Date();
-    const sessionData: TranscriptionSession | null = sessionStartTime && userIdRef.current ? {
+    
+    // Capturer la transcription actuelle AVANT le nettoyage
+    const currentTranscription = transcription;
+    const currentSessionStartTime = sessionStartTime;
+    
+    console.log('🛑 TRANSCRIPTION - Arrêt session:', {
+      hasStartTime: !!currentSessionStartTime,
+      transcriptionLength: currentTranscription.length,
+      userId: userIdRef.current
+    });
+    
+    const sessionData: TranscriptionSession | null = currentSessionStartTime && userIdRef.current ? {
       id: crypto.randomUUID(),
       commercial_id: userIdRef.current,
       commercial_name: 'Commercial', // Sera rempli par l'appelant
-      start_time: sessionStartTime.toISOString(),
+      start_time: currentSessionStartTime.toISOString(),
       end_time: endTime.toISOString(),
-      full_transcript: transcription,
-      duration_seconds: Math.floor((endTime.getTime() - sessionStartTime.getTime()) / 1000)
+      full_transcript: currentTranscription,
+      duration_seconds: Math.floor((endTime.getTime() - currentSessionStartTime.getTime()) / 1000)
     } : null;
+    
+    if (sessionData) {
+      console.log('📊 TRANSCRIPTION - Session créée:', {
+        id: sessionData.id,
+        duration: sessionData.duration_seconds,
+        transcriptPreview: sessionData.full_transcript.substring(0, 50) + '...'
+      });
+    }
 
     // Arrêter l'enregistrement
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -364,23 +415,38 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
       streamRef.current = null;
     }
 
-    // Fermer le socket de transcriptions
-    if (socketRef.current) {
+    // Fermer le socket de transcriptions SEULEMENT si nous en sommes propriétaires
+    if (socketRef.current && isSocketOwner.current) {
+      console.log('🎙️ TRANSCRIPTION - Fermeture socket transcriptions (propriétaire)');
       socketRef.current.disconnect();
       socketRef.current = null;
+      console.log('🎙️ TRANSCRIPTION - Socket transcriptions fermé et référence nettoyée');
+    } else if (socketRef.current) {
+      console.log('🎙️ TRANSCRIPTION - Conservation socket transcriptions (non propriétaire)');
+      socketRef.current = null; // On retire juste la référence sans fermer
     }
+    
+    isSocketOwner.current = false;
 
     setIsConnected(false);
     setError(null);
     setSessionStartTime(null);
-
-    return sessionData;
-  }, [transcription, sessionStartTime]);
-
-  const clearTranscription = useCallback(() => {
+    
+    // IMPORTANT: Réinitialiser complètement la transcription pour la prochaine session
+    console.log('🧹 TRANSCRIPTION - Réinitialisation complète après arrêt');
     setTranscription('');
     transcriptionProcessor.current.clear();
-  }, []);
+
+    return sessionData;
+  }, [transcription, sessionStartTime]); // Gardons les dépendances pour capturer l'état actuel
+
+  const clearTranscription = useCallback(() => {
+    console.log('🧹 TRANSCRIPTION - Nettoyage complet de la transcription');
+    console.log('🧹 TRANSCRIPTION - Ancienne transcription longueur:', transcription.length);
+    setTranscription('');
+    transcriptionProcessor.current.clear();
+    console.log('🧹 TRANSCRIPTION - Transcription nettoyée - prête pour nouvelle session');
+  }, [transcription]);
 
   return {
     isConnected,

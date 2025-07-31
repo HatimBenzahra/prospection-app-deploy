@@ -20,6 +20,12 @@ export class TranscriptionProcessor {
       isFinal,
       timestamp: Date.now()
     };
+    
+    console.log('📝 PROCESSOR - Ajout segment:', {
+      text: segment.text.substring(0, 30) + '...',
+      isFinal: segment.isFinal,
+      currentSegmentsCount: this.segments.length
+    });
 
     if (isFinal) {
       this.segments.push(segment);
@@ -127,7 +133,9 @@ export class TranscriptionProcessor {
    * Efface toutes les données
    */
   clear(): void {
+    console.log('🧹 PROCESSOR - Nettoyage:', this.segments.length, 'segments supprimés');
     this.segments = [];
+    console.log('🧹 PROCESSOR - Après nettoyage:', this.segments.length, 'segments restants');
   }
 
   /**

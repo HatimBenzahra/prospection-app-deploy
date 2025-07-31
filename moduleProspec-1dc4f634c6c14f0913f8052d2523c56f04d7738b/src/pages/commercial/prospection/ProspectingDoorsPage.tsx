@@ -373,10 +373,10 @@ const ProspectingDoorsPage = () => {
                 console.log('🎤 COMMERCIAL PAGE - Arrêt du streaming...');
                 await audioStreaming.stopStreaming();
                 
-                // Arrêter la transcription et récupérer la session
+                // Arrêter la transcription et récupérer la session AVANT nettoyage
                 const transcriptionSession = await deepgramTranscription.stopTranscription();
                 
-                // Sauvegarder automatiquement l'historique de transcription
+                // Sauvegarder automatiquement l'historique de transcription (NOUVEAU HISTORIQUE À CHAQUE CYCLE)
                 if (transcriptionSession && transcriptionSession.full_transcript.trim()) {
                     try {
                         // Enrichir la session avec les informations du bâtiment
@@ -388,14 +388,16 @@ const ProspectingDoorsPage = () => {
                         };
                         
                         await transcriptionHistoryService.saveTranscriptionSession(enrichedSession);
-                        console.log('📚 Session transcription sauvegardée dans l\'historique');
-                        toast.success("Session de prospection enregistrée dans l'historique");
+                        console.log('📚 NOUVEAU HISTORIQUE sauvegardé avec ID:', enrichedSession.id);
+                        console.log('📚 Contenu historique:', enrichedSession.full_transcript.substring(0, 100) + '...');
+                        toast.success(`Session enregistrée (${Math.floor(transcriptionSession.duration_seconds / 60)}min ${transcriptionSession.duration_seconds % 60}s)`);
                     } catch (saveError) {
                         console.error('❌ Erreur sauvegarde historique:', saveError);
                         toast.error("Erreur lors de la sauvegarde de l'historique");
                     }
                 } else {
                     console.log('📚 Aucune transcription à sauvegarder (session vide)');
+                    toast.info("Session vide - aucun historique créé");
                 }
                 
                 // Aussi notifier le serveur Node.js pour les admins
@@ -406,19 +408,37 @@ const ProspectingDoorsPage = () => {
                     console.log('📡 COMMERCIAL - Notification arrêt envoyée au serveur Node.js');
                 }
                 
-                toast.success("Streaming audio arrêté");
+                toast.success("Streaming audio arrêté - Session sauvegardée");
             } else {
                 console.log('🎤 COMMERCIAL PAGE - Démarrage du streaming...');
+                
+                // Réinitialiser la transcription avant de démarrer le NOUVEAU cycle
+                console.log('🔄 COMMERCIAL - Réinitialisation transcription pour NOUVELLE session');
+                deepgramTranscription.clearTranscription();
+                
+                // Générer un ID unique pour cette nouvelle session
+                const newSessionId = crypto.randomUUID();
+                console.log('🆕 COMMERCIAL - Démarrage NOUVELLE session:', newSessionId);
+                
                 await audioStreaming.startStreaming();
                 
                 // Démarrer aussi la transcription avec l'ID utilisateur et le socket
                 console.log('🎙️ COMMERCIAL PAGE - Démarrage transcription...');
                 console.log('🎙️ COMMERCIAL PAGE - User ID:', user?.id);
-                console.log('🎙️ COMMERCIAL PAGE - Socket:', !!socket);
+                console.log('🎙️ COMMERCIAL PAGE - Socket disponible:', !!socket);
+                console.log('🎙️ COMMERCIAL PAGE - Socket connecté:', socket?.connected);
+                
                 // Utiliser la même connexion Socket.IO que pour le streaming audio
                 await deepgramTranscription.startTranscription(user?.id, socket);
+                
                 // S'assurer que nous sommes bien dans la room dédiée aux transcriptions
-                socket?.emit('joinRoom', 'transcriptions');
+                if (socket?.connected) {
+                    socket.emit('joinRoom', 'transcriptions');
+                    console.log('🎙️ COMMERCIAL PAGE - Joint la room transcriptions');
+                } else {
+                    console.warn('⚠️ COMMERCIAL PAGE - Socket non connecté, impossible de rejoindre la room');
+                }
+                
                 console.log('🎙️ COMMERCIAL PAGE - Transcription démarrée!');
                 
                 // Aussi notifier le serveur Node.js pour les admins

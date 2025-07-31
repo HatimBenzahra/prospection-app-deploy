@@ -187,7 +187,8 @@ const SuiviPage = () => {
           : commercial
       ));
       
-      // Réinitialiser la transcription pour ce commercial
+      // Réinitialiser complètement la transcription pour ce commercial (nouveau cycle)
+      console.log('🔄 ADMIN - Réinitialisation transcription pour nouveau cycle:', data.commercial_id);
       setTranscriptions(prev => ({ ...prev, [data.commercial_id]: '' }));
       transcriptionProcessorsRef.current[data.commercial_id] = new TranscriptionProcessor();
     });
@@ -199,17 +200,30 @@ const SuiviPage = () => {
           ? { ...commercial, isStreaming: false }
           : commercial
       ));
+      
+      // Réinitialiser la transcription en direct pour ce commercial (fin de cycle)
+      console.log('🔄 ADMIN - Nettoyage transcription après arrêt streaming:', data.commercial_id);
+      setTranscriptions(prev => ({ ...prev, [data.commercial_id]: '' }));
+      
+      // Nettoyer le processeur de transcription pour ce commercial
+      if (transcriptionProcessorsRef.current[data.commercial_id]) {
+        delete transcriptionProcessorsRef.current[data.commercial_id];
+      }
     });
 
     // Synchronisation de l'état actuel des streams
     socketConnection.on('streaming_status_response', (data: { active_streams: Array<{ commercial_id: string; commercial_info: any }> }) => {
       console.log('🔄 ADMIN - État actuel des streams reçu:', data);
       
-      setCommercials(prev => prev.map(commercial => {
-        const isCurrentlyStreaming = data.active_streams.some(stream => stream.commercial_id === commercial.id);
-        console.log(`🔄 ADMIN - Commercial ${commercial.name} (${commercial.id}) streaming: ${isCurrentlyStreaming}`);
-        return { ...commercial, isStreaming: isCurrentlyStreaming };
-      }));
+      setCommercials(prev => {
+        const updated = prev.map(commercial => {
+          const isCurrentlyStreaming = data.active_streams.some(stream => stream.commercial_id === commercial.id);
+          console.log(`🔄 ADMIN - Commercial ${commercial.name} (${commercial.id}) streaming: ${commercial.isStreaming} -> ${isCurrentlyStreaming}`);
+          return { ...commercial, isStreaming: isCurrentlyStreaming };
+        });
+        console.log('🔄 ADMIN - États commerciaux mis à jour:', updated.map(c => ({ name: c.name, streaming: c.isStreaming })));
+        return updated;
+      });
     });
 
     // Écouter les sessions de transcription terminées
@@ -378,6 +392,21 @@ const SuiviPage = () => {
     console.log('🎧 ADMIN - Démarrage écoute pour commercial ID:', commercialId);
     console.log('🎧 ADMIN - État connexion audio:', audioStreaming.isConnected);
     console.log('🎧 ADMIN - Erreur audio:', audioStreaming.error);
+    
+    // Vérifier si ce commercial est actuellement en streaming
+    const commercial = commercials.find(c => c.id === commercialId);
+    console.log('🎧 ADMIN - Commercial trouvé:', {
+      found: !!commercial,
+      isStreaming: commercial?.isStreaming,
+      name: commercial?.name
+    });
+    
+    if (!commercial?.isStreaming) {
+      console.warn('⚠️ ADMIN - Commercial pas en streaming, arrêt tentative écoute');
+      toast.error("Ce commercial n'est pas en streaming actuellement");
+      return;
+    }
+    
     try {
       setAttemptedListeningTo(commercialId);
       await audioStreaming.startListening(commercialId);
@@ -386,14 +415,26 @@ const SuiviPage = () => {
     } catch (error) {
       console.error('❌ ADMIN - Erreur démarrage écoute:', error);
       setAttemptedListeningTo(null);
+      toast.error("Erreur lors du démarrage de l'écoute");
     }
   };
 
   const handleStopListening = async () => {
     try {
       console.log('🔇 ADMIN - Arrêt de l\'écoute...');
+      
+      // Capturer l'ID du commercial avant d'arrêter l'écoute
+      const currentCommercialId = audioStreaming.currentListeningTo || attemptedListeningTo;
+      
       await audioStreaming.stopListening();
       setAttemptedListeningTo(null);
+      
+      // Réinitialiser la transcription affichée dans le modal d'écoute
+      if (currentCommercialId) {
+        console.log('🔄 ADMIN - Réinitialisation transcription modal pour:', currentCommercialId);
+        setTranscriptions(prev => ({ ...prev, [currentCommercialId]: '' }));
+      }
+      
       console.log('✅ ADMIN - Écoute arrêtée avec succès');
     } catch (error) {
       console.error('❌ ADMIN - Erreur lors de l\'arrêt de l\'écoute:', error);
