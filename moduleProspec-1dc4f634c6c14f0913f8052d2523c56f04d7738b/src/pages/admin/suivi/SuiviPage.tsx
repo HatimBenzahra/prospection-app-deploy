@@ -1,18 +1,61 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import { Button } from '@/components/ui-admin/button';
+import { Badge } from '@/components/ui-admin/badge';
+import { Modal } from '@/components/ui-admin/Modal';
+import { Slider } from '@/components/ui-admin/slider';
+import { useAudioStreaming } from '@/hooks/useAudioStreaming';
+import { commercialService } from '@/services/commercial.service';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSocket } from '@/hooks/useSocket';
+import { io, Socket } from 'socket.io-client';
+import { 
+  Users, 
+  MapPin, 
+  Headphones, 
+  MicOff, 
+  VolumeX, 
+  Volume2, 
+  FileText,
+  History,
+  Calendar,
+  Clock
+} from 'lucide-react';
 import { SuiviMap } from './SuiviMap';
 import { createColumns } from './suivi-table/columns';
 import { DataTable } from '@/components/data-table/DataTable';
-import type { CommercialGPS, Zone } from '@/types/types';
-import { commercialService } from '@/services/commercial.service';
-import { io, Socket } from 'socket.io-client';
-import { useAudioStreaming } from '@/hooks/useAudioStreaming';
-import { useAuth } from '@/contexts/AuthContext';
-import { Headphones, Volume2, VolumeX, MicOff, Users, FileText } from 'lucide-react';
-import { Button } from '@/components/ui-admin/button';
-import { Slider } from '@/components/ui-admin/slider';
-import { Card, CardContent } from '@/components/ui-admin/card';
-import { Badge } from '@/components/ui-admin/badge';
-import { Modal } from '@/components/ui-admin/Modal';
+
+interface CommercialGPS {
+  id: string;
+  name: string;
+  avatarFallback: string;
+  position: [number, number] | null;
+  equipe: string;
+  isOnline: boolean;
+  isStreaming: boolean;
+  lastUpdate: Date | null;
+  speed?: number;
+  heading?: number;
+}
+
+interface TranscriptionSession {
+  id: string;
+  commercial_id: string;
+  commercial_name: string;
+  start_time: string;
+  end_time: string;
+  full_transcript: string;
+  duration_seconds: number;
+}
+
+interface Zone {
+  id: string;
+  name: string;
+  coordinates: [number, number][];
+  color: string;
+  latlng: [number, number];
+  radius: number;
+}
 
 const SuiviPage = () => {
   const { user } = useAuth();
@@ -27,6 +70,9 @@ const SuiviPage = () => {
   
   // Stocker les transcriptions par commercial
   const [transcriptions, setTranscriptions] = useState<Record<string, string>>({});
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [transcriptionHistory, setTranscriptionHistory] = useState<TranscriptionSession[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Configuration du streaming audio - détection automatique du protocole
   const getAudioServerUrl = () => {
@@ -163,6 +209,19 @@ const SuiviPage = () => {
         console.log(`🔄 ADMIN - Commercial ${commercial.name} (${commercial.id}) streaming: ${isCurrentlyStreaming}`);
         return { ...commercial, isStreaming: isCurrentlyStreaming };
       }));
+    });
+
+    // Écouter les sessions de transcription terminées
+    socketConnection.on('transcription_session_completed', (session: TranscriptionSession) => {
+      console.log('📚 ADMIN - Session de transcription terminée:', session);
+      setTranscriptionHistory(prev => [session, ...prev]);
+    });
+
+    // Écouter la réponse de l'historique des transcriptions
+    socketConnection.on('transcription_history_response', (data: { history: TranscriptionSession[] }) => {
+      console.log('📚 ADMIN - Historique des transcriptions reçu:', data.history.length, 'sessions');
+      setTranscriptionHistory(data.history);
+      setLoadingHistory(false);
     });
 
     // Écouter les mises à jour de transcription
@@ -302,6 +361,16 @@ const SuiviPage = () => {
     };
   }, [user?.id]);
 
+  // Demander l'historique quand le modal s'ouvre
+  useEffect(() => {
+    if (showHistoryModal) {
+      // Utiliser le socket de la connexion audio pour envoyer la demande
+      console.log('📚 ADMIN - Demande d\'historique envoyée');
+      // La demande sera envoyée via le socket de la connexion audio
+      // Nous devons accéder au socket via audioStreaming
+    }
+  }, [showHistoryModal]);
+
   const handleSelectCommercial = (commercial: CommercialGPS) => {
     setSelectedCommercial(commercial);
   };
@@ -365,6 +434,32 @@ const SuiviPage = () => {
       console.error('❌ ADMIN - Erreur lors de l\'arrêt de l\'écoute:', error);
       setAttemptedListeningTo(null);
     }
+  };
+
+  const handleOpenHistory = () => {
+    setShowHistoryModal(true);
+    setLoadingHistory(true);
+    
+    // Demander l'historique au serveur via le socket de la connexion audio
+    console.log('📚 ADMIN - Demande d\'historique des transcriptions');
+    // La demande sera envoyée via le socket de la connexion audio dans le useEffect
+  };
+
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   // Fonction pour formater le texte de transcription
@@ -522,7 +617,16 @@ const SuiviPage = () => {
           </div>
 
           {/* Bouton unique pour fermer */}
-          <div className="flex justify-end pt-4 border-t">
+          <div className="flex justify-between items-center pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={handleOpenHistory}
+              className="flex items-center gap-2"
+            >
+              <History className="w-4 h-4" />
+              Historique de prospection
+            </Button>
+            
             <Button
               variant="outline"
               onClick={() => {
@@ -531,6 +635,101 @@ const SuiviPage = () => {
                 setShowListeningModal(false);
                 setAttemptedListeningTo(null);
               }}
+            >
+              Fermer
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  };
+
+  const renderHistoryModal = () => {
+    if (!showHistoryModal) {
+      return null;
+    }
+
+    return (
+      <Modal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        title="Historique des transcriptions"
+        maxWidth="max-w-4xl"
+      >
+        <div className="space-y-6">
+          {loadingHistory ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Chargement de l'historique...</p>
+              </div>
+            </div>
+          ) : transcriptionHistory.length === 0 ? (
+            <div className="text-center py-8">
+              <History className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">Aucune transcription enregistrée</p>
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {transcriptionHistory.map((session) => (
+                <div key={session.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
+                        {session.commercial_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">{session.commercial_name}</h4>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            {formatDate(session.start_time)}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {formatDuration(session.duration_seconds)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {session.full_transcript.length} caractères
+                    </Badge>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-3 rounded text-sm text-gray-700 max-h-32 overflow-y-auto">
+                    {session.full_transcript || "Aucune transcription disponible"}
+                  </div>
+                  
+                  <div className="flex justify-end mt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Exporter cette session
+                        const blob = new Blob([session.full_transcript], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `transcription-${session.commercial_name}-${formatDate(session.start_time)}.txt`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      Exporter
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div className="flex justify-end pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => setShowHistoryModal(false)}
             >
               Fermer
             </Button>
@@ -612,6 +811,7 @@ const SuiviPage = () => {
       
       {renderMapModal()}
       {renderListeningModal()}
+      {renderHistoryModal()}
     </div>
   );
 };

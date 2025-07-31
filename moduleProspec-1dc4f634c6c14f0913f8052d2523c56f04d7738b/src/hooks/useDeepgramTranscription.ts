@@ -84,8 +84,21 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
         throw new Error('Clé API Deepgram manquante');
       }
 
-      // Paramètres optimisés pour une meilleure détection et moins de latence
-      const wsUrl = `wss://api.deepgram.com/v1/listen?model=nova-2&language=fr&smart_format=true&interim_results=true&endpointing=200&punctuate=true&diarize=false&utterances=true&vad_turnoff=500`;
+      console.log('🎙️ COMMERCIAL - Clé API Deepgram:', deepgramApiKey.substring(0, 10) + '...');
+      console.log('🎙️ COMMERCIAL - Longueur de la clé:', deepgramApiKey.length);
+      console.log('🎙️ COMMERCIAL - Vérification de la clé API...');
+
+      // Vérifier le format de la clé (doit commencer par "dg_")
+      if (!deepgramApiKey.startsWith('dg_')) {
+        console.error('❌ COMMERCIAL - Format de clé API incorrect. Doit commencer par "dg_"');
+        throw new Error('Format de clé API Deepgram incorrect');
+      }
+
+      // Paramètres simplifiés pour éviter les erreurs
+      const wsUrl = `wss://api.deepgram.com/v1/listen?model=nova-2&language=fr`;
+      
+      console.log('🎙️ COMMERCIAL - URL WebSocket Deepgram:', wsUrl);
+      console.log('🎙️ COMMERCIAL - Tentative de connexion WebSocket...');
       
       websocketRef.current = new WebSocket(wsUrl, ['token', deepgramApiKey]);
 
@@ -170,12 +183,19 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
 
       websocketRef.current.onerror = (error) => {
         console.error('❌ Erreur Deepgram WebSocket:', error);
+        console.error('❌ Détails de l\'erreur:', {
+          readyState: websocketRef.current?.readyState,
+          url: websocketRef.current?.url,
+          protocol: websocketRef.current?.protocol
+        });
         setError('Erreur de connexion à Deepgram');
         setIsConnected(false);
       };
 
-      websocketRef.current.onclose = () => {
+      websocketRef.current.onclose = (event) => {
         console.log('🔌 Connexion Deepgram fermée');
+        console.log('🔌 Code de fermeture:', event.code);
+        console.log('🔌 Raison de fermeture:', event.reason);
         setIsConnected(false);
       };
 
