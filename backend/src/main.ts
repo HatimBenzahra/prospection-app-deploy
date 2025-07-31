@@ -6,23 +6,35 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 async function bootstrap() {
-  // En production (Render), utiliser HTTP simple car Render gère HTTPS
-  if (process.env.NODE_ENV === 'production') {
-    const app = await NestFactory.create(AppModule);
-    
-    app.useGlobalPipes(new ValidationPipe());
-    
-    app.enableCors({
-      origin: '*', // Permettre toutes les origines en production pour Render
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-      credentials: true,
-    });
-    
-    const port = process.env.PORT || process.env.API_PORT || 3000;
-    await app.listen(port, '0.0.0.0');
-    console.log(`🚀 Production Server running on port ${port}`);
-    console.log(`📊 Health check: http://localhost:${port}/health`);
-    return;
+  console.log('🚀 Starting NestJS backend...');
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('DATABASE_URL available:', !!process.env.DATABASE_URL);
+  
+  try {
+    // En production (Render), utiliser HTTP simple car Render gère HTTPS
+    if (process.env.NODE_ENV === 'production') {
+      const app = await NestFactory.create(AppModule, {
+        logger: ['error', 'warn', 'log'],
+      });
+      
+      app.useGlobalPipes(new ValidationPipe());
+      
+      app.enableCors({
+        origin: '*', // Permettre toutes les origines en production pour Render
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+        credentials: true,
+      });
+      
+      const port = process.env.PORT || process.env.API_PORT || 3000;
+      await app.listen(port, '0.0.0.0');
+      console.log(`✅ Production Server running on port ${port}`);
+      console.log(`📊 Health check: http://localhost:${port}/health`);
+      return;
+    }
+  } catch (error) {
+    console.error('❌ Production startup failed:', error);
+    console.error('Stack:', error.stack);
+    process.exit(1);
   }
 
   // Code de développement avec SSL
