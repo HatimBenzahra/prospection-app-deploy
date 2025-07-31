@@ -20,8 +20,8 @@ export default defineConfig(({ command, mode }) => {
 
   // Configuration HTTPS uniquement en mode développement et si les certificats existent
   if (command === 'serve' && mode === 'development') {
-    const sslKeyPath = path.resolve(__dirname, '../backend/ssl/192.168.1.50-key.pem')
-    const sslCertPath = path.resolve(__dirname, '../backend/ssl/192.168.1.50.pem')
+    const sslKeyPath = path.resolve(__dirname, '../backend/ssl/127.0.0.1+1-key.pem')
+    const sslCertPath = path.resolve(__dirname, '../backend/ssl/127.0.0.1+1.pem')
     
     if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
       config.server = {
@@ -29,7 +29,7 @@ export default defineConfig(({ command, mode }) => {
           key: fs.readFileSync(sslKeyPath),
           cert: fs.readFileSync(sslCertPath),
         },
-        host: '192.168.1.50',
+        host: 'localhost',
         port: 5173,
       }
     } else {
