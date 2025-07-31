@@ -17,8 +17,12 @@ RUN pip install -r requirements.txt
 # Copier le code source
 COPY . .
 
-# Exposer le port
-EXPOSE 8000
+# Exposer le port que Render utilise
+EXPOSE $PORT
+
+# Variables d'environnement pour Render
+ENV HTTP_PORT=$PORT
+ENV HTTPS_PORT=8443
 
 # Commande de démarrage
-CMD ["python", "audio_streaming_server.py"]
+CMD python audio_streaming_server.py

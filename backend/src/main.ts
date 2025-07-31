@@ -6,9 +6,26 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 async function bootstrap() {
-  const sslPath = process.env.NODE_ENV === 'production' 
-    ? path.join(__dirname, '..', 'ssl')
-    : path.join(process.cwd(), 'ssl');
+  // En production (Render), utiliser HTTP simple car Render gère HTTPS
+  if (process.env.NODE_ENV === 'production') {
+    const app = await NestFactory.create(AppModule);
+    
+    app.useGlobalPipes(new ValidationPipe());
+    
+    app.enableCors({
+      origin: '*', // Permettre toutes les origines en production pour Render
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      credentials: true,
+    });
+    
+    const port = process.env.PORT || process.env.API_PORT || 3000;
+    await app.listen(port, '0.0.0.0');
+    console.log(`🚀 Production Server running on port ${port}`);
+    return;
+  }
+
+  // Code de développement avec SSL
+  const sslPath = path.join(process.cwd(), 'ssl');
     
   try {
     // Essayer HTTPS d'abord

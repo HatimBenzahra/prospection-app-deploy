@@ -21,10 +21,28 @@ FROM nginx:alpine
 # Copier les fichiers buildés
 COPY --from=0 /app/dist /usr/share/nginx/html
 
-# Copier la configuration nginx personnalisée
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Créer une configuration nginx simple
+RUN echo 'server { \
+    listen $PORT; \
+    server_name localhost; \
+    location / { \
+        root /usr/share/nginx/html; \
+        index index.html index.htm; \
+        try_files $uri $uri/ /index.html; \
+    } \
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ { \
+        expires 1y; \
+        add_header Cache-Control "public, immutable"; \
+        root /usr/share/nginx/html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf.template
 
-# Exposer le port
-EXPOSE 80
+# Script pour remplacer le port au démarrage
+RUN echo '#!/bin/sh \
+envsubst < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf \
+exec nginx -g "daemon off;"' > /start.sh && chmod +x /start.sh
 
-CMD ["nginx", "-g", "daemon off;"]
+# Exposer le port dynamique de Render
+EXPOSE $PORT
+
+CMD ["/start.sh"]

@@ -19,8 +19,11 @@ COPY . .
 # Build l'application
 RUN npm run build
 
-# Exposer le port
-EXPOSE 3000
+# Exposer le port que Render assigne dynamiquement
+EXPOSE $PORT
+
+# Variables d'environnement pour Render
+ENV NODE_ENV=production
 
 # Commande de démarrage
 CMD ["npm", "run", "start:prod"]
