@@ -9,7 +9,7 @@ import { commercialService } from '@/services/commercial.service';
 import { transcriptionHistoryService, type TranscriptionSession } from '@/services/transcriptionHistory.service';
 import { useAuth } from '@/contexts/AuthContext';
 import { io, Socket } from 'socket.io-client';
-import { SOCKET_URL } from '@/config';
+import { SOCKET_URL, PYTHON_SERVER_URL } from '@/config';
 import { TranscriptionProcessor } from '@/utils/transcriptionProcessor';
 import { toast } from 'sonner';
 import { 
@@ -72,21 +72,9 @@ const SuiviPage = () => {
   const [selectedSession, setSelectedSession] = useState<TranscriptionSession | null>(null);
   const transcriptionRef = useRef<HTMLDivElement>(null);
 
-  // Configuration du streaming audio - détection automatique du protocole
+  // Configuration du streaming audio - utiliser la configuration centralisée
   const getAudioServerUrl = () => {
-    const isHttps = window.location.protocol === 'https:';
-    const hostname = import.meta.env.VITE_SERVER_HOST || window.location.hostname;
-    const httpsPort = import.meta.env.VITE_PYTHON_HTTPS_PORT || '8443';
-    const httpPort = import.meta.env.VITE_PYTHON_HTTP_PORT || '8080';
-    
-    // Utiliser HTTPS si la page est en HTTPS, sinon HTTP
-    if (isHttps) {
-      console.log('🔧 Utilisation HTTPS pour le serveur audio (page en HTTPS)');
-      return `https://${hostname}:${httpsPort}`;
-    } else {
-      console.log('🔧 Utilisation HTTP pour le serveur audio (page en HTTP)');
-      return `http://${hostname}:${httpPort}`;
-    }
+    return PYTHON_SERVER_URL;
   };
 
   const audioServerUrl = getAudioServerUrl();

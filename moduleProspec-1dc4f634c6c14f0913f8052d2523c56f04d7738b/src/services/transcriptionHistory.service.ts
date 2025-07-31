@@ -10,13 +10,13 @@ export interface TranscriptionSession {
   building_name?: string;
 }
 
+import { API_BASE_URL } from '../config';
+
 class TranscriptionHistoryService {
   private baseUrl: string;
 
   constructor() {
-    const SERVER_HOST = import.meta.env.VITE_SERVER_HOST || window.location.hostname;
-    const API_PORT = import.meta.env.VITE_API_PORT || '3000';
-    this.baseUrl = `https://${SERVER_HOST}:${API_PORT}`;
+    this.baseUrl = API_BASE_URL;
   }
 
   async saveTranscriptionSession(session: TranscriptionSession): Promise<void> {
