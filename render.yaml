@@ -1,7 +1,6 @@
 databases:
   - name: prospection-db
     databaseName: prospection_db
-    user: postgres
     plan: free
 
 services:
