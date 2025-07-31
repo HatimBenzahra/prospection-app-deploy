@@ -30,7 +30,6 @@ import { useSocket } from '@/hooks/useSocket';
 import { useAudioStreaming } from '@/hooks/useAudioStreaming';
 import { useDeepgramTranscription } from '@/hooks/useDeepgramTranscription';
 import { Mic, MicOff } from 'lucide-react';
-import { StructuredTranscription } from '@/components/commercial/StructuredTranscription';
 
 
 const ProspectingDoorsPage = () => {

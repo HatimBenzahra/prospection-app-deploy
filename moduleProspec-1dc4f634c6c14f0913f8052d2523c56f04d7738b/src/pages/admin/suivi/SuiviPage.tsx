@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-admin/card';
+import  { useState, useEffect, useRef } from 'react';
+import { Card, CardContent  } from '@/components/ui-admin/card';
 import { Button } from '@/components/ui-admin/button';
 import { Badge } from '@/components/ui-admin/badge';
 import { Modal } from '@/components/ui-admin/Modal';
@@ -7,13 +7,11 @@ import { Slider } from '@/components/ui-admin/slider';
 import { useAudioStreaming } from '@/hooks/useAudioStreaming';
 import { commercialService } from '@/services/commercial.service';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSocket } from '@/hooks/useSocket';
 import { io, Socket } from 'socket.io-client';
+import { TranscriptionProcessor } from '@/utils/transcriptionProcessor';
 import { 
   Users, 
-  MapPin, 
   Headphones, 
-  MicOff, 
   VolumeX, 
   Volume2, 
   FileText,
@@ -70,6 +68,7 @@ const SuiviPage = () => {
   
   // Stocker les transcriptions par commercial
   const [transcriptions, setTranscriptions] = useState<Record<string, string>>({});
+  const transcriptionProcessorsRef = useRef<Record<string, TranscriptionProcessor>>({});
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [transcriptionHistory, setTranscriptionHistory] = useState<TranscriptionSession[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -189,6 +188,7 @@ const SuiviPage = () => {
       
       // Réinitialiser la transcription pour ce commercial
       setTranscriptions(prev => ({ ...prev, [data.commercial_id]: '' }));
+      transcriptionProcessorsRef.current[data.commercial_id] = new TranscriptionProcessor();
     });
 
     socketConnection.on('stop_streaming', (data: { commercial_id: string }) => {
@@ -236,81 +236,14 @@ const SuiviPage = () => {
       console.log('📝 ADMIN - Transcript:', data.transcript);
       console.log('📝 ADMIN - Is final:', data.is_final);
       
-      setTranscriptions(prev => {
-        const currentText = prev[data.commercial_id] || '';
-        
-        if (data.is_final) {
-          // Transcription finale : traiter et ajouter proprement
-          const cleanTranscript = data.transcript.trim();
-          
-          if (cleanTranscript) {
-            // Nettoyer le texte en cours
-            let cleanedCurrent = currentText;
-            
-            // Supprimer les parties temporaires entre crochets
-            cleanedCurrent = cleanedCurrent.replace(/\[.*?\]/g, '');
-            
-            // Supprimer les répétitions de mots/phrases
-            const words = cleanedCurrent.split(' ');
-            const newWords = cleanTranscript.split(' ');
-            
-            // Vérifier si les derniers mots sont répétés (plus intelligent)
-            let startIndex = 0;
-            if (words.length > 0 && newWords.length > 0) {
-              // Comparer les 2-4 derniers mots avec les 2-4 premiers mots
-              const lastWords = words.slice(-4).join(' ').toLowerCase().trim();
-              const firstWords = newWords.slice(0, 4).join(' ').toLowerCase().trim();
-              
-              if (lastWords && firstWords) {
-                // Vérifier si il y a une répétition significative
-                if (lastWords.includes(firstWords) || firstWords.includes(lastWords)) {
-                  startIndex = Math.min(4, newWords.length);
-                } else {
-                  // Vérifier les répétitions partielles
-                  const lastWord = words[words.length - 1]?.toLowerCase();
-                  const firstWord = newWords[0]?.toLowerCase();
-                  if (lastWord === firstWord && lastWord.length > 2) {
-                    startIndex = 1;
-                  }
-                }
-              }
-            }
-            
-            // Ajouter seulement la nouvelle partie non répétée
-            const newPart = newWords.slice(startIndex).join(' ');
-            
-            if (newPart.trim()) {
-              // Ajouter une ponctuation si nécessaire
-              let separator = ' ';
-              if (cleanedCurrent && !cleanedCurrent.endsWith('.') && !cleanedCurrent.endsWith('!') && !cleanedCurrent.endsWith('?')) {
-                separator = '. ';
-              }
-              
-              const updatedText = cleanedCurrent + separator + newPart;
-              console.log('📝 ADMIN - Texte nettoyé et mis à jour:', updatedText);
-              return { ...prev, [data.commercial_id]: updatedText };
-            } else {
-              console.log('📝 ADMIN - Pas de nouveau contenu à ajouter');
-              return prev;
-            }
-          }
-          
-          return prev;
-        } else {
-          // Transcription temporaire : afficher entre crochets mais nettoyer
-          const cleanTranscript = data.transcript.trim();
-          
-          if (cleanTranscript && cleanTranscript.length > 2) {
-            // Supprimer les anciennes parties temporaires
-            const withoutTemp = currentText.replace(/\[.*?\]/g, '');
-            const tempText = withoutTemp + ' [' + cleanTranscript + ']';
-            console.log('📝 ADMIN - Texte temporaire:', tempText);
-            return { ...prev, [data.commercial_id]: tempText };
-          }
-          
-          return prev;
-        }
-      });
+      const processor = transcriptionProcessorsRef.current[data.commercial_id] || new TranscriptionProcessor();
+      transcriptionProcessorsRef.current[data.commercial_id] = processor;
+      const formattedText = processor.addSegment(data.transcript, data.is_final);
+      
+      setTranscriptions(transcriptions => ({
+        ...transcriptions,
+        [data.commercial_id]: formattedText
+      }));
     });
 
     setSocket(socketConnection);
@@ -436,14 +369,6 @@ const SuiviPage = () => {
     }
   };
 
-  const handleOpenHistory = () => {
-    setShowHistoryModal(true);
-    setLoadingHistory(true);
-    
-    // Demander l'historique au serveur via le socket de la connexion audio
-    console.log('📚 ADMIN - Demande d\'historique des transcriptions');
-    // La demande sera envoyée via le socket de la connexion audio dans le useEffect
-  };
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -462,29 +387,12 @@ const SuiviPage = () => {
     });
   };
 
-  // Fonction pour formater le texte de transcription
+  // Fonction pour formater le texte de transcription (utilise maintenant TranscriptionProcessor)
   const formatTranscriptionText = (text: string) => {
     if (!text || text === 'En attente de transcription...') {
       return text;
     }
-
-    // Supprimer les parties temporaires entre crochets
-    let cleanText = text.replace(/\[.*?\]/g, '');
-    
-    // Nettoyer les espaces multiples
-    cleanText = cleanText.replace(/\s+/g, ' ');
-    
-    // Ajouter des sauts de ligne pour créer des paragraphes
-    // Après chaque point d'interrogation ou d'exclamation
-    cleanText = cleanText.replace(/([.!?])\s+/g, '$1\n\n');
-    
-    // Supprimer les lignes vides multiples
-    cleanText = cleanText.replace(/\n\s*\n\s*\n/g, '\n\n');
-    
-    // Capitaliser la première lettre de chaque phrase
-    cleanText = cleanText.replace(/(^|\.\s+)([a-z])/g, (match, p1, p2) => p1 + p2.toUpperCase());
-    
-    return cleanText.trim();
+    return text; // Le texte est déjà formaté par TranscriptionProcessor
   };
 
   if (loading) {
@@ -560,10 +468,6 @@ const SuiviPage = () => {
                 <p className="text-sm text-gray-600">{listeningCommercial?.equipe}</p>
               </div>
             </div>
-            <Badge variant="default" className={audioStreaming.isListening ? "bg-red-500 animate-pulse" : "bg-yellow-500"}>
-              <div className="w-2 h-2 bg-white rounded-full mr-2"></div>
-              {audioStreaming.isListening ? "LIVE" : "CONNEXION..."}
-            </Badge>
           </div>
 
           {/* Contrôles audio */}
@@ -609,7 +513,7 @@ const SuiviPage = () => {
               </div>
             </div>
             <div className="flex justify-between items-center text-xs text-gray-500">
-              <span>Transcription en temps réel (Deepgram)</span>
+              <span>Statut :</span>
               <Badge variant="outline" className={`text-xs ${listeningCommercial?.isStreaming ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}>
                 {listeningCommercial?.isStreaming ? 'Commercial actif' : 'Commercial inactif'}
               </Badge>
@@ -617,15 +521,7 @@ const SuiviPage = () => {
           </div>
 
           {/* Bouton unique pour fermer */}
-          <div className="flex justify-between items-center pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={handleOpenHistory}
-              className="flex items-center gap-2"
-            >
-              <History className="w-4 h-4" />
-              Historique de prospection
-            </Button>
+          <div className="flex justify-end items-center pt-4 border-t">
             
             <Button
               variant="outline"
