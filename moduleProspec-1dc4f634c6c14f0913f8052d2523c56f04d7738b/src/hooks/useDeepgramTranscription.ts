@@ -65,13 +65,13 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
         });
       }
 
-      // Demander l'accès au microphone
+      // Paramètres audio pour discours fluide
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 16000, // Taux d'échantillonnage optimal pour Deepgram
+          sampleRate: 16000,
           channelCount: 1
         } 
       });
@@ -88,98 +88,166 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
       console.log('🎙️ COMMERCIAL - Longueur de la clé:', deepgramApiKey.length);
       console.log('🎙️ COMMERCIAL - Vérification de la clé API...');
 
-      // Vérifier le format de la clé (doit commencer par "dg_")
+      // Vérifier le format de la clé (doit commencer par "dg_" dans le nouveau format)
       if (!deepgramApiKey.startsWith('dg_')) {
-        console.error('❌ COMMERCIAL - Format de clé API incorrect. Doit commencer par "dg_"');
-        throw new Error('Format de clé API Deepgram incorrect');
+        // Ancien format hexadécimal détecté. On continue mais on log un avertissement.
+        console.warn('⚠️ COMMERCIAL - Clé API Deepgram sans préfixe "dg_". Assurez-vous qu\'elle est toujours valide.');
       }
 
-      // Paramètres simplifiés pour éviter les erreurs
-      const wsUrl = `wss://api.deepgram.com/v1/listen?model=nova-2&language=fr`;
-      
-      console.log('🎙️ COMMERCIAL - URL WebSocket Deepgram:', wsUrl);
-      console.log('🎙️ COMMERCIAL - Tentative de connexion WebSocket...');
-      
-      websocketRef.current = new WebSocket(wsUrl, ['token', deepgramApiKey]);
+      // Déterminer le modèle Deepgram : par défaut "general" si non précisé
+      const dgModel = import.meta.env.VITE_DEEPGRAM_MODEL ?? 'general';
 
-      websocketRef.current.onopen = () => {
-        console.log('🎙️ Connexion Deepgram établie');
+      // URL optimisée pour discours continu fluide
+      let wsUrl = `wss://api.deepgram.com/v1/listen?model=nova-2&language=fr&interim_results=true&punctuate=true&smart_format=true&utterance_end_ms=3000&endpointing=1000`;
+
+      console.log('🎙️ COMMERCIAL - URL WebSocket Deepgram:', wsUrl);
+      console.log('🎙️ COMMERCIAL - Clé API (10 premiers chars):', deepgramApiKey.substring(0, 10));
+      console.log('🎙️ COMMERCIAL - Tentative de connexion WebSocket...');
+
+      // Fonction fallback utilisant l'API REST
+      const startRestModeTranscription = () => {
+        console.log('🔄 Démarrage transcription mode REST...');
         setIsConnected(true);
         
-        // Démarrer l'enregistrement
         const mediaRecorder = new MediaRecorder(stream, {
-          mimeType: 'audio/webm;codecs=opus'
+          mimeType: 'audio/webm;codecs=opus',
+          audioBitsPerSecond: 32000
         });
         
         mediaRecorderRef.current = mediaRecorder;
         
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0 && websocketRef.current?.readyState === WebSocket.OPEN) {
-            websocketRef.current.send(event.data);
+        mediaRecorder.ondataavailable = async (event) => {
+          if (event.data.size > 0) {
+            try {
+              const formData = new FormData();
+              formData.append('audio', event.data, 'audio.webm');
+              
+              const response = await fetch(`https://api.deepgram.com/v1/listen?model=nova-2&language=fr&punctuate=true&smart_format=true`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Token ${deepgramApiKey}`,
+                },
+                body: formData
+              });
+              
+              if (response.ok) {
+                const result = await response.json();
+                const transcript = result.results?.channels?.[0]?.alternatives?.[0]?.transcript?.trim();
+                const confidence = result.results?.channels?.[0]?.alternatives?.[0]?.confidence || 0;
+                
+                if (transcript && transcript.length > 2) {
+                  setTranscription(prev => {
+                    // Éviter les doublons exacts
+                    if (prev.endsWith(transcript)) return prev;
+                    
+                    // Ajouter simplement
+                    return prev + (prev.length > 0 ? ' ' : '') + transcript;
+                  });
+                  
+                  // Envoyer au serveur Node.js
+                  if (socketRef.current && userIdRef.current) {
+                    socketRef.current.emit('transcription_update', {
+                      commercial_id: userIdRef.current,
+                      transcript: transcript,
+                      is_final: true,
+                      timestamp: new Date().toISOString()
+                    });
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('❌ Erreur transcription REST:', error);
+            }
           }
         };
         
-        mediaRecorder.start(50); // Envoyer des chunks toutes les 50ms au lieu de 100ms pour plus de réactivité
+        mediaRecorder.start(2000); // Chunks de 2 secondes pour meilleur équilibre
+        return;
       };
 
-      websocketRef.current.onmessage = (event) => {
-        const response = JSON.parse(event.data);
+      // Essayer d'abord WebSocket streaming
+      try {
+        websocketRef.current = new WebSocket(wsUrl, ['token', deepgramApiKey]);
         
-        if (response.channel?.alternatives?.[0]?.transcript) {
-          const newTranscript = response.channel.alternatives[0].transcript;
+        // Timeout pour détecter les échecs de connexion
+        const connectionTimeout = setTimeout(() => {
+          if (websocketRef.current?.readyState !== WebSocket.OPEN) {
+            console.warn('⚠️ WebSocket timeout - Utilisation du mode REST fallback');
+            websocketRef.current?.close();
+            startRestModeTranscription();
+          }
+        }, 5000);
+
+        websocketRef.current.addEventListener('open', () => {
+          clearTimeout(connectionTimeout);
+          console.log('✅ WebSocket streaming activé');
+          console.log('🎙️ Connexion Deepgram établie');
+          setIsConnected(true);
           
-          if (response.is_final) {
-            // Transcription finale - l'ajouter définitivement
-            const finalTranscript = newTranscript + ' ';
-            setTranscription(prev => prev + finalTranscript);
-            
-            // Envoyer la transcription finale au serveur Node.js
-            if (socketRef.current && userIdRef.current) {
-              console.log('📝 COMMERCIAL - Envoi transcription finale:', finalTranscript);
-              console.log('📝 COMMERCIAL - Socket connecté:', !!socketRef.current);
-              console.log('📝 COMMERCIAL - User ID:', userIdRef.current);
-              const eventData = {
-                commercial_id: userIdRef.current,
-                transcript: finalTranscript,
-                is_final: true,
-                timestamp: new Date().toISOString()
-              };
-              console.log('📝 COMMERCIAL - Données événement:', eventData);
-              socketRef.current.emit('transcription_update', eventData);
-              console.log('📝 COMMERCIAL - Événement transcription_update émis');
-            } else {
-              console.log('❌ COMMERCIAL - Impossible d\'envoyer transcription:', {
-                socket: !!socketRef.current,
-                userId: userIdRef.current
-              });
+          // Configuration optimisée pour conversation continue
+          const mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'audio/webm;codecs=opus',
+            audioBitsPerSecond: 32000 // Qualité supérieure pour meilleure précision
+          });
+          
+          mediaRecorderRef.current = mediaRecorder;
+          
+          mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0 && websocketRef.current?.readyState === WebSocket.OPEN) {
+              websocketRef.current.send(event.data);
             }
-          } else {
-            // Transcription temporaire - la remplacer seulement si elle est significativement différente
-            setTranscription(prev => {
-              const lines = prev.split('\n');
-              const lastLineComplete = lines[lines.length - 1];
-              
-              // Ne pas remplacer si la transcription temporaire est trop courte ou identique
-              if (newTranscript.length < 2 || lastLineComplete.includes(newTranscript)) {
-                return prev;
-              }
-              
-              return lastLineComplete + ' [' + newTranscript + ']';
-            });
+          };
+          
+          mediaRecorder.start(250); // Chunks plus larges pour éviter fragmentation
+        });
+
+        websocketRef.current.addEventListener('error', () => {
+          clearTimeout(connectionTimeout);
+          console.warn('⚠️ WebSocket échoué - Basculement vers REST API');
+          startRestModeTranscription();
+        });
+
+        websocketRef.current.onmessage = (event) => {
+          const response = JSON.parse(event.data);
+          
+          if (response.channel?.alternatives?.[0]?.transcript) {
+            const newTranscript = response.channel.alternatives[0].transcript.trim();
             
-            // Envoyer aussi les transcriptions temporaires significatives
-            if (socketRef.current && userIdRef.current && newTranscript.length > 2) {
-              console.log('📝 COMMERCIAL - Envoi transcription temporaire:', newTranscript);
-              socketRef.current.emit('transcription_update', {
-                commercial_id: userIdRef.current,
-                transcript: newTranscript,
-                is_final: false,
-                timestamp: new Date().toISOString()
+            // Ignorer les transcriptions vides ou trop courtes
+            if (!newTranscript || newTranscript.length < 2) return;
+            
+            if (response.is_final) {
+              // Transcription finale - simple ajout
+              setTranscription(prev => {
+                // Éviter les doublons exacts
+                if (prev.endsWith(newTranscript)) return prev;
+                
+                // Ajouter simplement avec un espace
+                return prev + (prev.length > 0 ? ' ' : '') + newTranscript;
+              });
+              
+              // Envoyer au serveur
+              if (socketRef.current && userIdRef.current) {
+                console.log('📝 COMMERCIAL - Transcription finale:', newTranscript);
+                socketRef.current.emit('transcription_update', {
+                  commercial_id: userIdRef.current,
+                  transcript: newTranscript,
+                  is_final: true,
+                  timestamp: new Date().toISOString()
+                });
+              }
+            } else {
+              // Transcription temporaire - aperçu simple
+              setTranscription(prev => {
+                const cleanPrev = prev.replace(/\s*\[.*?\]\s*$/g, '');
+                if (newTranscript.length > 3) {
+                  return cleanPrev + (cleanPrev.length > 0 ? ' ' : '') + '[' + newTranscript + ']';
+                }
+                return cleanPrev;
               });
             }
           }
-        }
-      };
+        };
 
       websocketRef.current.onerror = (error) => {
         console.error('❌ Erreur Deepgram WebSocket:', error);
@@ -188,7 +256,14 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
           url: websocketRef.current?.url,
           protocol: websocketRef.current?.protocol
         });
-        setError('Erreur de connexion à Deepgram');
+        
+        // Vérifier si c'est un problème d'authentification
+        if (websocketRef.current?.readyState === WebSocket.CLOSED) {
+          console.error('❌ Connexion fermée - Vérifiez votre clé API Deepgram');
+          setError('Authentification Deepgram échouée - Vérifiez votre clé API');
+        } else {
+          setError('Erreur de connexion à Deepgram');
+        }
         setIsConnected(false);
       };
 
@@ -196,8 +271,28 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
         console.log('🔌 Connexion Deepgram fermée');
         console.log('🔌 Code de fermeture:', event.code);
         console.log('🔌 Raison de fermeture:', event.reason);
+        
+        // Codes d'erreur spécifiques Deepgram
+        if (event.code === 1002) {
+          console.error('❌ Erreur protocole WebSocket');
+          setError('Erreur de protocole - Vérifiez les paramètres de connexion');
+        } else if (event.code === 1006) {
+          console.error('❌ Connexion fermée anormalement');
+          setError('Connexion fermée anormalement - Problème réseau ou authentification');
+        } else if (event.code === 4001) {
+          console.error('❌ Clé API invalide');
+          setError('Clé API Deepgram invalide');
+        } else if (event.code === 4002) {
+          console.error('❌ Quota dépassé');
+          setError('Quota Deepgram dépassé');
+        }
+        
         setIsConnected(false);
-      };
+        };
+      } catch (error) {
+        console.warn('⚠️ WebSocket non supporté - Utilisation du mode REST');
+        startRestModeTranscription();
+      }
 
     } catch (err) {
       console.error('❌ Erreur démarrage transcription:', err);
