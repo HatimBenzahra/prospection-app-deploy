@@ -72,6 +72,7 @@ const SuiviPage = () => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [transcriptionHistory, setTranscriptionHistory] = useState<TranscriptionSession[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const transcriptionRef = useRef<HTMLDivElement>(null);
 
   // Configuration du streaming audio - détection automatique du protocole
   const getAudioServerUrl = () => {
@@ -80,10 +81,12 @@ const SuiviPage = () => {
     const httpsPort = import.meta.env.VITE_PYTHON_HTTPS_PORT || '8443';
     const httpPort = import.meta.env.VITE_PYTHON_HTTP_PORT || '8080';
     
-    // Si on est en HTTPS, on utilise HTTPS pour le serveur audio aussi
+    // Utiliser HTTPS si la page est en HTTPS, sinon HTTP
     if (isHttps) {
+      console.log('🔧 Utilisation HTTPS pour le serveur audio (page en HTTPS)');
       return `https://${hostname}:${httpsPort}`;
     } else {
+      console.log('🔧 Utilisation HTTP pour le serveur audio (page en HTTP)');
       return `http://${hostname}:${httpPort}`;
     }
   };
@@ -304,6 +307,13 @@ const SuiviPage = () => {
     }
   }, [showHistoryModal]);
 
+  // Auto-scroll vers le bas quand la transcription se met à jour
+  useEffect(() => {
+    if (transcriptionRef.current && showListeningModal) {
+      transcriptionRef.current.scrollTop = transcriptionRef.current.scrollHeight;
+    }
+  }, [transcriptions, showListeningModal]);
+
   const handleSelectCommercial = (commercial: CommercialGPS) => {
     setSelectedCommercial(commercial);
   };
@@ -441,99 +451,237 @@ const SuiviPage = () => {
       return null;
     }
 
+    const currentTranscription = listeningCommercial && transcriptions[listeningCommercial.id] 
+      ? formatTranscriptionText(transcriptions[listeningCommercial.id]) 
+      : "En attente de transcription...";
+
     return (
       <Modal
         isOpen={showListeningModal}
         onClose={() => {
-          // Arrêter l'écoute quand on ferme le modal
           handleStopListening();
           setShowListeningModal(false);
           setAttemptedListeningTo(null);
         }}
-        title={`Écoute en direct - ${listeningCommercial.name}`}
-        maxWidth="max-w-2xl"
+        title=""
+        maxWidth="max-w-7xl"
       >
-        <div className="space-y-6">
-          {/* En-tête avec info commercial */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold">
-                  {listeningCommercial?.avatarFallback}
+        <div className="flex h-[80vh]">
+          {/* Section gauche - Contrôles d'écoute */}
+          <div className="w-1/3 bg-gradient-to-br from-blue-50 to-indigo-50 border-r border-gray-200 flex flex-col">
+            {/* Header commercial */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                    {listeningCommercial?.avatarFallback}
+                  </div>
+                  <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full border-4 border-white shadow-lg ${
+                    listeningCommercial?.isStreaming ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                  }`}></div>
                 </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">{listeningCommercial?.name}</h2>
+                  <p className="text-gray-600 text-sm">{listeningCommercial?.equipe}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className={`w-2 h-2 rounded-full ${listeningCommercial?.isStreaming ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                    <span className="text-sm font-medium">
+                      {listeningCommercial?.isStreaming ? 'En direct' : 'Hors ligne'}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-lg">{listeningCommercial?.name}</h3>
-                <p className="text-sm text-gray-600">{listeningCommercial?.equipe}</p>
+            </div>
+
+            {/* Contrôles audio */}
+            <div className="p-6 border-b border-gray-200 bg-white">
+              <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Headphones className="w-5 h-5 text-blue-600" />
+                Contrôles audio
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Volume</span>
+                    <span className="text-sm font-bold text-blue-600">{Math.round(audioStreaming.audioVolume * 100)}%</span>
+                  </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Connexion audio</span>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${audioStreaming.isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      <span className={`text-sm font-bold ${audioStreaming.isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                        {audioStreaming.isConnected ? 'Connecté' : 'Déconnecté'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <VolumeX className="h-4 w-4 text-gray-500" />
+                    <Slider
+                      value={[audioStreaming.audioVolume * 100]}
+                      onValueChange={(value) => audioStreaming.setVolume(value[0] / 100)}
+                      max={100}
+                      min={0}
+                      step={1}
+                      className="flex-1 [&>span:first-child]:bg-gray-200 [&>span:first-child>span]:bg-blue-600 [&>span:last-child]:bg-blue-600"
+                    />
+                    <Volume2 className="h-4 w-4 text-gray-500" />
+                  </div>
+                </div>
+
+                {audioStreaming.error && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm text-red-700 font-medium">Erreur audio détectée</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Statistiques */}
+            <div className="p-6 border-b border-gray-200 bg-white">
+              <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-green-600" />
+                Statistiques
+              </h3>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Caractères</span>
+                  <span className="font-semibold text-gray-800">{currentTranscription.length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Mots</span>
+                  <span className="font-semibold text-gray-800">{currentTranscription.split(/\s+/).filter(word => word.length > 0).length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Dernière MAJ</span>
+                  <span className="font-semibold text-gray-800">{new Date().toLocaleTimeString('fr-FR')}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-6 bg-white flex-1 flex flex-col justify-end">
+              <div className="space-y-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // Test audio simple
+                    console.log('🔊 Test audio - État connexion:', audioStreaming.isConnected);
+                    console.log('🔊 Test audio - État écoute:', audioStreaming.isListening);
+                    console.log('🔊 Test audio - Volume:', audioStreaming.audioVolume);
+                    console.log('🔊 Test audio - Erreur:', audioStreaming.error);
+                    
+                    // Test de connectivité au serveur audio
+                    const audioServerUrl = getAudioServerUrl();
+                    console.log('🔧 Test de connectivité vers:', audioServerUrl);
+                    
+                    fetch(audioServerUrl, {
+                      method: 'GET',
+                      mode: 'no-cors'
+                    }).then(() => {
+                      console.log('✅ Serveur audio accessible');
+                    }).catch((error) => {
+                      console.error('❌ Serveur audio inaccessible:', error);
+                    });
+
+                    // Test de connexion Socket.IO direct
+                    const testSocket = io(audioServerUrl, {
+                      secure: audioServerUrl.startsWith('https'),
+                      transports: ['polling'],
+                      timeout: 5000
+                    });
+
+                    testSocket.on('connect', () => {
+                      console.log('✅ Test Socket.IO connecté');
+                      testSocket.disconnect();
+                    });
+
+                    testSocket.on('connect_error', (error) => {
+                      console.error('❌ Test Socket.IO échec:', error);
+                    });
+                    
+                    // Créer un son de test
+                    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+                    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.5);
+                    
+                    console.log('🔊 Test audio - Son de test joué');
+                  }}
+                  className="w-full bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                >
+                  Test Audio
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    handleStopListening();
+                    setShowListeningModal(false);
+                    setAttemptedListeningTo(null);
+                  }}
+                  className="w-full bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                >
+                  Fermer
+                </Button>
               </div>
             </div>
           </div>
 
-          {/* Contrôles audio */}
-          <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Contrôles audio</span>
-              <Badge variant="outline" className="text-xs">
-                Volume: {Math.round(audioStreaming.audioVolume * 100)}%
-              </Badge>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <VolumeX className="h-4 w-4 text-gray-500" />
-              <Slider
-                value={[audioStreaming.audioVolume * 100]}
-                onValueChange={(value) => audioStreaming.setVolume(value[0] / 100)}
-                max={100}
-                min={0}
-                step={1}
-                className="flex-1 [&>span:first-child]:bg-blue-100 [&>span:first-child>span]:bg-blue-600 [&>span:last-child]:bg-blue-600"
-              />
-              <Volume2 className="h-4 w-4 text-gray-500" />
-            </div>
-
-            {audioStreaming.error && (
-              <div className="text-xs text-red-600 bg-red-50 p-2 rounded border border-red-200">
-                <strong>Erreur:</strong> {audioStreaming.error}
-              </div>
-            )}
-          </div>
-
-          {/* Zone de transcription */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-gray-600" />
-              <label className="text-sm font-medium text-gray-700">Transcription automatique</label>
-            </div>
-            <div className="w-full h-40 p-3 border border-gray-300 rounded-lg bg-gray-50 overflow-y-auto">
-              <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                {listeningCommercial && transcriptions[listeningCommercial.id] 
-                  ? formatTranscriptionText(transcriptions[listeningCommercial.id]) 
-                  : "En attente de transcription..."}
+          {/* Section droite - Transcription */}
+          <div className="w-2/3 bg-white flex flex-col">
+            {/* Header transcription */}
+            <div className="p-6 border-b border-gray-200 bg-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <FileText className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">Transcription en temps réel</h3>
+                    <p className="text-sm text-gray-600">Suivi automatique de la conversation</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 rounded-full">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-blue-700">Live</span>
+                </div>
               </div>
             </div>
-            <div className="flex justify-between items-center text-xs text-gray-500">
-              <span>Statut :</span>
-              <Badge variant="outline" className={`text-xs ${listeningCommercial?.isStreaming ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}>
-                {listeningCommercial?.isStreaming ? 'Commercial actif' : 'Commercial inactif'}
-              </Badge>
-            </div>
-          </div>
 
-          {/* Bouton unique pour fermer */}
-          <div className="flex justify-end items-center pt-4 border-t">
-            
-            <Button
-              variant="outline"
-              onClick={() => {
-                // Arrêter l'écoute et fermer le modal
-                handleStopListening();
-                setShowListeningModal(false);
-                setAttemptedListeningTo(null);
-              }}
-            >
-              Fermer
-            </Button>
+            {/* Zone de transcription */}
+            <div className="flex-1 p-6 overflow-hidden">
+              <div ref={transcriptionRef} className="h-full bg-gray-50 rounded-lg border border-gray-200 p-6 overflow-y-auto">
+                {currentTranscription === "En attente de transcription..." ? (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <FileText className="w-10 h-10 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-600 mb-2">En attente de transcription</h3>
+                      <p className="text-gray-500">La transcription apparaîtra ici dès que le commercial parlera</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="prose prose-lg max-w-none">
+                    <div className="text-gray-800 leading-relaxed whitespace-pre-wrap font-medium text-base">
+                      {currentTranscription}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </Modal>

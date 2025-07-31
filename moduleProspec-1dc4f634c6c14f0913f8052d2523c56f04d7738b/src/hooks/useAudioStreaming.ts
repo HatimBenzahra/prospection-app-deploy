@@ -62,6 +62,7 @@ export const useAudioStreaming = (config: AudioStreamingConfig): AudioStreamingH
       remoteAudioRef.current = new Audio();
       remoteAudioRef.current.volume = audioVolume;
       remoteAudioRef.current.autoplay = true;
+      remoteAudioRef.current.muted = false; // S'assurer que l'audio n'est pas muet
       
       // Logs pour l'élément audio global
       remoteAudioRef.current.onloadstart = () => {
@@ -78,6 +79,19 @@ export const useAudioStreaming = (config: AudioStreamingConfig): AudioStreamingH
       
       remoteAudioRef.current.onvolumechange = () => {
         console.log('🔊 ADMIN - Volume changé automatiquement:', remoteAudioRef.current?.volume);
+      };
+
+      remoteAudioRef.current.onerror = (e) => {
+        console.error('❌ ADMIN - Erreur audio globale:', e);
+        setError('Erreur de lecture audio');
+      };
+
+      remoteAudioRef.current.onstalled = () => {
+        console.warn('⚠️ ADMIN - Audio en attente de données');
+      };
+
+      remoteAudioRef.current.onwaiting = () => {
+        console.warn('⏳ ADMIN - Audio en attente');
       };
       
       console.log('✅ ADMIN - Élément audio initialisé avec volume:', audioVolume);
@@ -175,19 +189,22 @@ export const useAudioStreaming = (config: AudioStreamingConfig): AudioStreamingH
       
       console.log('🔌 AUDIO STREAMING - Création de la connexion socket...');
       const socket = io(config.serverUrl, {
-        secure: true,
+        secure: config.serverUrl.startsWith('https'),
         transports: ['polling', 'websocket'],
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 1000,
         timeout: 20000,
-        forceNew: true
+        forceNew: true,
+        rejectUnauthorized: false // Accepter les certificats auto-signés
       });
 
       socketRef.current = socket;
 
       socket.on('connect', () => {
         console.log('✅ Connecté au serveur de streaming audio');
+        console.log('🔌 Socket ID:', socket.id);
+        console.log('🔌 Socket connected:', socket.connected);
         setIsConnected(true);
         setError(null);
       });
@@ -204,6 +221,12 @@ export const useAudioStreaming = (config: AudioStreamingConfig): AudioStreamingH
         setError(data.message);
       });
 
+      socket.on('connect_error', (error) => {
+        console.error('❌ Erreur de connexion socket:', error);
+        console.error('❌ Erreur details:', error);
+        setError(`Erreur de connexion: ${error.message}`);
+      });
+
       // Événements spécifiques aux admins
       if (config.userRole === 'admin') {
         socket.on('listening_started', (data) => {
@@ -218,6 +241,34 @@ export const useAudioStreaming = (config: AudioStreamingConfig): AudioStreamingH
           setCurrentListeningTo(null);
           if (remoteAudioRef.current) {
             remoteAudioRef.current.srcObject = null;
+          }
+        });
+
+        // Événements WebRTC pour les admins
+        socket.on('webrtc_offer', async (data) => {
+          console.log('📞 ADMIN - Offre WebRTC reçue:', data);
+          try {
+            if (peerConnectionRef.current) {
+              await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.offer));
+              const answer = await peerConnectionRef.current.createAnswer();
+              await peerConnectionRef.current.setLocalDescription(answer);
+              
+              socket.emit('webrtc_answer', {
+                answer: answer,
+                commercial_id: data.commercial_id
+              });
+              console.log('✅ ADMIN - Réponse WebRTC envoyée');
+            }
+          } catch (error) {
+            console.error('❌ ADMIN - Erreur WebRTC:', error);
+          }
+        });
+
+        socket.on('webrtc_ice_candidate', (data) => {
+          console.log('🧊 ADMIN - ICE candidate reçu:', data);
+          if (peerConnectionRef.current && data.candidate) {
+            peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate))
+              .catch(error => console.error('❌ ADMIN - Erreur ajout ICE candidate:', error));
           }
         });
 
