@@ -111,7 +111,7 @@ const SuiviPage = () => {
     console.log('🔌 Connexion socket admin GPS:', socketUrl);
     
     const socketConnection = io(socketUrl, {
-      secure: protocol === 'https',
+      secure: socketUrl.startsWith('https'),
       transports: ['polling', 'websocket'], // Polling en premier pour mobile
       reconnection: true,
       reconnectionAttempts: 10,
