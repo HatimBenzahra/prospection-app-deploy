@@ -7,11 +7,19 @@ export const useSocket = (buildingId?: string) => {
   useEffect(() => {
     if (!buildingId) return;
 
-    const SERVER_HOST = import.meta.env.VITE_SERVER_HOST || window.location.hostname;
-    const API_PORT = import.meta.env.VITE_API_PORT || '3000';
-    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
-    socketRef.current = io(`${protocol}://${SERVER_HOST}:${API_PORT}`, {
-      secure: protocol === 'https',
+    // Configuration pour production Render
+    const isProduction = window.location.hostname.includes('onrender.com');
+    const SERVER_HOST = import.meta.env.VITE_SERVER_HOST || 
+      (isProduction ? 'prospection-backend.onrender.com' : window.location.hostname);
+    const API_PORT = import.meta.env.VITE_API_PORT || (isProduction ? '' : '3000');
+    const protocol = 'https'; // Toujours HTTPS en production
+    
+    const socketUrl = isProduction 
+      ? `${protocol}://${SERVER_HOST}` 
+      : `${protocol}://${SERVER_HOST}:${API_PORT}`;
+      
+    socketRef.current = io(socketUrl, {
+      secure: true,
       transports: ['websocket', 'polling'],
       forceNew: true,
       upgrade: true,
