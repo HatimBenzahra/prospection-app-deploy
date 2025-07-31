@@ -1,0 +1,43 @@
+services:
+  # Base de données PostgreSQL
+  - type: pserv
+    name: prospection-db
+    env: docker
+    plan: free
+    databases:
+      - name: prospection_db
+        user: postgres
+
+  # Backend API
+  - type: web
+    name: prospection-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: free
+    buildCommand: ""
+    startCommand: ""
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: prospection-db
+          property: connectionString
+
+  # Serveur Python
+  - type: web
+    name: prospection-python-server
+    env: docker
+    dockerfilePath: ./backend/python-server/Dockerfile
+    plan: free
+    buildCommand: ""
+    startCommand: ""
+
+  # Frontend
+  - type: web
+    name: prospection-frontend
+    env: docker
+    dockerfilePath: ./moduleProspec-1dc4f634c6c14f0913f8052d2523c56f04d7738b/Dockerfile
+    plan: free
+    buildCommand: ""
+    startCommand: ""
