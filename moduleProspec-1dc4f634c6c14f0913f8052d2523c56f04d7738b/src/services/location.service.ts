@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { SOCKET_URL } from '../config';
 
 export interface LocationData {
   latitude: number;
@@ -26,9 +27,7 @@ class LocationService {
       (isProduction ? 'prospection-backend.onrender.com' : window.location.hostname);
     const API_PORT = import.meta.env.VITE_API_PORT || (isProduction ? '' : '3000');
     
-    const socketUrl = isProduction 
-      ? `https://${SERVER_HOST}` 
-      : `https://${SERVER_HOST}:${API_PORT}`;
+    const socketUrl = SOCKET_URL;
       
     console.log('🔌 Initialisation socket GPS:', socketUrl);
     

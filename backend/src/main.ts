@@ -19,11 +19,18 @@ async function bootstrap() {
       
       app.useGlobalPipes(new ValidationPipe());
       
-      app.enableCors({
-        origin: '*', // Permettre toutes les origines en production pour Render
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-        credentials: true,
-      });
+          app.enableCors({
+      origin: [
+        'https://prospection-frontend.onrender.com',
+        'http://prospection-frontend.onrender.com',
+        'https://localhost:5173',
+        'http://localhost:5173',
+        'https://127.0.0.1:5173',
+        'http://127.0.0.1:5173'
+      ],
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      credentials: true,
+    });
       
       const port = process.env.PORT || process.env.API_PORT || 3000;
       await app.listen(port, '0.0.0.0');
