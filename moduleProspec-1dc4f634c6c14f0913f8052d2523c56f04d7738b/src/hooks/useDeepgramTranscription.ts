@@ -101,10 +101,6 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
         // Ancien format hexadécimal détecté. On continue mais on log un avertissement.
         console.warn('⚠️ COMMERCIAL - Clé API Deepgram sans préfixe "dg_". Assurez-vous qu\'elle est toujours valide.');
       }
-
-      // Déterminer le modèle Deepgram : par défaut "general" si non précisé
-      const dgModel = import.meta.env.VITE_DEEPGRAM_MODEL ?? 'general';
-
       // URL optimisée pour discours continu fluide
       let wsUrl = `wss://api.deepgram.com/v1/listen?model=nova-2&language=fr&interim_results=true&punctuate=true&smart_format=true&utterance_end_ms=3000&endpointing=1000`;
 
@@ -141,7 +137,6 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
               if (response.ok) {
                 const result = await response.json();
                 const transcript = result.results?.channels?.[0]?.alternatives?.[0]?.transcript?.trim();
-                const confidence = result.results?.channels?.[0]?.alternatives?.[0]?.confidence || 0;
                 
                 if (transcript && transcript.length > 2) {
                   setTranscription(prev => {
