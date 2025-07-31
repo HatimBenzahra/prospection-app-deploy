@@ -1,5 +1,6 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { TranscriptionProcessor } from '../utils/transcriptionProcessor';
 
 interface DeepgramTranscriptionHook {
   isConnected: boolean;
@@ -8,18 +9,25 @@ interface DeepgramTranscriptionHook {
   startTranscription: (userId?: string, socket?: any) => Promise<void>;
   stopTranscription: () => void;
   clearTranscription: () => void;
+  // Ajouter des options de configuration
+  enableStructuring: boolean;
+  setEnableStructuring: (enable: boolean) => void;
 }
 
 export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
   const [isConnected, setIsConnected] = useState(false);
   const [transcription, setTranscription] = useState('');
   const [error, setError] = useState<string | null>(null);
-  
+  const [enableStructuring, setEnableStructuring] = useState(true);
+
   const websocketRef = useRef<WebSocket | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const userIdRef = useRef<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const userIdRef = useRef<string | null>(null);
+  
+  // Ajouter le processeur de transcription
+  const transcriptionProcessor = useRef<TranscriptionProcessor>(new TranscriptionProcessor());
 
   const startTranscription = useCallback(async (userId?: string, socket?: any) => {
     try {
@@ -216,34 +224,49 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
             // Ignorer les transcriptions vides ou trop courtes
             if (!newTranscript || newTranscript.length < 2) return;
             
-            if (response.is_final) {
-              // Transcription finale - simple ajout
-              setTranscription(prev => {
-                // Éviter les doublons exacts
-                if (prev.endsWith(newTranscript)) return prev;
-                
-                // Ajouter simplement avec un espace
-                return prev + (prev.length > 0 ? ' ' : '') + newTranscript;
-              });
-              
-              // Envoyer au serveur
-              if (socketRef.current && userIdRef.current) {
-                console.log('📝 COMMERCIAL - Transcription finale:', newTranscript);
-                socketRef.current.emit('transcription_update', {
-                  commercial_id: userIdRef.current,
-                  transcript: newTranscript,
-                  is_final: true,
-                  timestamp: new Date().toISOString()
-                });
-              }
+            let finalTranscription: string;
+            
+            if (enableStructuring) {
+              // Utiliser le processeur pour structurer intelligemment
+              finalTranscription = transcriptionProcessor.current.addSegment(
+                newTranscript, 
+                response.is_final
+              );
             } else {
-              // Transcription temporaire - aperçu simple
-              setTranscription(prev => {
-                const cleanPrev = prev.replace(/\s*\[.*?\]\s*$/g, '');
-                if (newTranscript.length > 3) {
+              // Mode texte brut - simple concaténation
+              if (response.is_final) {
+                setTranscription(prev => {
+                  const cleanPrev = prev.replace(/\s*\[.*?\]\s*$/g, '');
+                  return cleanPrev + (cleanPrev.length > 0 ? ' ' : '') + newTranscript;
+                });
+                finalTranscription = transcription + (transcription.length > 0 ? ' ' : '') + newTranscript;
+              } else {
+                // Transcription temporaire
+                setTranscription(prev => {
+                  const cleanPrev = prev.replace(/\s*\[.*?\]\s*$/g, '');
                   return cleanPrev + (cleanPrev.length > 0 ? ' ' : '') + '[' + newTranscript + ']';
-                }
-                return cleanPrev;
+                });
+                finalTranscription = transcription + (transcription.length > 0 ? ' ' : '') + '[' + newTranscript + ']';
+              }
+            }
+            
+            // Mettre à jour l'état avec la transcription finale
+            if (enableStructuring) {
+              setTranscription(finalTranscription);
+            }
+            
+            // Envoyer au serveur seulement les segments finaux
+            if (response.is_final && socketRef.current && userIdRef.current) {
+              console.log('📝 COMMERCIAL - Transcription finale:', newTranscript);
+              
+              // Envoyer le segment final ET la transcription complète
+              socketRef.current.emit('transcription_update', {
+                commercial_id: userIdRef.current,
+                transcript: newTranscript,
+                formatted_transcription: finalTranscription,
+                is_final: true,
+                timestamp: new Date().toISOString(),
+                stats: enableStructuring ? transcriptionProcessor.current.getStats() : null
               });
             }
           }
@@ -331,6 +354,7 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
 
   const clearTranscription = useCallback(() => {
     setTranscription('');
+    transcriptionProcessor.current.clear();
   }, []);
 
   return {
@@ -339,6 +363,8 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
     error,
     startTranscription,
     stopTranscription,
-    clearTranscription
+    clearTranscription,
+    enableStructuring,
+    setEnableStructuring
   };
 };
