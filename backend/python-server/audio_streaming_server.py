@@ -513,8 +513,9 @@ class AudioStreamingServer:
 
     async def start_server(self, host='0.0.0.0', http_port=None, https_port=None):
         # Utiliser les variables d'environnement ou les valeurs par défaut
+        # Pour Render, utiliser la variable PORT en priorité
         if http_port is None:
-            http_port = int(os.getenv('HTTP_PORT', '8080'))
+            http_port = int(os.getenv('PORT', os.getenv('HTTP_PORT', '8080')))
         if https_port is None:
             https_port = int(os.getenv('HTTPS_PORT', '8443'))
         """Démarrer les serveurs HTTP et HTTPS"""
