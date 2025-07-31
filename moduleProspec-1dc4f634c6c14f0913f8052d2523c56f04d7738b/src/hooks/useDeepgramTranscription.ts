@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { SOCKET_URL } from '@/config';
 import { TranscriptionProcessor } from '../utils/transcriptionProcessor';
 
 interface DeepgramTranscriptionHook {
@@ -58,9 +59,7 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
         socketRef.current = socket;
         isSocketOwner.current = false; // Nous ne possédons pas ce socket
       } else if (!socketRef.current) {
-        const SERVER_HOST = import.meta.env.VITE_SERVER_HOST || window.location.hostname;
-        const API_PORT = import.meta.env.VITE_API_PORT || '3000';
-        const socketUrl = `https://${SERVER_HOST}:${API_PORT}`;
+        const socketUrl = SOCKET_URL;
         
         console.log('🎙️ COMMERCIAL - Création socket pour transcriptions:', socketUrl);
         socketRef.current = io(socketUrl, {

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { SOCKET_URL } from '@/config';
 
 export const useSocket = (buildingId?: string) => {
   const socketRef = useRef<Socket | null>(null);
@@ -7,16 +8,7 @@ export const useSocket = (buildingId?: string) => {
   useEffect(() => {
     if (!buildingId) return;
 
-    // Configuration pour production Render
-    const isProduction = window.location.hostname.includes('onrender.com');
-    const SERVER_HOST = import.meta.env.VITE_SERVER_HOST || 
-      (isProduction ? 'prospection-backend.onrender.com' : window.location.hostname);
-    const API_PORT = import.meta.env.VITE_API_PORT || (isProduction ? '' : '3000');
-    const protocol = 'https'; // Toujours HTTPS en production
-    
-    const socketUrl = isProduction 
-      ? `${protocol}://${SERVER_HOST}` 
-      : `${protocol}://${SERVER_HOST}:${API_PORT}`;
+    const socketUrl = SOCKET_URL;
       
     socketRef.current = io(socketUrl, {
       secure: true,

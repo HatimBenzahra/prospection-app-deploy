@@ -9,6 +9,7 @@ import { commercialService } from '@/services/commercial.service';
 import { transcriptionHistoryService, type TranscriptionSession } from '@/services/transcriptionHistory.service';
 import { useAuth } from '@/contexts/AuthContext';
 import { io, Socket } from 'socket.io-client';
+import { SOCKET_URL } from '@/config';
 import { TranscriptionProcessor } from '@/utils/transcriptionProcessor';
 import { toast } from 'sonner';
 import { 
@@ -106,10 +107,7 @@ const SuiviPage = () => {
 
   // Initialiser Socket.IO pour recevoir les mises à jour GPS
   useEffect(() => {
-    const SERVER_HOST = import.meta.env.VITE_SERVER_HOST || window.location.hostname;
-    const API_PORT = import.meta.env.VITE_API_PORT || '3000';
-    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
-    const socketUrl = `${protocol}://${SERVER_HOST}:${API_PORT}`;
+    const socketUrl = SOCKET_URL;
     console.log('🔌 Connexion socket admin GPS:', socketUrl);
     
     const socketConnection = io(socketUrl, {
