@@ -1,0 +1,28 @@
+# Python Server Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Installer les dépendances système nécessaires pour audio
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copier et installer les dépendances Python
+COPY backend/python-server/requirements.txt .
+RUN pip install -r requirements.txt
+
+# Copier le code source du serveur Python
+COPY backend/python-server/ .
+
+# Exposer le port que Render utilise
+EXPOSE $PORT
+
+# Variables d'environnement pour Render
+ENV HTTP_PORT=$PORT
+ENV HTTPS_PORT=8443
+
+# Commande de démarrage
+CMD python audio_streaming_server.py

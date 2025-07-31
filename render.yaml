@@ -10,7 +10,7 @@ services:
     runtime: docker
     plan: free
     repo: https://github.com/HatimBenzahra/prospection-app-deploy
-    dockerfilePath: ./backend/Dockerfile
+    dockerfilePath: ./Dockerfile.backend
     envVars:
       - key: NODE_ENV
         value: production
@@ -25,7 +25,7 @@ services:
     runtime: docker
     plan: free
     repo: https://github.com/HatimBenzahra/prospection-app-deploy
-    dockerfilePath: ./backend/python-server/Dockerfile
+    dockerfilePath: ./Dockerfile.python
 
   # Frontend
   - type: web
@@ -33,4 +33,4 @@ services:
     runtime: docker
     plan: free
     repo: https://github.com/HatimBenzahra/prospection-app-deploy
-    dockerfilePath: ./moduleProspec-1dc4f634c6c14f0913f8052d2523c56f04d7738b/Dockerfile
+    dockerfilePath: ./Dockerfile.frontend
