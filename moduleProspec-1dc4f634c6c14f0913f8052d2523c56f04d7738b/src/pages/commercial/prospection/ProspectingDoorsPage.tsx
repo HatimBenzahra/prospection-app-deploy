@@ -30,7 +30,7 @@ import { useSocket } from '@/hooks/useSocket';
 import { useAudioStreaming } from '@/hooks/useAudioStreaming';
 import { useDeepgramTranscription } from '@/hooks/useDeepgramTranscription';
 import { transcriptionHistoryService } from '@/services/transcriptionHistory.service';
-import { PYTHON_SERVER_URL } from '@/config';
+// import { PYTHON_SERVER_URL } from '@/config'; // TODO: Use this instead of getAudioServerUrl
 import { Mic, MicOff } from 'lucide-react';
 
 
