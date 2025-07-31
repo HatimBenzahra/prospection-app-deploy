@@ -29,6 +29,7 @@ import {
 import { useSocket } from '@/hooks/useSocket';
 import { useAudioStreaming } from '@/hooks/useAudioStreaming';
 import { useDeepgramTranscription } from '@/hooks/useDeepgramTranscription';
+import { transcriptionHistoryService } from '@/services/transcriptionHistory.service';
 import { Mic, MicOff } from 'lucide-react';
 
 
@@ -98,6 +99,36 @@ const ProspectingDoorsPage = () => {
 
     // Hook pour la transcription côté commercial
     const deepgramTranscription = useDeepgramTranscription();
+
+    // Gestion de l'arrêt brusque (fermeture de page, navigation, etc.)
+    useEffect(() => {
+        const handleBeforeUnload = async () => {
+            if (audioStreaming.isStreaming) {
+                console.log('🚨 Arrêt brusque détecté - Sauvegarde automatique de la transcription');
+                try {
+                    const transcriptionSession = await deepgramTranscription.stopTranscription();
+                    if (transcriptionSession && transcriptionSession.full_transcript.trim()) {
+                        const enrichedSession = {
+                            ...transcriptionSession,
+                            commercial_name: user?.nom || 'Commercial',
+                            building_id: buildingId,
+                            building_name: building ? `${building.adresse}, ${building.ville}` : 'Bâtiment'
+                        };
+                        await transcriptionHistoryService.saveTranscriptionSession(enrichedSession);
+                        console.log('📚 Session transcription sauvegardée lors de l\'arrêt brusque');
+                    }
+                } catch (error) {
+                    console.error('❌ Erreur sauvegarde lors de l\'arrêt brusque:', error);
+                }
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [audioStreaming.isStreaming, deepgramTranscription, user?.nom, buildingId, building]);
 
     useEffect(() => {
         if (!socket || !buildingId) return;
@@ -342,8 +373,30 @@ const ProspectingDoorsPage = () => {
                 console.log('🎤 COMMERCIAL PAGE - Arrêt du streaming...');
                 await audioStreaming.stopStreaming();
                 
-                // Arrêter aussi la transcription
-                deepgramTranscription.stopTranscription();
+                // Arrêter la transcription et récupérer la session
+                const transcriptionSession = await deepgramTranscription.stopTranscription();
+                
+                // Sauvegarder automatiquement l'historique de transcription
+                if (transcriptionSession && transcriptionSession.full_transcript.trim()) {
+                    try {
+                        // Enrichir la session avec les informations du bâtiment
+                        const enrichedSession = {
+                            ...transcriptionSession,
+                            commercial_name: user?.nom || 'Commercial',
+                            building_id: buildingId,
+                            building_name: building ? `${building.adresse}, ${building.ville}` : 'Bâtiment'
+                        };
+                        
+                        await transcriptionHistoryService.saveTranscriptionSession(enrichedSession);
+                        console.log('📚 Session transcription sauvegardée dans l\'historique');
+                        toast.success("Session de prospection enregistrée dans l'historique");
+                    } catch (saveError) {
+                        console.error('❌ Erreur sauvegarde historique:', saveError);
+                        toast.error("Erreur lors de la sauvegarde de l'historique");
+                    }
+                } else {
+                    console.log('📚 Aucune transcription à sauvegarder (session vide)');
+                }
                 
                 // Aussi notifier le serveur Node.js pour les admins
                 if (socket) {
@@ -362,8 +415,11 @@ const ProspectingDoorsPage = () => {
                 console.log('🎙️ COMMERCIAL PAGE - Démarrage transcription...');
                 console.log('🎙️ COMMERCIAL PAGE - User ID:', user?.id);
                 console.log('🎙️ COMMERCIAL PAGE - Socket:', !!socket);
-                await deepgramTranscription.startTranscription(user?.id);
-                console.log('��️ COMMERCIAL PAGE - Transcription démarrée!');
+                // Utiliser la même connexion Socket.IO que pour le streaming audio
+                await deepgramTranscription.startTranscription(user?.id, socket);
+                // S'assurer que nous sommes bien dans la room dédiée aux transcriptions
+                socket?.emit('joinRoom', 'transcriptions');
+                console.log('🎙️ COMMERCIAL PAGE - Transcription démarrée!');
                 
                 // Aussi notifier le serveur Node.js pour les admins
                 if (socket) {

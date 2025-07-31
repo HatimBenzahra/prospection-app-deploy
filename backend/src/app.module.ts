@@ -12,6 +12,7 @@ import { StatisticsModule } from './statistics/statistics.module';
 import { AssignmentGoalsModule } from './assignment-goals/assignment-goals.module';
 import { ProspectionModule } from './prospection/prospection.module';
 import { EventsModule } from './events/events.module';
+import { TranscriptionHistoryModule } from './transcription-history/transcription-history.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { EventsModule } from './events/events.module';
     AssignmentGoalsModule,
     ProspectionModule,
     EventsModule,
+    TranscriptionHistoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

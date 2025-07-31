@@ -9,8 +9,9 @@ export const useSocket = (buildingId?: string) => {
 
     const SERVER_HOST = import.meta.env.VITE_SERVER_HOST || window.location.hostname;
     const API_PORT = import.meta.env.VITE_API_PORT || '3000';
-    socketRef.current = io(`https://${SERVER_HOST}:${API_PORT}`, {
-      secure: true,
+    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+    socketRef.current = io(`${protocol}://${SERVER_HOST}:${API_PORT}`, {
+      secure: protocol === 'https',
       transports: ['websocket', 'polling'],
       forceNew: true,
       upgrade: true,

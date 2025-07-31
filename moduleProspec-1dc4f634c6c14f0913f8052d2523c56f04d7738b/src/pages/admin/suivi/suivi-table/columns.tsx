@@ -29,7 +29,8 @@ export const createColumns = (
   },
   onStartListening: (commercialId: string) => Promise<void>,
   onShowOnMap: (commercial: CommercialGPS) => void,
-  onSelectCommercial: (commercial: CommercialGPS) => void
+  onSelectCommercial: (commercial: CommercialGPS) => void,
+  onShowHistory: (commercial: CommercialGPS) => void
 ): ColumnDef<CommercialGPS>[] => [
   {
     accessorKey: "name",
@@ -152,10 +153,10 @@ export const createColumns = (
             size="sm"
             onClick={(e) => {
               e.stopPropagation();
-              onSelectCommercial(commercial);
+              onShowHistory(commercial);
             }}
             className="h-8 w-8 p-0"
-            title="Voir détails"
+            title="Voir l'historique des transcriptions"
           >
             <Eye className="h-4 w-4" />
           </Button>

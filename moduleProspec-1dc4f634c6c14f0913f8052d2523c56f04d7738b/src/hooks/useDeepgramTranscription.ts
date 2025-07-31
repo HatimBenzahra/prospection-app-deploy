@@ -7,11 +7,23 @@ interface DeepgramTranscriptionHook {
   transcription: string;
   error: string | null;
   startTranscription: (userId?: string, socket?: any) => Promise<void>;
-  stopTranscription: () => void;
+  stopTranscription: () => Promise<TranscriptionSession | null>;
   clearTranscription: () => void;
   // Ajouter des options de configuration
   enableStructuring: boolean;
   setEnableStructuring: (enable: boolean) => void;
+}
+
+interface TranscriptionSession {
+  id: string;
+  commercial_id: string;
+  commercial_name: string;
+  start_time: string;
+  end_time: string;
+  full_transcript: string;
+  duration_seconds: number;
+  building_id?: string;
+  building_name?: string;
 }
 
 export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
@@ -19,6 +31,7 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
   const [transcription, setTranscription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enableStructuring, setEnableStructuring] = useState(true);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
 
   const websocketRef = useRef<WebSocket | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -73,6 +86,9 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
         });
       }
 
+      // Enregistrer le temps de début de session
+      setSessionStartTime(new Date());
+
       // Paramètres audio pour discours fluide
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -101,8 +117,8 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
         // Ancien format hexadécimal détecté. On continue mais on log un avertissement.
         console.warn('⚠️ COMMERCIAL - Clé API Deepgram sans préfixe "dg_". Assurez-vous qu\'elle est toujours valide.');
       }
-      // URL optimisée pour discours continu fluide
-      let wsUrl = `wss://api.deepgram.com/v1/listen?model=nova-2&language=fr&interim_results=true&punctuate=true&smart_format=true&utterance_end_ms=3000&endpointing=1000`;
+      // URL sans token - authentification via protocol
+      let wsUrl = `wss://api.deepgram.com/v1/listen?language=fr&interim_results=true`;
 
       console.log('🎙️ COMMERCIAL - URL WebSocket Deepgram:', wsUrl);
       console.log('🎙️ COMMERCIAL - Clé API (10 premiers chars):', deepgramApiKey.substring(0, 10));
@@ -126,7 +142,7 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
               const formData = new FormData();
               formData.append('audio', event.data, 'audio.webm');
               
-              const response = await fetch(`https://api.deepgram.com/v1/listen?model=nova-2&language=fr&punctuate=true&smart_format=true`, {
+              const response = await fetch(`https://api.deepgram.com/v1/listen?language=fr`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Token ${deepgramApiKey}`,
@@ -319,7 +335,18 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
     }
   }, []);
 
-  const stopTranscription = useCallback(() => {
+  const stopTranscription = useCallback(async (): Promise<TranscriptionSession | null> => {
+    const endTime = new Date();
+    const sessionData: TranscriptionSession | null = sessionStartTime && userIdRef.current ? {
+      id: crypto.randomUUID(),
+      commercial_id: userIdRef.current,
+      commercial_name: 'Commercial', // Sera rempli par l'appelant
+      start_time: sessionStartTime.toISOString(),
+      end_time: endTime.toISOString(),
+      full_transcript: transcription,
+      duration_seconds: Math.floor((endTime.getTime() - sessionStartTime.getTime()) / 1000)
+    } : null;
+
     // Arrêter l'enregistrement
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
@@ -345,7 +372,10 @@ export const useDeepgramTranscription = (): DeepgramTranscriptionHook => {
 
     setIsConnected(false);
     setError(null);
-  }, []);
+    setSessionStartTime(null);
+
+    return sessionData;
+  }, [transcription, sessionStartTime]);
 
   const clearTranscription = useCallback(() => {
     setTranscription('');

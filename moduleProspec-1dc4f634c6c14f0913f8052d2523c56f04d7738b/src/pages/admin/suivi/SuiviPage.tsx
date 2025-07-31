@@ -6,9 +6,11 @@ import { Modal } from '@/components/ui-admin/Modal';
 import { Slider } from '@/components/ui-admin/slider';
 import { useAudioStreaming } from '@/hooks/useAudioStreaming';
 import { commercialService } from '@/services/commercial.service';
+import { transcriptionHistoryService, type TranscriptionSession } from '@/services/transcriptionHistory.service';
 import { useAuth } from '@/contexts/AuthContext';
 import { io, Socket } from 'socket.io-client';
 import { TranscriptionProcessor } from '@/utils/transcriptionProcessor';
+import { toast } from 'sonner';
 import { 
   Users, 
   Headphones, 
@@ -17,7 +19,8 @@ import {
   FileText,
   History,
   Calendar,
-  Clock
+  Clock,
+  Building
 } from 'lucide-react';
 import { SuiviMap } from './SuiviMap';
 import { createColumns } from './suivi-table/columns';
@@ -36,15 +39,7 @@ interface CommercialGPS {
   heading?: number;
 }
 
-interface TranscriptionSession {
-  id: string;
-  commercial_id: string;
-  commercial_name: string;
-  start_time: string;
-  end_time: string;
-  full_transcript: string;
-  duration_seconds: number;
-}
+
 
 interface Zone {
   id: string;
@@ -72,6 +67,8 @@ const SuiviPage = () => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [transcriptionHistory, setTranscriptionHistory] = useState<TranscriptionSession[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [selectedCommercialForHistory, setSelectedCommercialForHistory] = useState<CommercialGPS | null>(null);
+  const [selectedSession, setSelectedSession] = useState<TranscriptionSession | null>(null);
   const transcriptionRef = useRef<HTMLDivElement>(null);
 
   // Configuration du streaming audio - détection automatique du protocole
@@ -111,11 +108,12 @@ const SuiviPage = () => {
   useEffect(() => {
     const SERVER_HOST = import.meta.env.VITE_SERVER_HOST || window.location.hostname;
     const API_PORT = import.meta.env.VITE_API_PORT || '3000';
-    const socketUrl = `https://${SERVER_HOST}:${API_PORT}`;
+    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+    const socketUrl = `${protocol}://${SERVER_HOST}:${API_PORT}`;
     console.log('🔌 Connexion socket admin GPS:', socketUrl);
     
     const socketConnection = io(socketUrl, {
-      secure: true,
+      secure: protocol === 'https',
       transports: ['polling', 'websocket'], // Polling en premier pour mobile
       reconnection: true,
       reconnectionAttempts: 10,
@@ -314,6 +312,13 @@ const SuiviPage = () => {
     }
   }, [transcriptions, showListeningModal]);
 
+  // Sélectionner automatiquement la première session quand l'historique change
+  useEffect(() => {
+    if (transcriptionHistory.length > 0 && !selectedSession) {
+      setSelectedSession(transcriptionHistory[0]);
+    }
+  }, [transcriptionHistory, selectedSession]);
+
   const handleSelectCommercial = (commercial: CommercialGPS) => {
     setSelectedCommercial(commercial);
   };
@@ -321,6 +326,23 @@ const SuiviPage = () => {
   const handleShowOnMap = (commercial: CommercialGPS) => {
     setSelectedCommercial(commercial);
     setShowMapModal(true);
+  };
+
+  const handleShowHistory = async (commercial: CommercialGPS) => {
+    setSelectedCommercialForHistory(commercial);
+    setSelectedSession(null);
+    setShowHistoryModal(true);
+    setLoadingHistory(true);
+    
+    try {
+      const history = await transcriptionHistoryService.getTranscriptionHistory(commercial.id);
+      setTranscriptionHistory(history);
+    } catch (error) {
+      console.error('❌ Erreur récupération historique:', error);
+      toast.error("Erreur lors du chargement de l'historique");
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
 
@@ -564,64 +586,7 @@ const SuiviPage = () => {
             {/* Actions */}
             <div className="p-6 bg-white flex-1 flex flex-col justify-end">
               <div className="space-y-3">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    // Test audio simple
-                    console.log('🔊 Test audio - État connexion:', audioStreaming.isConnected);
-                    console.log('🔊 Test audio - État écoute:', audioStreaming.isListening);
-                    console.log('🔊 Test audio - Volume:', audioStreaming.audioVolume);
-                    console.log('🔊 Test audio - Erreur:', audioStreaming.error);
-                    
-                    // Test de connectivité au serveur audio
-                    const audioServerUrl = getAudioServerUrl();
-                    console.log('🔧 Test de connectivité vers:', audioServerUrl);
-                    
-                    fetch(audioServerUrl, {
-                      method: 'GET',
-                      mode: 'no-cors'
-                    }).then(() => {
-                      console.log('✅ Serveur audio accessible');
-                    }).catch((error) => {
-                      console.error('❌ Serveur audio inaccessible:', error);
-                    });
-
-                    // Test de connexion Socket.IO direct
-                    const testSocket = io(audioServerUrl, {
-                      secure: audioServerUrl.startsWith('https'),
-                      transports: ['polling'],
-                      timeout: 5000
-                    });
-
-                    testSocket.on('connect', () => {
-                      console.log('✅ Test Socket.IO connecté');
-                      testSocket.disconnect();
-                    });
-
-                    testSocket.on('connect_error', (error) => {
-                      console.error('❌ Test Socket.IO échec:', error);
-                    });
-                    
-                    // Créer un son de test
-                    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-                    const oscillator = audioContext.createOscillator();
-                    const gainNode = audioContext.createGain();
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioContext.destination);
-                    
-                    oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-                    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-                    
-                    oscillator.start(audioContext.currentTime);
-                    oscillator.stop(audioContext.currentTime + 0.5);
-                    
-                    console.log('🔊 Test audio - Son de test joué');
-                  }}
-                  className="w-full bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-                >
-                  Test Audio
-                </Button>
+                
                 
                 <Button
                   variant="outline"
@@ -783,13 +748,170 @@ const SuiviPage = () => {
     );
   };
 
+  const renderTranscriptionHistoryModal = () => {
+    if (!showHistoryModal || !selectedCommercialForHistory) {
+      return null;
+    }
+
+
+    return (
+      <Modal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        title=""
+        maxWidth="max-w-7xl"
+      >
+        <div className="flex h-[80vh]">
+          {/* Section gauche - Liste des transcriptions */}
+          <div className="w-1/3 bg-gradient-to-br from-blue-50 to-indigo-50 border-r border-gray-200 flex flex-col">
+            {/* Header commercial */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                    {selectedCommercialForHistory?.avatarFallback}
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">{selectedCommercialForHistory?.name}</h2>
+                  <p className="text-gray-600 text-sm">{selectedCommercialForHistory?.equipe}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <History className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-600">
+                      {transcriptionHistory.length} sessions
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Liste des sessions */}
+            <div className="flex-1 overflow-y-auto">
+              {loadingHistory ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Chargement...</p>
+                  </div>
+                </div>
+              ) : transcriptionHistory.length === 0 ? (
+                <div className="text-center py-8 px-4">
+                  <History className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">Aucune transcription</p>
+                </div>
+              ) : (
+                <div className="p-4 space-y-2">
+                  {transcriptionHistory.map((session) => (
+                    <div
+                      key={session.id}
+                      onClick={() => setSelectedSession(session)}
+                      className={`p-4 rounded-lg cursor-pointer transition-colors ${
+                        selectedSession?.id === session.id
+                          ? 'bg-blue-100 border-blue-200 shadow-sm'
+                          : 'bg-white hover:bg-gray-50 border border-gray-200'
+                      }`}
+                    >
+                      <div className="text-sm font-medium text-gray-800 mb-1">
+                        {formatDate(session.start_time)}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <Clock className="w-3 h-3" />
+                        {formatDuration(session.duration_seconds)}
+                      </div>
+                      {session.building_name && (
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                          <Building className="w-3 h-3" />
+                          <span className="truncate">{session.building_name}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="p-6 bg-white border-t border-gray-200">
+              <Button
+                variant="outline"
+                onClick={() => setShowHistoryModal(false)}
+                className="w-full"
+              >
+                Fermer
+              </Button>
+            </div>
+          </div>
+
+          {/* Section droite - Contenu de la transcription */}
+          <div className="w-2/3 bg-white flex flex-col">
+            {selectedSession ? (
+              <>
+                {/* Header transcription */}
+                <div className="p-6 border-b border-gray-200 bg-white">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <FileText className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-800">{formatDate(selectedSession.start_time)}</h3>
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {formatDuration(selectedSession.duration_seconds)}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <FileText className="w-4 h-4" />
+                            {selectedSession.full_transcript.length} caractères
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Zone de transcription */}
+                <div className="flex-1 p-6 overflow-hidden">
+                  <div className="h-full bg-gray-50 rounded-lg border border-gray-200 p-6 overflow-y-auto">
+                    <div className="prose prose-lg max-w-none">
+                      <div className="text-gray-800 leading-relaxed whitespace-pre-wrap font-medium text-base">
+                        {selectedSession.full_transcript || "Aucune transcription disponible"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : transcriptionHistory.length > 0 ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-600 mb-2">Sélectionnez une transcription</h3>
+                  <p className="text-gray-500">Choisissez une session dans la liste de gauche</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <History className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-600 mb-2">Aucune transcription</h3>
+                  <p className="text-gray-500">Ce commercial n'a pas encore de sessions enregistrées</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
+    );
+  };
+
   const onlineCommercials = commercials.filter(c => c.isOnline);
 
   const columns = createColumns(
     audioStreaming,
     handleStartListening,
     handleShowOnMap,
-    handleSelectCommercial
+    handleSelectCommercial,
+    handleShowHistory
   );
 
   return (
@@ -856,6 +978,7 @@ const SuiviPage = () => {
       {renderMapModal()}
       {renderListeningModal()}
       {renderHistoryModal()}
+      {renderTranscriptionHistoryModal()}
     </div>
   );
 };
