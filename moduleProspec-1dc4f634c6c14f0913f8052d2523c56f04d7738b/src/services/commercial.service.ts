@@ -33,7 +33,7 @@ const getCommerciaux = async (): Promise<CommercialFromAPI[]> => {
 };
 
 // Récupérer les commerciaux avec leurs données GPS pour le suivi
-const getCommerciauxWithGPS = async (): Promise<any[]> => {
+const _getCommerciauxWithGPS = async (): Promise<any[]> => {
   try {
     const response = await axios.get(`${API_URL}/gps-tracking`);
     return response.data;
